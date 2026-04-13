@@ -1,3 +1,9 @@
+// Persistent progression — survives scene transitions, resets on page refresh
+window.Progression = window.Progression || {
+  bonusMaxHp:  0,   // permanent max HP bonus from banked clone kills
+  bonusDamage: 0,   // permanent attack damage bonus
+};
+
 const config = {
   type: Phaser.AUTO,
   width: 960,

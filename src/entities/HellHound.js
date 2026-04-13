@@ -42,15 +42,24 @@ class HellHound extends Phaser.Physics.Arcade.Sprite {
 
   // ─── Update ────────────────────────────────────────────────────────────────
 
-  update(time, delta, player) {
+  update(time, delta, player, clone) {
     if (!this.active || !player || player.hp <= 0) return;
+
+    // Pick the nearest living target
+    const cloneAlive = clone?.active && !clone._dead;
+    let target = player;
+    if (cloneAlive) {
+      const dp = Phaser.Math.Distance.Between(this.x, this.y, player.x, player.y);
+      const dc = Phaser.Math.Distance.Between(this.x, this.y, clone.x, clone.y);
+      if (dc < dp) target = clone;
+    }
 
     this.attackCooldown -= delta;
 
-    const dist = Phaser.Math.Distance.Between(this.x, this.y, player.x, player.y);
+    const dist = Phaser.Math.Distance.Between(this.x, this.y, target.x, target.y);
 
-    // Always face the player
-    this.setFlipX(player.x < this.x);
+    // Always face the target
+    this.setFlipX(target.x < this.x);
 
     // ── In attack range ──────────────────────────────────────────────────────
     if (dist <= this.attackRange) {
@@ -59,13 +68,13 @@ class HellHound extends Phaser.Physics.Arcade.Sprite {
 
       if (this.attackCooldown <= 0) {
         this.attackCooldown = Phaser.Math.Between(1000, 1600);
-        player.takeDamage(this.attackDamage);
+        target.takeDamage(this.attackDamage);
       }
       return;
     }
 
-    // ── Chase player ─────────────────────────────────────────────────────────
-    const angle = Phaser.Math.Angle.Between(this.x, this.y, player.x, player.y);
+    // ── Chase target ─────────────────────────────────────────────────────────
+    const angle = Phaser.Math.Angle.Between(this.x, this.y, target.x, target.y);
     this.setVelocity(Math.cos(angle) * this.speed, Math.sin(angle) * this.speed);
     this.play('hound-run', true);
   }

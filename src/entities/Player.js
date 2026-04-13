@@ -45,12 +45,12 @@ class Player extends Phaser.Physics.Arcade.Sprite {
     this.attackZone.body.setSize(72, 52);
     this.attackZone.body.enable = false;
 
-    // Restore facing after swing completes
+    // Restore facing and rotation after swing completes
     this.on('animationcomplete', (anim) => {
       if (anim.key === 'player-attack') {
         this.isAttacking = false;
         this.attackZone.body.enable = false;
-        // Restore flip to movement-facing direction
+        this.setAngle(0);
         this.setFlipX(!this.facingRight);
       }
     });
@@ -67,13 +67,20 @@ class Player extends Phaser.Physics.Arcade.Sprite {
     this.isAttacking = true;
     this.attackCooldown = 420;
     this.hitEnemies.clear();
+    this.emit('attack', this.attackDir);
     this.setVelocity(0, 0);
     this.play('player-attack', true);
 
-    // Flip sprite to match horizontal attack direction
-    if (this.attackDir === 'right') this.setFlipX(false);
-    if (this.attackDir === 'left')  this.setFlipX(true);
-    // up / down leave the flip unchanged (facing keeps movement direction)
+    // Flip sprite to match attack direction (no rotation for up/down)
+    switch (this.attackDir) {
+      case 'right': this.setAngle(0); this.setFlipX(false); break;
+      case 'left':  this.setAngle(0); this.setFlipX(true);  break;
+      case 'up':
+      case 'down':
+        this.setAngle(0);
+        this.setFlipX(!this.facingRight);
+        break;
+    }
 
     // Open hitbox during active frames (80–280 ms)
     this.scene.time.delayedCall(80, () => {
@@ -90,6 +97,11 @@ class Player extends Phaser.Physics.Arcade.Sprite {
 
     this.hp = Math.max(0, this.hp - amount);
     this.isInvincible = true;
+
+    // Floating damage number
+    if (this.scene.spawnDamageNumber) {
+      this.scene.spawnDamageNumber(this.x, this.y - 16, amount, '#ff4455');
+    }
 
     this.scene.tweens.add({
       targets: this,

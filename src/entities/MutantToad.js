@@ -12,9 +12,9 @@ class MutantToad extends Phaser.Physics.Arcade.Sprite {
     this.setOffset(16, 14);
 
     // Stats
-    this.maxHp       = 3;
-    this.hp          = this.maxHp;
-    this.speed       = 70;
+    this.maxHp        = 3;
+    this.hp           = this.maxHp;
+    this.speed        = 70;
     this.attackDamage = 1;
     this.attackRange  = 55;
 
@@ -44,16 +44,25 @@ class MutantToad extends Phaser.Physics.Arcade.Sprite {
 
   // ─── Update ────────────────────────────────────────────────────────────────
 
-  update(time, delta, player) {
+  update(time, delta, player, clone) {
     if (!this.active || !player || player.hp <= 0) return;
+
+    // Pick the nearest living target
+    const cloneAlive = clone?.active && !clone._dead;
+    let target = player;
+    if (cloneAlive) {
+      const dp = Phaser.Math.Distance.Between(this.x, this.y, player.x, player.y);
+      const dc = Phaser.Math.Distance.Between(this.x, this.y, clone.x, clone.y);
+      if (dc < dp) target = clone;
+    }
 
     this.attackCooldown -= delta;
     this.jumpCooldown   -= delta;
 
-    const dist = Phaser.Math.Distance.Between(this.x, this.y, player.x, player.y);
+    const dist = Phaser.Math.Distance.Between(this.x, this.y, target.x, target.y);
 
-    // Always face the player
-    this.setFlipX(player.x < this.x);
+    // Always face the target
+    this.setFlipX(target.x < this.x);
 
     // ── In attack range ──────────────────────────────────────────────────────
     if (dist <= this.attackRange) {
@@ -62,9 +71,8 @@ class MutantToad extends Phaser.Physics.Arcade.Sprite {
       if (this.attackCooldown <= 0) {
         this.attackCooldown = Phaser.Math.Between(1400, 2000);
         this.play('toad-attack', true);
-        player.takeDamage(this.attackDamage);
+        target.takeDamage(this.attackDamage);
 
-        // Return to idle after attack clip finishes
         this.once('animationcomplete', () => {
           if (this.active) this.play('toad-idle', true);
         });
@@ -79,7 +87,7 @@ class MutantToad extends Phaser.Physics.Arcade.Sprite {
       this.isJumping    = true;
       this.jumpCooldown = Phaser.Math.Between(3000, 5500);
 
-      const angle = Phaser.Math.Angle.Between(this.x, this.y, player.x, player.y);
+      const angle = Phaser.Math.Angle.Between(this.x, this.y, target.x, target.y);
       this.setVelocity(Math.cos(angle) * 230, Math.sin(angle) * 230);
       this.play('toad-jump', true);
 
@@ -93,9 +101,9 @@ class MutantToad extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
-    // ── Walk toward player ───────────────────────────────────────────────────
+    // ── Walk toward target ───────────────────────────────────────────────────
     if (!this.isJumping) {
-      const angle = Phaser.Math.Angle.Between(this.x, this.y, player.x, player.y);
+      const angle = Phaser.Math.Angle.Between(this.x, this.y, target.x, target.y);
       this.setVelocity(Math.cos(angle) * this.speed, Math.sin(angle) * this.speed);
 
       if (!this.anims.currentAnim || !this.anims.currentAnim.key.includes('attack')) {
