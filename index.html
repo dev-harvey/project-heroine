@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Project Heroine</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+    canvas { display: block; image-rendering: pixelated; }
+  </style>
+</head>
+<body>
+  <!-- Phaser 3 -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+
+  <!-- Entities -->
+  <script src="src/entities/Player.js"></script>
+  <script src="src/entities/MutantToad.js"></script>
+  <script src="src/entities/HellHound.js"></script>
+
+  <!-- Systems -->
+  <script src="src/systems/WaveManager.js"></script>
+
+  <!-- Scenes (BootScene must come first) -->
+  <script src="src/scenes/BootScene.js"></script>
+  <script src="src/scenes/GameScene.js"></script>
+  <script src="src/scenes/GameOverScene.js"></script>
+
+  <!-- Entry point -->
+  <script src="src/main.js"></script>
+</body>
+</html>
