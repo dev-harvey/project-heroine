@@ -7,15 +7,17 @@ class MutantToad extends Phaser.Physics.Arcade.Sprite {
     this.setCollideWorldBounds(true);
     this.setDepth(4);
 
-    // Physics body centred in the 80×64 frame
-    this.setBodySize(48, 38);
-    this.setOffset(16, 14);
+    // Physics body matched to visible sprite area across all frames (80×64)
+    this.setBodySize(48, 36);
+    this.setOffset(15, 28);
+
+    this._dead = false;
 
     // Stats
-    this.maxHp        = 3;
+    this.maxHp        = 2;
     this.hp           = this.maxHp;
     this.speed        = 70;
-    this.attackDamage = 1;
+    this.attackDamage = 2;
     this.attackRange  = 55;
 
     // Timers (ms)
@@ -29,6 +31,7 @@ class MutantToad extends Phaser.Physics.Arcade.Sprite {
   // ─── Combat ────────────────────────────────────────────────────────────────
 
   takeDamage(amount) {
+    if (this._dead) return;
     this.hp -= amount;
     this.setTint(0xff5555);
     this.scene.time.delayedCall(120, () => { if (this.active) this.clearTint(); });
@@ -37,6 +40,8 @@ class MutantToad extends Phaser.Physics.Arcade.Sprite {
   }
 
   _die() {
+    if (this._dead) return;
+    this._dead = true;
     this.scene.spawnDeathEffect(this.x, this.y);
     this.scene.onEnemyKilled(this);
     this.destroy();
@@ -46,6 +51,9 @@ class MutantToad extends Phaser.Physics.Arcade.Sprite {
 
   update(time, delta, player, clone) {
     if (!this.active || !player || player.hp <= 0) return;
+
+    this.x = Phaser.Math.Clamp(this.x, 38, 922);
+    this.y = Phaser.Math.Clamp(this.y, 38, 502);
 
     // Pick the nearest living target
     const cloneAlive = clone?.active && !clone._dead;

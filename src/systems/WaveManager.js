@@ -18,14 +18,16 @@ class WaveManager {
     this.betweenWaves = false;
 
     // Enemy counts scale with wave number
-    const toadCount  = 2 + Math.floor(this.currentWave * 1.3);
-    const houndCount = Math.floor(this.currentWave * 0.8);
+    const toadCount   = 2 + Math.floor(this.currentWave * 1.3);
+    const houndCount  = Math.floor(this.currentWave * 0.8);
+    const crowCount   = this.currentWave >= 2 ? 1 + Math.floor((this.currentWave - 2) * 0.6) : 0;
+    const knightCount = this.currentWave >= 3 ? Math.floor((this.currentWave - 3) * 0.5) + 1 : 0;
 
-    this.enemiesRemaining = toadCount + houndCount;
+    this.enemiesRemaining = toadCount + houndCount + crowCount + knightCount;
 
     this.scene.showAnnouncement(`Wave ${this.currentWave}`, '#ffd700');
     this.scene.waveText.setText(`Wave ${this.currentWave}`);
-    this.scene.spawnWave(toadCount, houndCount);
+    this.scene.spawnWave(toadCount, houndCount, crowCount, knightCount);
   }
 
   // ─── Called by GameScene whenever an enemy is killed ──────────────────────

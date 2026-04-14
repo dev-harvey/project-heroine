@@ -25,21 +25,52 @@ class BootScene extends Phaser.Scene {
     // Enemy death effect (48px wide frames, 48px tall — 8 frames)
     this.load.spritesheet('enemy-death', base + 'effects/EnemyDeath/spritesheet.png', { frameWidth: 48, frameHeight: 48 });
 
+    // Plague Crow
+    this.load.spritesheet('crow-fly',  base + 'characters/enemies/plague-crow/plague-crow-fly.png',  { frameWidth: 48, frameHeight: 48 });
+    this.load.spritesheet('crow-idle', base + 'characters/enemies/plague-crow/plague-crow-idle.png', { frameWidth: 48, frameHeight: 48 });
+
+    // Void Dragon (Stone Knight visual)
+    this.load.spritesheet('dragon-fly', base + 'characters/enemies/void-dragon/void-dragon-fly.png', { frameWidth: 192, frameHeight: 176 });
+
+    // Dragon breath fire (8 frames, 100×96 each)
+    this.load.spritesheet('dragon-breath', base + 'characters/enemies/demon-Files/Spritesheets/breath-fire.png', { frameWidth: 100, frameHeight: 96 });
+
+    // Slash effects (52×56 per frame × 5; 65×40 per frame × 5)
+    this.load.spritesheet('slash-upward',     base + 'effects/slashes/slash-upward.png',     { frameWidth: 52, frameHeight: 56 });
+    this.load.spritesheet('slash-horizontal', base + 'effects/slashes/slash-horizontal.png', { frameWidth: 65, frameHeight: 40 });
+
+    // Custom cursor
+    this.load.image('cursor-dagger', base + 'weapons/Dagger/dagger.png');
+
+    // Gems — load as spritesheet; each gem cell is 16×16 (frame 0 = top-left)
+    // Yellow/gold gems start at column 3, so we load as atlas and use frame 3 (top row)
+    this.load.spritesheet('gems', base + 'ui/gems-spritesheet.png', { frameWidth: 16, frameHeight: 16 });
+
+    // Cursor sword
+    this.load.image('cursor-sword', base + 'weapons/fantasy%20weapons%20set/PNG/1.png');
+
     // Environment — loaded both ways so M2 can build a proper tilemap
     this.load.image('dungeon-tileset', base + 'environments/single-dungeon-crawler/PNG/dungeon-tileset.png');
     this.load.spritesheet('dungeon-tiles-sheet', base + 'environments/single-dungeon-crawler/PNG/dungeon-tileset.png', { frameWidth: 16, frameHeight: 16 });
   }
 
   create() {
+    // Generate a small white circle texture for dash particles
+    const pg = this.make.graphics({ x: 0, y: 0, add: false });
+    pg.fillStyle(0xffffff, 1);
+    pg.fillCircle(4, 4, 4);
+    pg.generateTexture('dash-particle', 8, 8);
+    pg.destroy();
+
     this.createAnimations();
-    this.scene.start('GameScene');
+    this.scene.start('TitleScene');
   }
 
   createLoadingBar() {
     const w = this.cameras.main.width;
     const h = this.cameras.main.height;
 
-    const barBg = this.add.rectangle(w / 2, h / 2, 400, 20, 0x333333);
+    this.add.rectangle(w / 2, h / 2, 400, 20, 0x333333);
     const bar   = this.add.rectangle(w / 2 - 200, h / 2, 0, 20, 0xffd700).setOrigin(0, 0.5);
     this.add.text(w / 2, h / 2 - 40, 'Loading...', { fontSize: '24px', fill: '#ffffff', fontFamily: 'monospace' }).setOrigin(0.5);
 
@@ -101,6 +132,50 @@ class BootScene extends Phaser.Scene {
       frames: this.anims.generateFrameNumbers('hound-run', { start: 0, end: 4 }),
       frameRate: 12,
       repeat: -1
+    });
+
+    // ── Plague Crow ─────────────────────────────────────────
+    this.anims.create({
+      key: 'crow-fly',
+      frames: this.anims.generateFrameNumbers('crow-fly', { start: 0, end: 1 }),
+      frameRate: 8,
+      repeat: -1
+    });
+    this.anims.create({
+      key: 'crow-idle',
+      frames: this.anims.generateFrameNumbers('crow-idle', { start: 0, end: 2 }),
+      frameRate: 6,
+      repeat: -1
+    });
+
+    // ── Void Dragon (Stone Knight) ───────────────────────────
+    this.anims.create({
+      key: 'dragon-fly',
+      frames: this.anims.generateFrameNumbers('dragon-fly', { start: 0, end: 8 }),
+      frameRate: 10,
+      repeat: -1
+    });
+
+    // ── Dragon breath fire ───────────────────────────────────
+    this.anims.create({
+      key: 'dragon-breath',
+      frames: this.anims.generateFrameNumbers('dragon-breath', { start: 0, end: 7 }),
+      frameRate: 12,
+      repeat: 0,
+    });
+
+    // ── Slash effects ────────────────────────────────────────
+    this.anims.create({
+      key: 'slash-upward',
+      frames: this.anims.generateFrameNumbers('slash-upward', { start: 0, end: 4 }),
+      frameRate: 14,
+      repeat: 0,
+    });
+    this.anims.create({
+      key: 'slash-horizontal',
+      frames: this.anims.generateFrameNumbers('slash-horizontal', { start: 0, end: 4 }),
+      frameRate: 14,
+      repeat: 0,
     });
 
     // ── Effects ─────────────────────────────────────────────

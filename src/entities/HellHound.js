@@ -7,12 +7,14 @@ class HellHound extends Phaser.Physics.Arcade.Sprite {
     this.setCollideWorldBounds(true);
     this.setDepth(4);
 
-    // Physics body centred in the 64×48 frame
-    this.setBodySize(38, 28);
-    this.setOffset(13, 10);
+    // Physics body matched to visible sprite area across all frames (64×48)
+    this.setBodySize(45, 29);
+    this.setOffset(12, 19);
+
+    this._dead = false;
 
     // Stats
-    this.maxHp        = 2;
+    this.maxHp        = 1;
     this.hp           = this.maxHp;
     this.speed        = 135;
     this.attackDamage = 1;
@@ -27,6 +29,7 @@ class HellHound extends Phaser.Physics.Arcade.Sprite {
   // ─── Combat ────────────────────────────────────────────────────────────────
 
   takeDamage(amount) {
+    if (this._dead) return;
     this.hp -= amount;
     this.setTint(0xff5555);
     this.scene.time.delayedCall(120, () => { if (this.active) this.clearTint(); });
@@ -35,6 +38,8 @@ class HellHound extends Phaser.Physics.Arcade.Sprite {
   }
 
   _die() {
+    if (this._dead) return;
+    this._dead = true;
     this.scene.spawnDeathEffect(this.x, this.y);
     this.scene.onEnemyKilled(this);
     this.destroy();
@@ -44,6 +49,9 @@ class HellHound extends Phaser.Physics.Arcade.Sprite {
 
   update(time, delta, player, clone) {
     if (!this.active || !player || player.hp <= 0) return;
+
+    this.x = Phaser.Math.Clamp(this.x, 38, 922);
+    this.y = Phaser.Math.Clamp(this.y, 38, 502);
 
     // Pick the nearest living target
     const cloneAlive = clone?.active && !clone._dead;

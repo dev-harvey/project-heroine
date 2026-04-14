@@ -6,6 +6,7 @@ class Player extends Phaser.Physics.Arcade.Sprite {
 
     this.setCollideWorldBounds(true);
     this.setDepth(5);
+    this.setScale(1.5);
 
     // Stats
     this.maxHp        = 5;
@@ -21,9 +22,14 @@ class Player extends Phaser.Physics.Arcade.Sprite {
     this.attackDir      = 'right'; // 'up' | 'down' | 'left' | 'right'
     this.hitEnemies     = new Set();
 
-    // Physics body centred inside the 128×64 frame
-    this.setBodySize(40, 44);
-    this.setOffset(44, 10);
+    // Dash
+    this.isDashing        = false;
+    this.dashCooldown     = 0;
+    this.dashCooldownMax  = 1200;
+
+    // 30×60 world px exactly (20×40 local × scale 1.5). Offset centres on character then shifts sprite 2px right.
+    this.setBodySize(20, 40);
+    this.setOffset(55, 25);
 
     // Keyboard — movement only
     this.cursors = scene.input.keyboard.createCursorKeys();
@@ -39,10 +45,14 @@ class Player extends Phaser.Physics.Arcade.Sprite {
       if (ptr.leftButtonDown()) this.doAttack();
     });
 
+    // Dash — SHIFT
+    this._shiftKey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
+    this._shiftKey.on('down', () => { if (this.active) this._doDash(); });
+
     // Attack zone (physics-enabled, invisible)
-    this.attackZone = scene.add.zone(x, y, 72, 52);
+    this.attackZone = scene.add.zone(x, y, 60, 60);
     scene.physics.add.existing(this.attackZone);
-    this.attackZone.body.setSize(72, 52);
+    this.attackZone.body.setSize(60, 60);
     this.attackZone.body.enable = false;
 
     // Restore facing and rotation after swing completes
@@ -69,16 +79,25 @@ class Player extends Phaser.Physics.Arcade.Sprite {
     this.hitEnemies.clear();
     this.emit('attack', this.attackDir);
     this.setVelocity(0, 0);
-    this.play('player-attack', true);
 
-    // Flip sprite to match attack direction (no rotation for up/down)
+    // Body always plays the horizontal attack animation in the facing direction.
+    // A separate slash sprite is spawned at the attack zone for the visual effect.
     switch (this.attackDir) {
-      case 'right': this.setAngle(0); this.setFlipX(false); break;
-      case 'left':  this.setAngle(0); this.setFlipX(true);  break;
+      case 'right':
+        this.setFlipX(false);
+        this.play('player-attack', true);
+        break;
+      case 'left':
+        this.setFlipX(true);
+        this.play('player-attack', true);
+        break;
       case 'up':
-      case 'down':
-        this.setAngle(0);
         this.setFlipX(!this.facingRight);
+        this.play('player-attack', true);
+        break;
+      case 'down':
+        this.setFlipX(!this.facingRight);
+        this.play('player-attack', true);
         break;
     }
 
@@ -86,10 +105,32 @@ class Player extends Phaser.Physics.Arcade.Sprite {
     this.scene.time.delayedCall(80, () => {
       this._syncAttackZone();
       this.attackZone.body.enable = true;
+      this._spawnSlash();
     });
     this.scene.time.delayedCall(280, () => {
       this.attackZone.body.enable = false;
     });
+  }
+
+  _spawnSlash() {
+    const b    = this.body;
+    const bcx  = b.x + b.width / 2;
+    const HALF = 30;
+    let sx, sy, key, flipX = false, angle = 0;
+
+    switch (this.attackDir) {
+      case 'right': sx = b.right  + HALF; sy = b.top + HALF; key = 'slash-upward';     flipX = false; break;
+      case 'left':  sx = b.left   - HALF; sy = b.top + HALF; key = 'slash-upward';     flipX = true;  break;
+      case 'up':    sx = bcx;             sy = b.top  - HALF; key = 'slash-horizontal'; angle = -90;   break;
+      case 'down':  sx = bcx;             sy = b.bottom+HALF; key = 'slash-horizontal'; angle =  90;   break;
+    }
+
+    const spr = this.scene.add.sprite(sx, sy, key)
+      .setDepth(this.depth + 1)
+      .setFlipX(flipX)
+      .setAngle(angle);
+    spr.play(key);
+    spr.once('animationcomplete', () => { if (spr.active) spr.destroy(); });
   }
 
   takeDamage(amount) {
@@ -100,7 +141,7 @@ class Player extends Phaser.Physics.Arcade.Sprite {
 
     // Floating damage number
     if (this.scene.spawnDamageNumber) {
-      this.scene.spawnDamageNumber(this.x, this.y - 16, amount, '#ff4455');
+      this.scene.spawnDamageNumber(this.x, this.y - 16, amount, '#ff2222', 26);
     }
 
     this.scene.tweens.add({
@@ -121,6 +162,68 @@ class Player extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
+  // ─── Dash ──────────────────────────────────────────────────────────────────
+
+  _doDash() {
+    if (this.isDashing || this.dashCooldown > 0 || this.isAttacking) return;
+
+    // Direction: current velocity if moving, otherwise facing
+    let vx = 0, vy = 0;
+    const left  = this.wasd.left.isDown  || this.cursors.left.isDown;
+    const right = this.wasd.right.isDown || this.cursors.right.isDown;
+    const up    = this.wasd.up.isDown    || this.cursors.up.isDown;
+    const down  = this.wasd.down.isDown  || this.cursors.down.isDown;
+
+    if (left)  vx -= 1;
+    if (right) vx += 1;
+    if (up)    vy -= 1;
+    if (down)  vy += 1;
+
+    if (vx === 0 && vy === 0) {
+      vx = this.facingRight ? 1 : -1;
+    }
+
+    const len = Math.sqrt(vx * vx + vy * vy);
+    vx = (vx / len) * 500;
+    vy = (vy / len) * 500;
+
+    this.isDashing    = true;
+    this.isInvincible = true;
+    this.dashCooldown = this.dashCooldownMax;
+    this.setVelocity(vx, vy);
+
+    // Notify scene so clone can mirror the dash
+    this.emit('dash', vx, vy);
+
+    // Trailing particle emitter — use (0,0) so follow: this isn't double-added
+    const emitter = this.scene.add.particles(0, 0, 'dash-particle', {
+      follow:    this,
+      speed:     { min: 20, max: 60 },
+      scale:     { start: 0.7, end: 0 },
+      alpha:     { start: 0.8, end: 0 },
+      tint:      0x88ccff,
+      blendMode: 'ADD',
+      lifespan:  200,
+      frequency: 18,
+      quantity:  3,
+    }).setDepth(3);
+
+    // White flash
+    this.scene.tweens.add({
+      targets: this, alpha: { from: 0.3, to: 1 },
+      duration: 80, repeat: 2,
+      onComplete: () => { if (this.active) this.setAlpha(1); },
+    });
+
+    this.scene.time.delayedCall(200, () => {
+      if (!this.active) return;
+      this.isDashing    = false;
+      this.isInvincible = false;
+      emitter.stop();
+      this.scene.time.delayedCall(250, () => emitter.destroy());
+    });
+  }
+
   // ─── Helpers ───────────────────────────────────────────────────────────────
 
   /** Snap mouse angle to nearest cardinal direction. */
@@ -138,24 +241,19 @@ class Player extends Phaser.Physics.Arcade.Sprite {
 
   /** Position and size the attack zone for the current attack direction. */
   _syncAttackZone() {
-    const REACH = 54;
+    // Drive position entirely from body edges so zone always touches body exactly.
+    // Zone is 60×60; setPosition sets zone centre (origin 0.5,0.5).
+    // Horizontal: left/right edge of body → zone centre ±30; top of zone = top of body.
+    // Vertical:   top/bottom edge of body → zone centre ±30; zone centred on body centre x.
+    const b    = this.body;
+    const bcx  = b.x + b.width  / 2;  // body centre x
+    const HALF = 30;                   // half of 60px zone
+    this.attackZone.body.setSize(60, 60);
     switch (this.attackDir) {
-      case 'right':
-        this.attackZone.body.setSize(72, 52);
-        this.attackZone.setPosition(this.x + REACH, this.y);
-        break;
-      case 'left':
-        this.attackZone.body.setSize(72, 52);
-        this.attackZone.setPosition(this.x - REACH, this.y);
-        break;
-      case 'up':
-        this.attackZone.body.setSize(52, 72);
-        this.attackZone.setPosition(this.x, this.y - REACH);
-        break;
-      case 'down':
-        this.attackZone.body.setSize(52, 72);
-        this.attackZone.setPosition(this.x, this.y + REACH);
-        break;
+      case 'right': this.attackZone.setPosition(b.right  + HALF, b.top    + HALF); break;
+      case 'left':  this.attackZone.setPosition(b.left   - HALF, b.top    + HALF); break;
+      case 'up':    this.attackZone.setPosition(bcx,              b.top    - HALF); break;
+      case 'down':  this.attackZone.setPosition(bcx,              b.bottom + HALF); break;
     }
   }
 
@@ -165,6 +263,13 @@ class Player extends Phaser.Physics.Arcade.Sprite {
     if (this.hp <= 0) return;
 
     this.attackCooldown = Math.max(0, this.attackCooldown - delta);
+    this.dashCooldown   = Math.max(0, this.dashCooldown - delta);
+
+    // Lock movement during dash
+    if (this.isDashing) {
+      this._syncAttackZone();
+      return;
+    }
 
     // Lock movement while swinging
     if (this.isAttacking) {
