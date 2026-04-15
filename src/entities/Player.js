@@ -30,6 +30,7 @@ class Player extends Phaser.Physics.Arcade.Sprite {
     // 30×60 world px exactly (20×40 local × scale 1.5). Offset centres on character then shifts sprite 2px right.
     this.setBodySize(20, 40);
     this.setOffset(55, 25);
+    this.body.setMass(10);
 
     // Keyboard — movement only
     this.cursors = scene.input.keyboard.createCursorKeys();
@@ -73,63 +74,49 @@ class Player extends Phaser.Physics.Arcade.Sprite {
   doAttack() {
     if (this.isAttacking || this.attackCooldown > 0) return;
 
-    this.attackDir = this._mouseToCardinal();
+    this.attackDir = this._mouseToDir();
     this.isAttacking = true;
-    this.attackCooldown = 420;
+    this.attackCooldown = 300;
     this.hitEnemies.clear();
     this.emit('attack', this.attackDir);
     this.setVelocity(0, 0);
 
-    // Body always plays the horizontal attack animation in the facing direction.
-    // A separate slash sprite is spawned at the attack zone for the visual effect.
-    switch (this.attackDir) {
-      case 'right':
-        this.setFlipX(false);
-        this.play('player-attack', true);
-        break;
-      case 'left':
-        this.setFlipX(true);
-        this.play('player-attack', true);
-        break;
-      case 'up':
-        this.setFlipX(!this.facingRight);
-        this.play('player-attack', true);
-        break;
-      case 'down':
-        this.setFlipX(!this.facingRight);
-        this.play('player-attack', true);
-        break;
-    }
+    // Flip sprite based on horizontal component of attack direction.
+    // Diagonal-right and right → face right; diagonal-left and left → face left; up/down → keep facing.
+    if (['right', 'up-right', 'down-right'].includes(this.attackDir))      this.setFlipX(false);
+    else if (['left', 'up-left', 'down-left'].includes(this.attackDir))    this.setFlipX(true);
+    else                                                                    this.setFlipX(!this.facingRight);
+    this.play('player-attack', true);
 
-    // Open hitbox during active frames (80–280 ms)
-    this.scene.time.delayedCall(80, () => {
+    // Open hitbox during active frames (50–150 ms)
+    this.scene.time.delayedCall(50, () => {
       this._syncAttackZone();
       this.attackZone.body.enable = true;
       this._spawnSlash();
     });
-    this.scene.time.delayedCall(280, () => {
+    this.scene.time.delayedCall(150, () => {
       this.attackZone.body.enable = false;
     });
   }
 
   _spawnSlash() {
-    const b    = this.body;
-    const bcx  = b.x + b.width / 2;
-    const HALF = 30;
-    let sx, sy, key, flipX = false, angle = 0;
+    const b   = this.body;
+    const bcx = b.x + b.width  / 2;
+    const bcy = b.y + b.height / 2;
+    const DIR_ANGLE = {
+      'right': 0, 'down-right': 45, 'down': 90, 'down-left': 135,
+      'left': 180, 'up-left': -135, 'up': -90, 'up-right': -45,
+    };
+    const angleDeg = DIR_ANGLE[this.attackDir] ?? 0;
+    const angleRad = Phaser.Math.DegToRad(angleDeg);
+    const REACH = 40;
+    const sx = bcx + Math.cos(angleRad) * REACH;
+    const sy = bcy + Math.sin(angleRad) * REACH;
 
-    switch (this.attackDir) {
-      case 'right': sx = b.right  + HALF; sy = b.top + HALF; key = 'slash-upward';     flipX = false; break;
-      case 'left':  sx = b.left   - HALF; sy = b.top + HALF; key = 'slash-upward';     flipX = true;  break;
-      case 'up':    sx = bcx;             sy = b.top  - HALF; key = 'slash-horizontal'; angle = -90;   break;
-      case 'down':  sx = bcx;             sy = b.bottom+HALF; key = 'slash-horizontal'; angle =  90;   break;
-    }
-
-    const spr = this.scene.add.sprite(sx, sy, key)
+    const spr = this.scene.add.sprite(sx, sy, 'slash-upward')
       .setDepth(this.depth + 1)
-      .setFlipX(flipX)
-      .setAngle(angle);
-    spr.play(key);
+      .setAngle(angleDeg);
+    spr.play('slash-upward');
     spr.once('animationcomplete', () => { if (spr.active) spr.destroy(); });
   }
 
@@ -144,21 +131,25 @@ class Player extends Phaser.Physics.Arcade.Sprite {
       this.scene.spawnDamageNumber(this.x, this.y - 16, amount, '#ff2222', 26);
     }
 
-    this.scene.tweens.add({
-      targets: this,
-      alpha: { from: 0.2, to: 1 },
-      duration: 120,
-      repeat: 3,
+    // Red flash — 2 repeats × 100ms = 200ms total
+    this.setTint(0xff4444);
+    this.scene.tweens.addCounter({
+      from: 0, to: 3,
+      duration: 200,
+      repeat: 0,
+      onUpdate: (tween) => {
+        const cycle = Math.floor(tween.getValue()) % 2;
+        this.setTint(cycle === 0 ? 0xff4444 : 0xffffff);
+      },
       onComplete: () => {
+        this.clearTint();
         this.setAlpha(1);
         this.isInvincible = false;
       }
     });
 
-    this.scene.cameras.main.shake(120, 0.008);
-
     if (this.hp <= 0) {
-      this.scene.time.delayedCall(300, () => this.scene.onPlayerDeath());
+      this.scene.time.delayedCall(100, () => this.scene.onPlayerDeath());
     }
   }
 
@@ -195,23 +186,33 @@ class Player extends Phaser.Physics.Arcade.Sprite {
     // Notify scene so clone can mirror the dash
     this.emit('dash', vx, vy);
 
-    // Trailing particle emitter — use (0,0) so follow: this isn't double-added
-    const emitter = this.scene.add.particles(0, 0, 'dash-particle', {
-      follow:    this,
-      speed:     { min: 20, max: 60 },
-      scale:     { start: 0.7, end: 0 },
-      alpha:     { start: 0.8, end: 0 },
-      tint:      0x88ccff,
-      blendMode: 'ADD',
-      lifespan:  200,
-      frequency: 18,
-      quantity:  3,
-    }).setDepth(3);
+    // Spark trail — spawns at trailing body edge, drifts in dash direction
+    const nx     = vx / 500;
+    const ny     = vy / 500;
+    const bcx    = this.body.x + this.body.width  / 2;
+    const bcy    = this.body.y + this.body.height / 2;
+    const spawnX = bcx - nx * (this.body.width  / 2);
+    const spawnY = bcy - ny * (this.body.height / 2);
 
-    // White flash
+    const spark = this.scene.add.sprite(spawnX, spawnY, 'dash-spark')
+      .setDepth(4)
+      .setOrigin(0.5, 0.5)
+      .setRotation(Math.atan2(vy, vx));
+    spark.play('dash-spark');
+    spark.once('animationcomplete', () => { if (spark.active) spark.destroy(); });
+
     this.scene.tweens.add({
-      targets: this, alpha: { from: 0.3, to: 1 },
-      duration: 80, repeat: 2,
+      targets: spark,
+      x: spawnX + nx * 60,
+      y: spawnY + ny * 60,
+      duration: 200,
+      ease: 'Linear',
+    });
+
+    // Flash — alpha 0 → 1, 100ms, 1 repeat (2 cycles = 200ms = full dash duration)
+    this.scene.tweens.add({
+      targets: this, alpha: { from: 0, to: 1 },
+      duration: 100, repeat: 1,
       onComplete: () => { if (this.active) this.setAlpha(1); },
     });
 
@@ -219,47 +220,75 @@ class Player extends Phaser.Physics.Arcade.Sprite {
       if (!this.active) return;
       this.isDashing    = false;
       this.isInvincible = false;
-      emitter.stop();
-      this.scene.time.delayedCall(250, () => emitter.destroy());
     });
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
 
-  /** Snap mouse angle to nearest cardinal direction. */
-  _mouseToCardinal() {
+  /** Snap mouse angle to nearest of 8 directions. */
+  _mouseToDir() {
     const ptr = this.scene.input.activePointer;
     const angle = Phaser.Math.Angle.Between(this.x, this.y, ptr.worldX, ptr.worldY);
     const deg = Phaser.Math.RadToDeg(angle); // -180 to +180
 
-    // 45° sectors: right [-45,45), down [45,135), left [135,180]+[-180,-135), up [-135,-45)
-    if (deg >= -45 && deg < 45)   return 'right';
-    if (deg >= 45  && deg < 135)  return 'down';
-    if (deg >= -135 && deg < -45) return 'up';
-    return 'left';
+    // 45° sectors centred on each direction
+    if (deg >= -22.5  && deg <  22.5)  return 'right';
+    if (deg >=  22.5  && deg <  67.5)  return 'down-right';
+    if (deg >=  67.5  && deg < 112.5)  return 'down';
+    if (deg >= 112.5  && deg < 157.5)  return 'down-left';
+    if (deg >= -67.5  && deg < -22.5)  return 'up-right';
+    if (deg >= -112.5 && deg <  -67.5) return 'up';
+    if (deg >= -157.5 && deg < -112.5) return 'up-left';
+    return 'left'; // >= 157.5 or < -157.5
   }
 
-  /** Position and size the attack zone for the current attack direction. */
+  /** Broad-phase attack zone — centred on body, large enough to cover any direction.
+   *  Precise hit filtering is done by _inShovel() in the GameScene hit handler. */
   _syncAttackZone() {
-    // Drive position entirely from body edges so zone always touches body exactly.
-    // Zone is 60×60; setPosition sets zone centre (origin 0.5,0.5).
-    // Horizontal: left/right edge of body → zone centre ±30; top of zone = top of body.
-    // Vertical:   top/bottom edge of body → zone centre ±30; zone centred on body centre x.
-    const b    = this.body;
-    const bcx  = b.x + b.width  / 2;  // body centre x
-    const HALF = 30;                   // half of 60px zone
-    this.attackZone.body.setSize(60, 60);
-    switch (this.attackDir) {
-      case 'right': this.attackZone.setPosition(b.right  + HALF, b.top    + HALF); break;
-      case 'left':  this.attackZone.setPosition(b.left   - HALF, b.top    + HALF); break;
-      case 'up':    this.attackZone.setPosition(bcx,              b.top    - HALF); break;
-      case 'down':  this.attackZone.setPosition(bcx,              b.bottom + HALF); break;
-    }
+    const b   = this.body;
+    const bcx = b.x + b.width  / 2;
+    const bcy = b.y + b.height / 2;
+    this.attackZone.body.setSize(160, 160);
+    this.attackZone.setPosition(bcx, bcy);
+  }
+
+  /** Returns true if world point (tx, ty) is inside the shovel attack shape.
+   *  Geometry matches _drawHitboxPreview exactly: NH=15, FH=30, FD=50, CTRL=70. */
+  _inShovel(tx, ty) {
+    if (!this.body) return false;
+    const NH = 15, FH = 30, FD = 50, CTRL = 70;
+    const b  = this.body;
+    const R2 = 0.7071067811865476;
+    const cx = b.x + b.width  / 2;
+    const cy = b.y + b.height / 2;
+    const DCONF = {
+      'right':      { fx:  1,   fy:  0,   ox: b.right, oy: cy       },
+      'left':       { fx: -1,   fy:  0,   ox: b.left,  oy: cy       },
+      'up':         { fx:  0,   fy: -1,   ox: cx,      oy: b.top    },
+      'down':       { fx:  0,   fy:  1,   ox: cx,      oy: b.bottom },
+      'up-right':   { fx:  R2,  fy: -R2,  ox: b.right, oy: b.top    },
+      'up-left':    { fx: -R2,  fy: -R2,  ox: b.left,  oy: b.top    },
+      'down-right': { fx:  R2,  fy:  R2,  ox: b.right, oy: b.bottom },
+      'down-left':  { fx: -R2,  fy:  R2,  ox: b.left,  oy: b.bottom },
+    };
+    const cfg = DCONF[this.attackDir];
+    if (!cfg) return false;
+    const { fx, fy, ox, oy } = cfg;
+    const px = -fy, py = fx;
+    const dx = tx - ox, dy = ty - oy;
+    const lx = dx * fx + dy * fy;
+    const ly = dx * px + dy * py;
+    if (lx < 0) return false;
+    if (lx <= FD) return Math.abs(ly) <= NH + (FH - NH) * (lx / FD);
+    if (Math.abs(ly) > FH) return false;
+    const t = (FH - ly) / (2 * FH);
+    const lxCurve = FD * (1 - 2*t + 2*t*t) + 2*t*(1-t) * CTRL;
+    return lx <= lxCurve;
   }
 
   // ─── Update ────────────────────────────────────────────────────────────────
 
-  update(time, delta) {
+  update(_time, delta) {
     if (this.hp <= 0) return;
 
     this.attackCooldown = Math.max(0, this.attackCooldown - delta);

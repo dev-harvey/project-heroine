@@ -25,7 +25,6 @@ class HellHound extends Phaser.Physics.Arcade.Sprite {
     this.attackCooldown = Phaser.Math.Between(900, 1500);
     this._isAttacking   = false;
     this.attackDir      = 'right';
-    this._attackFlash  = 'false';
 
     this.play('hound-idle');
   }
@@ -95,17 +94,9 @@ class HellHound extends Phaser.Physics.Arcade.Sprite {
         this.attackCooldown = cd;
         this._isAttacking   = true;
         this.play('hound-attack', true);
-
-        this._attackFlash = true;
-        this.scene.time.delayedCall(120, () => {
-          this._attackFlash = false;
-          if (this.active && !this.dead) {
-            target.takeDamage(this.attackDamage);
-          }
-        })
-
         this.once('animationcomplete', () => {
           if (this.active && !this._dead) {
+            target.takeDamage(this.attackDamage);
             this.play('hound-idle', true);
           }
         });

@@ -17,6 +17,7 @@ const config = {
   width: 960,
   height: 540,
   backgroundColor: '#0d0618',
+  pixelArt: true,
   physics: {
     default: 'arcade',
     arcade: {

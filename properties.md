@@ -188,8 +188,8 @@ All tunable values in one place. Values here describe the live code.
 | Property | Value |
 |---|---|
 | HP | 1 |
-| Attack damage | 1 |
-| Move speed | 135 px/s |
+| Attack damage | 2 |
+| Move speed | 150 px/s |
 | Physics mass | 2 |
 
 ### Physics Body
@@ -203,11 +203,17 @@ All tunable values in one place. Values here describe the live code.
 ### Melee Attack
 | Property | Value |
 |---|---|
-| Attack range | 48 px (centre to centre) |
-| Cooldown | 1000–1600 ms (random) |
-| Initial cooldown | 900–1500 ms |
-| Directions | 8-directional shovel |
-| Damage timing | On animation complete |
+| Attack trigger range | 75 px (centre to centre) |
+| Cooldown | 1000–1500 ms (random) |
+| Directions | 8-directional cone |
+| Hilt half-width (NH) | 10 px |
+| Blade half-width (FH) | 20 px |
+| Far-corner depth (FD) | 20 px |
+| Bezier control depth (CTRL) | 30 px |
+| Blade peak | 25 px from body edge — (FD + CTRL) ÷ 2 = (20 + 30) ÷ 2 |
+| Attack animation duration | 100 ms |
+| Damage timing | 100 ms after attack starts — only if target is inside the cone |
+| Recovery pause | 200 ms stationary after damage lands before pursuing again |
 
 ---
 

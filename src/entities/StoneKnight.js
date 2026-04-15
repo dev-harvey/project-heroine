@@ -26,11 +26,13 @@ class StoneKnight extends Phaser.Physics.Arcade.Sprite {
     this.breathRange  = 170;   // depth of the fire rectangle
 
     // State
-    this._facingAngle   = 0;
-    this._isWindingUp   = false;
-    this._isFiring      = false;
-    this._breathCooldown = Phaser.Math.Between(2000, 4000);
-    this._meleeCooldown  = 0;
+    this._facingAngle     = 0;
+    this._isWindingUp     = false;
+    this._isFiring        = false;
+    this._breathCooldown  = Phaser.Math.Between(2000, 4000);
+    this._meleeCooldown   = 0;
+    this.attackDir        = 'right';
+    this._isAttacking     = false;
 
     // Cone visual — drawn into scene, cleaned up on death
     this._coneGfx = scene.add.graphics().setDepth(5);
@@ -201,6 +203,10 @@ class StoneKnight extends Phaser.Physics.Arcade.Sprite {
     if (dist <= this.meleeRange && this._meleeCooldown <= 0) {
       this._meleeCooldown = 1200;
       this.setVelocity(0, 0);
+      const DIRS = ['right','down-right','down','down-left','left','up-left','up','up-right'];
+      this.attackDir    = DIRS[((Math.round(this._facingAngle / (Math.PI / 4)) % 8) + 8) % 8];
+      this._isAttacking = true;
+      this.scene.time.delayedCall(300, () => { if (this.active) this._isAttacking = false; });
       target.takeDamage(this.meleeDamage);
       return;
     }

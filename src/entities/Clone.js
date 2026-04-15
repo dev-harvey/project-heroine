@@ -15,13 +15,14 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
 
     this.setCollideWorldBounds(true);
     this.setDepth(4);
-    this.setTint(0x9966ff);
+    this.setTint(0x76ff46);
     this.setAlpha(0);
     this.setScale(1.5);
 
     // Match player — same spritesheet and scale (128×64 × 1.5), 30×60 world px exactly
     this.setBodySize(20, 40);
     this.setOffset(55, 25);
+    this.body.setMass(10);
 
     // ── Stats ─────────────────────────────────────────────────────────────────
     this._baseHp  = Math.max(1, Math.floor((opts.playerMaxHp || 5) / 5) + (opts.bonusHp || 0));
@@ -38,9 +39,16 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
     this.attackDir    = 'right';
     this.hitEnemies   = new Set();
 
-    // Anchor offset: set by GameScene at summon time
-    this.anchorOffsetX = -110;
-    this.anchorOffsetY = 0;
+    // Anchor offset: set by GameScene at summon time (200px above player)
+    this.anchorOffsetX = 0;
+    this.anchorOffsetY = -200;
+
+    // Dead zone — clone drifts slowly toward anchor when within this radius
+    this._deadZoneR = 4;
+    // Slow drift speed (px/s) used inside the dead zone
+    this._driftSpeed = 30;
+    // Set true while travelling to a new anchor — doubles speed, disables unit collision
+    this._repositioning = false;
 
     // ── Attack zone ───────────────────────────────────────────────────────────
     this.attackZone = scene.add.zone(x, y, 60, 60);
@@ -58,6 +66,9 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
 
     this.play('player-idle');
     scene.tweens.add({ targets: this, alpha: 0.9, duration: 350, ease: 'Power2' });
+
+    // Glow postFX (WebGL only)
+    try { this.preFX.addGlow(0x76ff46, 1, 2); } catch (e) { /* canvas fallback */ }
   }
 
   // ─── Dynamic stats ─────────────────────────────────────────────────────────
@@ -65,7 +76,13 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
   get killCount()    { return this._killCount; }
   get maxHp()        { return this._baseHp + Math.floor(this._killCount / 3); }
   get attackDamage() { return this._baseAtk + this._killCount; }
-  get speed()        { return 160 + Math.min(this._killCount * 3, 60); }
+  get speed()        { return (200 + Math.min(this._killCount * 3, 60)) * (this._repositioning ? 2 : 1); }
+
+  // ─── Reposition ────────────────────────────────────────────────────────────
+
+  startReposition() {
+    this._repositioning = true;
+  }
 
   // ─── Kill registration ─────────────────────────────────────────────────────
 
@@ -85,28 +102,41 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
     this._isDashing = true;
     this.setVelocity(vx, vy);
 
-    const emitter = this.scene.add.particles(0, 0, 'dash-particle', {
-      follow:    this,
-      speed:     { min: 20, max: 60 },
-      scale:     { start: 0.7, end: 0 },
-      alpha:     { start: 0.7, end: 0 },
-      tint:      0xcc66ff,
-      blendMode: 'ADD',
-      lifespan:  200,
-      frequency: 18,
-      quantity:  3,
-    }).setDepth(3);
+    // Green spark trail — spawns at trailing sprite edge, drifts in dash direction
+    // Use sprite x/y (not body) so position is correct even at summon time
+    const nx     = vx / 500;
+    const ny     = vy / 500;
+    const bcx    = this.x - this.displayWidth / 2 + this.body.offset.x * this.scaleX + this.body.halfWidth;
+    const bcy    = this.y - this.displayHeight / 2 + this.body.offset.y * this.scaleY + this.body.halfHeight;
+    const spawnX = bcx - nx * this.body.halfWidth;
+    const spawnY = bcy - ny * this.body.halfHeight;
+
+    const spark = this.scene.add.sprite(spawnX, spawnY, 'dash-spark')
+      .setDepth(3)
+      .setOrigin(0.5, 0.5)
+      .setRotation(Math.atan2(vy, vx))
+      .setTint(0x76ff46);
+    try { spark.preFX.addGlow(0x76ff46, 1, 2); } catch (e) { /* canvas fallback */ }
+    spark.play('dash-spark');
+    spark.once('animationcomplete', () => { if (spark.active) spark.destroy(); });
 
     this.scene.tweens.add({
-      targets: this, alpha: { from: 0.2, to: 0.9 },
-      duration: 80, repeat: 2,
+      targets: spark,
+      x: spawnX + nx * 60,
+      y: spawnY + ny * 60,
+      duration: 200,
+      ease: 'Linear',
+    });
+
+    // Flash — alpha 0 → 0.9, 100ms, 1 repeat (2 cycles = 200ms = full dash duration)
+    this.scene.tweens.add({
+      targets: this, alpha: { from: 0, to: 0.9 },
+      duration: 100, repeat: 1,
       onComplete: () => { if (this.active) this.setAlpha(0.9); },
     });
 
-    this.scene.time.delayedCall(300, () => {
+    this.scene.time.delayedCall(200, () => {
       this._isDashing = false;
-      emitter.stop();
-      this.scene.time.delayedCall(250, () => emitter.destroy());
     });
   }
 
@@ -117,59 +147,45 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
 
     this.attackDir   = dir;
     this.isAttacking = true;
-    this.attackCooldown = 420;
+    this.attackCooldown = 300;
     this.hitEnemies.clear();
     this.setVelocity(0, 0);
 
-    switch (this.attackDir) {
-      case 'right':
-        this.setFlipX(false);
-        this.play('player-attack', true);
-        break;
-      case 'left':
-        this.setFlipX(true);
-        this.play('player-attack', true);
-        break;
-      case 'up':
-        this.setFlipX(!this.facingRight);
-        this.play('player-attack', true);
-        break;
-      case 'down':
-        this.setFlipX(!this.facingRight);
-        this.play('player-attack', true);
-        break;
-    }
+    if (['right', 'up-right', 'down-right'].includes(this.attackDir))      this.setFlipX(false);
+    else if (['left', 'up-left', 'down-left'].includes(this.attackDir))    this.setFlipX(true);
+    else                                                                    this.setFlipX(!this.facingRight);
+    this.play('player-attack', true);
 
-    this.scene.time.delayedCall(80, () => {
+    this.scene.time.delayedCall(50, () => {
       if (!this.active || this._dead || !this.attackZone) return;
       this._syncAttackZone();
       this.attackZone.body.enable = true;
       this._spawnSlash();
     });
-    this.scene.time.delayedCall(280, () => {
+    this.scene.time.delayedCall(150, () => {
       if (this.attackZone) this.attackZone.body.enable = false;
     });
   }
 
   _spawnSlash() {
-    const b    = this.body;
-    const bcx  = b.x + b.width / 2;
-    const HALF = 30;
-    let sx, sy, key, flipX = false, angle = 0;
+    const b   = this.body;
+    const bcx = b.x + b.width  / 2;
+    const bcy = b.y + b.height / 2;
+    const DIR_ANGLE = {
+      'right': 0, 'down-right': 45, 'down': 90, 'down-left': 135,
+      'left': 180, 'up-left': -135, 'up': -90, 'up-right': -45,
+    };
+    const angleDeg = DIR_ANGLE[this.attackDir] ?? 0;
+    const angleRad = Phaser.Math.DegToRad(angleDeg);
+    const REACH = 40;
+    const sx = bcx + Math.cos(angleRad) * REACH;
+    const sy = bcy + Math.sin(angleRad) * REACH;
 
-    switch (this.attackDir) {
-      case 'right': sx = b.right  + HALF; sy = b.top + HALF; key = 'slash-upward';     flipX = false; break;
-      case 'left':  sx = b.left   - HALF; sy = b.top + HALF; key = 'slash-upward';     flipX = true;  break;
-      case 'up':    sx = bcx;             sy = b.top  - HALF; key = 'slash-horizontal'; angle = -90;   break;
-      case 'down':  sx = bcx;             sy = b.bottom+HALF; key = 'slash-horizontal'; angle =  90;   break;
-    }
-
-    const spr = this.scene.add.sprite(sx, sy, key)
+    const spr = this.scene.add.sprite(sx, sy, 'slash-upward')
       .setDepth(this.depth + 1)
-      .setFlipX(flipX)
-      .setAngle(angle)
+      .setAngle(angleDeg)
       .setTint(0xcc88ff);
-    spr.play(key);
+    spr.play('slash-upward');
     spr.once('animationcomplete', () => { if (spr.active) spr.destroy(); });
   }
 
@@ -182,39 +198,92 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
       this.scene.spawnDamageNumber(this.x, this.y - 16, amount, '#bb66ff');
     }
 
-    this.scene.tweens.add({
-      targets: this, alpha: { from: 0.2, to: 0.9 },
-      duration: 100, repeat: 2,
-      onComplete: () => { if (this.active) this.setAlpha(0.9); },
+    // Red flash — 2 repeats × 100ms = 200ms total
+    this.setTint(0xff4444);
+    this.scene.tweens.addCounter({
+      from: 0, to: 3,
+      duration: 200,
+      onUpdate: (tween) => {
+        if (!this.active) return;
+        const cycle = Math.floor(tween.getValue()) % 2;
+        this.setTint(cycle === 0 ? 0xff4444 : 0xffffff);
+      },
+      onComplete: () => {
+        if (this.active) { this.setTint(0x76ff46); this.setAlpha(0.9); }
+      },
     });
 
     if (this.hp <= 0) {
       this._dead = true;
-      this.scene.time.delayedCall(200, () => this._onDeath());
+      this.setVelocity(0, 0);
+      this.scene.time.delayedCall(50, () => this._onDeath());
     }
   }
 
   _onDeath() {
     if (!this.active) return;
+
+    // Notify scene first (reads clone position for burst if kills >= 5)
     this.scene.onCloneDeath(this._killCount);
+
+    // Green-tinted death effect at clone body centre
+    const bcx = this.x - this.displayWidth / 2 + this.body.offset.x * this.scaleX + this.body.halfWidth;
+    const bcy = this.y - this.displayHeight / 2 + this.body.offset.y * this.scaleY + this.body.halfHeight;
+    const fx = this.scene.add.sprite(bcx, bcy, 'enemy-death')
+      .setDepth(6)
+      .setScale(1)
+      .setTint(0x76ff46);
+    fx.play('enemy-death-anim');
+    fx.once('animationcomplete', () => { if (fx.active) fx.destroy(); });
+
     this.dismiss();
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
 
+  /** Broad-phase attack zone — centred on body, large enough to cover any direction.
+   *  Precise hit filtering is done by _inShovel() in the GameScene hit handler. */
   _syncAttackZone() {
     if (!this.attackZone) return;
-    const REACH = 54;
-    const b    = this.body;
-    const bcx  = b.x + b.width  / 2;
-    const HALF = 30;
-    this.attackZone.body.setSize(60, 60);
-    switch (this.attackDir) {
-      case 'right': this.attackZone.setPosition(b.right  + HALF, b.top    + HALF); break;
-      case 'left':  this.attackZone.setPosition(b.left   - HALF, b.top    + HALF); break;
-      case 'up':    this.attackZone.setPosition(bcx,              b.top    - HALF); break;
-      case 'down':  this.attackZone.setPosition(bcx,              b.bottom + HALF); break;
-    }
+    const b   = this.body;
+    const bcx = b.x + b.width  / 2;
+    const bcy = b.y + b.height / 2;
+    this.attackZone.body.setSize(160, 160);
+    this.attackZone.setPosition(bcx, bcy);
+  }
+
+  /** Returns true if world point (tx, ty) is inside the shovel attack shape.
+   *  Geometry matches _drawHitboxPreview exactly: NH=15, FH=30, FD=50, CTRL=70. */
+  _inShovel(tx, ty) {
+    if (!this.body) return false;
+    const NH = 15, FH = 30, FD = 50, CTRL = 70;
+    const b  = this.body;
+    const R2 = 0.7071067811865476;
+    const cx = b.x + b.width  / 2;
+    const cy = b.y + b.height / 2;
+    const DCONF = {
+      'right':      { fx:  1,   fy:  0,   ox: b.right, oy: cy       },
+      'left':       { fx: -1,   fy:  0,   ox: b.left,  oy: cy       },
+      'up':         { fx:  0,   fy: -1,   ox: cx,      oy: b.top    },
+      'down':       { fx:  0,   fy:  1,   ox: cx,      oy: b.bottom },
+      'up-right':   { fx:  R2,  fy: -R2,  ox: b.right, oy: b.top    },
+      'up-left':    { fx: -R2,  fy: -R2,  ox: b.left,  oy: b.top    },
+      'down-right': { fx:  R2,  fy:  R2,  ox: b.right, oy: b.bottom },
+      'down-left':  { fx: -R2,  fy:  R2,  ox: b.left,  oy: b.bottom },
+    };
+    const cfg = DCONF[this.attackDir];
+    if (!cfg) return false;
+    const { fx, fy, ox, oy } = cfg;
+    const px = -fy, py = fx;
+    const dx = tx - ox, dy = ty - oy;
+    const lx = dx * fx + dy * fy;
+    const ly = dx * px + dy * py;
+    if (lx < 0) return false;
+    if (lx <= FD) return Math.abs(ly) <= NH + (FH - NH) * (lx / FD);
+    if (Math.abs(ly) > FH) return false;
+    const t = (FH - ly) / (2 * FH);
+    const lxCurve = FD * (1 - 2*t + 2*t*t) + 2*t*(1-t) * CTRL;
+    return lx <= lxCurve;
   }
 
   dismiss() {
@@ -252,29 +321,34 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
     const dy = targetY - this.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    // Inherit player velocity so the offset is preserved during movement,
-    // then add a correction impulse to snap back if drift accumulates.
-    const pvx = player.body?.velocity?.x ?? 0;
-    const pvy = player.body?.velocity?.y ?? 0;
+    const inDeadZone = dist <= this._deadZoneR;
+    if (inDeadZone && this._repositioning) this._repositioning = false;
 
-    let cvx = 0, cvy = 0;
-    if (dist > 4) {
-      const corrSpeed = Math.min(this.speed, dist * 6);
-      cvx = (dx / dist) * corrSpeed;
-      cvy = (dy / dist) * corrSpeed;
-    }
-
-    this.setVelocity(pvx + cvx, pvy + cvy);
-
-    const isMoving = Math.abs(pvx) > 8 || Math.abs(pvy) > 8 || dist > 20;
-    if (isMoving) {
+    if (!inDeadZone) {
+      // Outside dead zone — chase at full speed, run animation synced to player
+      this.setVelocity((dx / dist) * this.speed, (dy / dist) * this.speed);
       this.play('player-run', true);
-    } else if (!this.isAttacking) {
+      if (player.anims.currentAnim?.key === 'player-run') {
+        this.anims.setProgress(player.anims.getProgress());
+      }
+    } else if (dist > 0.5) {
+      // Inside dead zone — drift slowly, keep running until at rest
+      this.setVelocity((dx / dist) * this._driftSpeed, (dy / dist) * this._driftSpeed);
+      this.play('player-run', true);
+      if (player.anims.currentAnim?.key === 'player-run') {
+        this.anims.setProgress(player.anims.getProgress());
+      }
+    } else {
+      // At anchor — stop and idle, synced to player
+      this.setVelocity(0, 0);
       this.play('player-idle', true);
+      if (player.anims.currentAnim?.key === 'player-idle') {
+        this.anims.setProgress(player.anims.getProgress());
+      }
     }
 
     this.facingRight = player.facingRight;
-    this.setFlipX(!this.facingRight);
+    if (dist > 0.5) this.setFlipX(!this.facingRight);
     this._syncAttackZone();
   }
 }

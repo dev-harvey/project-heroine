@@ -10,6 +10,7 @@ class PlagueCrow extends Phaser.Physics.Arcade.Sprite {
     // Physics body matched to visible sprite area across all frames (48×48)
     this.setBodySize(28, 45);
     this.setOffset(12, 1);
+    this.body.setMass(1);
 
     this._dead = false;
 
@@ -113,12 +114,13 @@ class PlagueCrow extends Phaser.Physics.Arcade.Sprite {
     this.shootCooldown -= delta;
     const dist = Phaser.Math.Distance.Between(this.x, this.y, target.x, target.y);
 
-    this.setFlipX(target.x < this.x);
+    this.setFlipX(target.x >= this.x);
 
     // ── Too close — flee ─────────────────────────────────────────────────────
     if (dist < 100) {
       const angle = Phaser.Math.Angle.Between(target.x, target.y, this.x, this.y);
-      this.setVelocity(Math.cos(angle) * this.speed * 1.4, Math.sin(angle) * this.speed * 1.4);
+      const snap8 = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
+      this.setVelocity(Math.cos(snap8) * this.speed * 1.4, Math.sin(snap8) * this.speed * 1.4);
       this.play('crow-fly', true);
       return;
     }
@@ -133,12 +135,14 @@ class PlagueCrow extends Phaser.Physics.Arcade.Sprite {
     if (dist < 200) {
       // Too close — back away
       const angle = Phaser.Math.Angle.Between(target.x, target.y, this.x, this.y);
-      this.setVelocity(Math.cos(angle) * this.speed, Math.sin(angle) * this.speed);
+      const snap8 = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
+      this.setVelocity(Math.cos(snap8) * this.speed, Math.sin(snap8) * this.speed);
       this.play('crow-fly', true);
     } else if (dist > 320) {
       // Too far — move in
       const angle = Phaser.Math.Angle.Between(this.x, this.y, target.x, target.y);
-      this.setVelocity(Math.cos(angle) * this.speed, Math.sin(angle) * this.speed);
+      const snap8 = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
+      this.setVelocity(Math.cos(snap8) * this.speed, Math.sin(snap8) * this.speed);
       this.play('crow-fly', true);
     } else {
       // In range — hover

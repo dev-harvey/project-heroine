@@ -19,21 +19,24 @@ class BootScene extends Phaser.Scene {
     this.load.spritesheet('toad-attack', base + 'characters/enemies/mutant-toad/Spritesheets/mutant-toad-attack.png', { frameWidth: 80, frameHeight: 64 });
 
     // Hell Hound spritesheets (64px wide frames, 48px tall)
-    this.load.spritesheet('hound-idle', base + 'characters/enemies/Hell-Hound-Files/Spritesheets/hell-hound-idle.png', { frameWidth: 64, frameHeight: 48 });
-    this.load.spritesheet('hound-run',  base + 'characters/enemies/Hell-Hound-Files/Spritesheets/hell-hound-run.png',  { frameWidth: 64, frameHeight: 48 });
+    this.load.spritesheet('hound-idle',   base + 'characters/enemies/Hell-Hound-Files/Spritesheets/hell-hound-idle.png',   { frameWidth: 64, frameHeight: 48 });
+    this.load.spritesheet('hound-run',    base + 'characters/enemies/Hell-Hound-Files/Spritesheets/hell-hound-run.png',    { frameWidth: 64, frameHeight: 48 });
+    this.load.spritesheet('hound-attack', base + 'characters/enemies/Hell-Hound-Files/Spritesheets/hell-hound-attack.png', { frameWidth: 64, frameHeight: 48 });
 
-    // Enemy death effect (48px wide frames, 48px tall — 8 frames)
-    this.load.spritesheet('enemy-death', base + 'effects/EnemyDeath/spritesheet.png', { frameWidth: 48, frameHeight: 48 });
+    // Enemy death effect (64×64 per frame — 8 frames)
+    this.load.spritesheet('enemy-death', base + 'effects/EnemyDeath/enemy-death.png', { frameWidth: 64, frameHeight: 64 });
+
+    // Dash spark trail (63×32 per frame — 5 frames)
+    this.load.spritesheet('dash-spark', base + 'effects/dash-spark.png', { frameWidth: 63, frameHeight: 32 });
 
     // Plague Crow
     this.load.spritesheet('crow-fly',  base + 'characters/enemies/plague-crow/plague-crow-fly.png',  { frameWidth: 48, frameHeight: 48 });
     this.load.spritesheet('crow-idle', base + 'characters/enemies/plague-crow/plague-crow-idle.png', { frameWidth: 48, frameHeight: 48 });
 
-    // Void Dragon (Stone Knight visual)
-    this.load.spritesheet('dragon-fly', base + 'characters/enemies/void-dragon/void-dragon-fly.png', { frameWidth: 192, frameHeight: 176 });
-
-    // Dragon breath fire (8 frames, 100×96 each)
-    this.load.spritesheet('dragon-breath', base + 'characters/enemies/demon-Files/Spritesheets/breath-fire.png', { frameWidth: 100, frameHeight: 96 });
+    // Void Demon
+    this.load.spritesheet('demon-idle',             base + 'characters/enemies/void-demon/Spritesheets/demon-idle.png',             { frameWidth: 256, frameHeight: 144 });
+    this.load.spritesheet('demon-attack-no-breath', base + 'characters/enemies/void-demon/Spritesheets/demon-attack-no-breath.png', { frameWidth: 256, frameHeight: 144 });
+    this.load.spritesheet('demon-breath',           base + 'characters/enemies/void-demon/Spritesheets/breath-fire.png',            { frameWidth: 100, frameHeight: 96  });
 
     // Slash effects (52×56 per frame × 5; 65×40 per frame × 5)
     this.load.spritesheet('slash-upward',     base + 'effects/slashes/slash-upward.png',     { frameWidth: 52, frameHeight: 56 });
@@ -133,6 +136,12 @@ class BootScene extends Phaser.Scene {
       frameRate: 12,
       repeat: -1
     });
+    this.anims.create({
+      key: 'hound-attack',
+      frames: this.anims.generateFrameNumbers('hound-attack', { start: 0, end: 5 }),
+      frameRate: 12,
+      repeat: 0
+    });
 
     // ── Plague Crow ─────────────────────────────────────────
     this.anims.create({
@@ -148,18 +157,22 @@ class BootScene extends Phaser.Scene {
       repeat: -1
     });
 
-    // ── Void Dragon (Stone Knight) ───────────────────────────
+    // ── Void Demon ───────────────────────────────────────────
     this.anims.create({
-      key: 'dragon-fly',
-      frames: this.anims.generateFrameNumbers('dragon-fly', { start: 0, end: 8 }),
-      frameRate: 10,
-      repeat: -1
+      key: 'demon-idle',
+      frames: this.anims.generateFrameNumbers('demon-idle', { start: 0, end: 5 }),
+      frameRate: 8,
+      repeat: -1,
     });
-
-    // ── Dragon breath fire ───────────────────────────────────
     this.anims.create({
-      key: 'dragon-breath',
-      frames: this.anims.generateFrameNumbers('dragon-breath', { start: 0, end: 7 }),
+      key: 'demon-attack-no-breath',
+      frames: this.anims.generateFrameNumbers('demon-attack-no-breath', { start: 0, end: 17 }),
+      frameRate: 13,
+      repeat: -1,
+    });
+    this.anims.create({
+      key: 'demon-breath',
+      frames: this.anims.generateFrameNumbers('demon-breath', { start: 0, end: 7 }),
       frameRate: 12,
       repeat: 0,
     });
@@ -168,13 +181,13 @@ class BootScene extends Phaser.Scene {
     this.anims.create({
       key: 'slash-upward',
       frames: this.anims.generateFrameNumbers('slash-upward', { start: 0, end: 4 }),
-      frameRate: 14,
+      frameRate: 50,
       repeat: 0,
     });
     this.anims.create({
       key: 'slash-horizontal',
       frames: this.anims.generateFrameNumbers('slash-horizontal', { start: 0, end: 4 }),
-      frameRate: 14,
+      frameRate: 50,
       repeat: 0,
     });
 
@@ -183,6 +196,12 @@ class BootScene extends Phaser.Scene {
       key: 'enemy-death-anim',
       frames: this.anims.generateFrameNumbers('enemy-death', { start: 0, end: 7 }),
       frameRate: 14,
+      repeat: 0
+    });
+    this.anims.create({
+      key: 'dash-spark',
+      frames: this.anims.generateFrameNumbers('dash-spark', { start: 0, end: 4 }),
+      frameRate: 25,
       repeat: 0
     });
   }
