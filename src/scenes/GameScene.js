@@ -48,7 +48,13 @@ class GameScene extends Phaser.Scene {
     if (this.clone?.active) {
       this.clone.update(time, delta, this.player);
       this._updateCloneHUD();
+      // Re-enable unit collision once clone finishes repositioning
+      if (this.cloneEnemyCollider && !this.clone._repositioning) {
+        this.cloneEnemyCollider.active = true;
+      }
     }
+
+    this._updateAnchorDot();
 
     this.enemies.getChildren().forEach(e => {
       if (e.active) e.update(time, delta, this.player, this.clone);
@@ -205,8 +211,8 @@ class GameScene extends Phaser.Scene {
     }
 
     // ── Centre announcement ───────────────────────────────────────────────────
-    this.announceText = this.add.text(480, 260, '', {
-      ...s(62, '#ffd700'), stroke: '#000000', strokeThickness: 5,
+    this.announceText = this.add.text(480, 200, '', {
+      ...s(52, '#ffd700'), stroke: '#000000', strokeThickness: 5,
     }).setOrigin(0.5).setDepth(25).setAlpha(0);
 
     // ── Controls hint ─────────────────────────────────────────────────────────
@@ -225,6 +231,7 @@ class GameScene extends Phaser.Scene {
     this.cloneArrow   = this.add.graphics().setDepth(11);
     this.playerHitbox = this.add.graphics().setDepth(8);
     this.cloneHitbox  = this.add.graphics().setDepth(7);
+    this.anchorDot    = this.add.graphics().setDepth(13);
   }
 
   _buildWaveManager() {
@@ -238,57 +245,191 @@ class GameScene extends Phaser.Scene {
     const mono = '"Courier New", Courier, monospace';
     const t = (sz, col) => ({ fontSize: `${sz}px`, fill: col, fontFamily: mono });
 
-    const PW = 160, PX = 960 - PW; // right edge
+    const PW = 160, PX = 960 - PW;
+    const BTN_H = 34, GAP = 4;
 
-    // Panel background
-    this.add.rectangle(PX + PW / 2, 270, PW, 520, 0x0a0016, 0.85)
-      .setDepth(30).setOrigin(0.5, 0.5);
-
-    this.add.text(PX + PW / 2, 14, 'DEBUG', t(11, '#aa44cc'))
-      .setOrigin(0.5, 0).setDepth(30);
-    this.add.text(PX + PW / 2, 26, 'SPAWN MENU', t(9, '#664488'))
-      .setOrigin(0.5, 0).setDepth(30);
-
-    const entries = [
-      { label: 'Mutant Toad',  col: '#88ff88', fn: () => this.spawnWave(1, 0, 0, 0) },
-      { label: 'Hell Hound',   col: '#ff8844', fn: () => this.spawnWave(0, 1, 0, 0) },
-      { label: 'Plague Crow',  col: '#88ccff', fn: () => this.spawnWave(0, 0, 1, 0) },
-      { label: 'Void Dragon',  col: '#ff88ff', fn: () => this.spawnWave(0, 0, 0, 1) },
-      { label: '3× Toads',     col: '#88ff88', fn: () => this.spawnWave(3, 0, 0, 0) },
-      { label: '3× Hounds',    col: '#ff8844', fn: () => this.spawnWave(0, 3, 0, 0) },
-      { label: '3× Crows',     col: '#88ccff', fn: () => this.spawnWave(0, 0, 3, 0) },
-      { label: 'Clear All',    col: '#ff4455', fn: () => this._debugClearEnemies() },
-    ];
-
-    const BTN_H = 34, START_Y = 52;
-
-    entries.forEach((entry, i) => {
-      const by = START_Y + i * (BTN_H + 6);
-      const bg = this.add.rectangle(PX + PW / 2, by + BTN_H / 2, PW - 12, BTN_H, 0x1a0a2e)
-        .setDepth(30).setInteractive({ useHandCursor: true });
-
-      this.add.text(PX + PW / 2, by + BTN_H / 2, entry.label, t(12, entry.col))
-        .setOrigin(0.5, 0.5).setDepth(31);
-
-      bg.on('pointerover',  () => { bg.setFillStyle(0x330066); });
-      bg.on('pointerout',   () => { bg.setFillStyle(0x1a0a2e); });
-      bg.on('pointerdown',  () => entry.fn());
+    // ── Toggle button — always visible, top-left ──────────────────────────────
+    let panelVisible = false;
+    const toggleBg = this.add.rectangle(PX + PW / 2, 14, PW - 12, 22, 0x1a0a2e)
+      .setDepth(32).setInteractive({ useHandCursor: true });
+    const toggleLbl = this.add.text(PX + PW / 2, 14, 'DEBUG ▶', t(13, '#aa44cc'))
+      .setOrigin(0.5, 0.5).setDepth(33);
+    toggleBg.on('pointerover',  () => toggleBg.setFillStyle(0x330066));
+    toggleBg.on('pointerout',   () => toggleBg.setFillStyle(0x1a0a2e));
+    toggleBg.on('pointerdown',  (p, lx, ly, event) => {
+      event.stopPropagation();
+      panelVisible = !panelVisible;
+      toggleLbl.setText(panelVisible ? 'DEBUG ▼' : 'DEBUG ▶');
+      panelItems.forEach(o => o.setVisible(panelVisible));
+      if (panelVisible) {
+        // Reset spawn to closed each time the panel is opened
+        spawnOpen = false;
+        headerLbl.setText('▶ Spawn');
+        spawnBtns.forEach(({ bg, lbl }) => { bg.setVisible(false); lbl.setVisible(false); });
+        repositionUtil();
+      }
     });
 
-    // Enemy count indicator
-    this._debugCountText = this.add.text(PX + PW / 2, START_Y + entries.length * (BTN_H + 6) + 4,
-      'Enemies: 0', t(10, '#555555'))
-      .setOrigin(0.5, 0).setDepth(30);
+    // Collect all panel objects so we can bulk-toggle visibility
+    const panelItems = [];
+    const p = (obj) => { obj.setVisible(false); panelItems.push(obj); return obj; };
 
-    // Back to title
-    const backY = 510;
-    const backBg = this.add.rectangle(PX + PW / 2, backY, PW - 12, 24, 0x1a0a2e)
-      .setDepth(30).setInteractive({ useHandCursor: true });
-    this.add.text(PX + PW / 2, backY, '← Title', t(11, '#666666'))
-      .setOrigin(0.5, 0.5).setDepth(31);
+    // ── Panel background ──────────────────────────────────────────────────────
+    p(this.add.rectangle(PX + PW / 2, 270, PW, 520, 0x0a0016, 0.85).setDepth(30).setOrigin(0.5, 0.5));
+
+    // ── Collapsible spawn section ─────────────────────────────────────────────
+    let spawnOpen = false;
+    const HEADER_Y = 38;
+
+    const headerBg = p(this.add.rectangle(PX + PW / 2, HEADER_Y + BTN_H / 2, PW - 12, BTN_H, 0x1a0a2e)
+      .setDepth(30).setInteractive({ useHandCursor: true }));
+    const headerLbl = p(this.add.text(PX + PW / 2, HEADER_Y + BTN_H / 2, '▶ Spawn', t(12, '#aa66dd'))
+      .setOrigin(0.5, 0.5).setDepth(31));
+    headerBg.on('pointerover', () => headerBg.setFillStyle(0x330066));
+    headerBg.on('pointerout',  () => headerBg.setFillStyle(0x1a0a2e));
+
+    const spawnEntries = [
+      { label: 'Mutant Toad', col: '#88ff88', fn: () => this.spawnWave(1, 0, 0, 0) },
+      { label: 'Hell Hound',  col: '#ff8844', fn: () => this.spawnWave(0, 1, 0, 0) },
+      { label: 'Plague Crow', col: '#88ccff', fn: () => this.spawnWave(0, 0, 1, 0) },
+      { label: 'Void Demon',  col: '#ff88ff', fn: () => this.spawnWave(0, 0, 0, 1) },
+      { label: '3× Toads',    col: '#88ff88', fn: () => this.spawnWave(3, 0, 0, 0) },
+      { label: '3× Hounds',   col: '#ff8844', fn: () => this.spawnWave(0, 3, 0, 0) },
+      { label: '3× Crows',    col: '#88ccff', fn: () => this.spawnWave(0, 0, 3, 0) },
+    ];
+
+    const spawnBtns = spawnEntries.map((entry, i) => {
+      const by = HEADER_Y + BTN_H + GAP + i * (BTN_H + GAP);
+      const bg = p(this.add.rectangle(PX + PW / 2, by + BTN_H / 2, PW - 12, BTN_H, 0x120820)
+        .setDepth(30).setInteractive({ useHandCursor: true }));
+      const lbl = p(this.add.text(PX + PW / 2, by + BTN_H / 2, entry.label, t(12, entry.col))
+        .setOrigin(0.5, 0.5).setDepth(31));
+      bg.on('pointerover', () => bg.setFillStyle(0x280050));
+      bg.on('pointerout',  () => bg.setFillStyle(0x120820));
+      bg.on('pointerdown', (p, lx, ly, event) => { event.stopPropagation(); entry.fn(); });
+      return { bg, lbl };
+    });
+
+    // Utility buttons and count — repositioned when spawn is toggled
+    const utilEntries = [
+      { label: 'Dmg Player', col: '#ff4444', fn: () => this.player.takeDamage(1) },
+      { label: 'Dmg Clone',  col: '#cc44ff', fn: () => { if (this.clone?.active && !this.clone._dead) this.clone.takeDamage(1); } },
+      { label: 'Clear All',  col: '#ff4455', fn: () => this._debugClearEnemies() },
+    ];
+
+    const utilBgs  = [];
+    const utilLbls = [];
+
+    utilEntries.forEach((entry, i) => {
+      const bg = p(this.add.rectangle(0, 0, PW - 12, BTN_H, 0x1a0a2e).setDepth(30).setInteractive({ useHandCursor: true }));
+      const lbl = p(this.add.text(0, 0, entry.label, t(12, entry.col)).setOrigin(0.5, 0.5).setDepth(31));
+      bg.on('pointerover', () => bg.setFillStyle(0x330066));
+      bg.on('pointerout',  () => bg.setFillStyle(0x1a0a2e));
+      bg.on('pointerdown', (ptr, lx, ly, event) => { event.stopPropagation(); entry.fn(); });
+      utilBgs.push(bg); utilLbls.push(lbl);
+    });
+
+    this._debugCountText = p(this.add.text(0, 0, 'Enemies: 0', t(10, '#555555')).setOrigin(0.5, 0).setDepth(30));
+
+    // ── Stat rows: Player HP, Player ATK, Clone HP, Clone ATK ────────────────
+    const ROW_H = 26;
+    const statDefs = [
+      {
+        label: () => `Plr HP  ${this.player.hp}/${this.player.maxHp}`,
+        minus: () => { this.player.hp = Math.max(1, this.player.hp - 1); },
+        plus:  () => { this.player.maxHp++; this.player.hp = Math.min(this.player.hp + 1, this.player.maxHp); },
+      },
+      {
+        label: () => `Plr ATK  ${this.player.attackDamage}`,
+        minus: () => { this.player.attackDamage = Math.max(1, this.player.attackDamage - 1); },
+        plus:  () => { this.player.attackDamage++; },
+      },
+      {
+        label: () => this.clone?.active ? `Cln HP  ${this.clone.hp}/${this.clone.maxHp}` : 'Cln HP  --',
+        minus: () => { if (this.clone?.active) { this.clone._baseHp = Math.max(1, this.clone._baseHp - 1); this.clone.hp = Math.max(1, Math.min(this.clone.hp, this.clone.maxHp)); } },
+        plus:  () => { if (this.clone?.active) { this.clone._baseHp++; this.clone.hp = Math.min(this.clone.hp + 1, this.clone.maxHp); } },
+      },
+      {
+        label: () => this.clone?.active ? `Cln ATK  ${this.clone.attackDamage}` : 'Cln ATK  --',
+        minus: () => { if (this.clone?.active) this.clone._baseAtk = Math.max(1, this.clone._baseAtk - 1); },
+        plus:  () => { if (this.clone?.active) this.clone._baseAtk++; },
+      },
+    ];
+
+    const statRows = statDefs.map(def => {
+      const bg      = p(this.add.rectangle(0, 0, PW - 12, ROW_H, 0x0a0616).setDepth(30));
+      const lbl     = p(this.add.text(0, 0, def.label(), t(10, '#ccaaff')).setOrigin(0.5, 0.5).setDepth(32));
+      const minusBg = p(this.add.rectangle(0, 0, 22, 20, 0x1a0a2e).setDepth(31).setInteractive({ useHandCursor: true }));
+      const minusLbl= p(this.add.text(0, 0, '−', t(13, '#ff6666')).setOrigin(0.5, 0.5).setDepth(32));
+      const plusBg  = p(this.add.rectangle(0, 0, 22, 20, 0x1a0a2e).setDepth(31).setInteractive({ useHandCursor: true }));
+      const plusLbl = p(this.add.text(0, 0, '+', t(13, '#66ff88')).setOrigin(0.5, 0.5).setDepth(32));
+      minusBg.on('pointerover', () => minusBg.setFillStyle(0x330022));
+      minusBg.on('pointerout',  () => minusBg.setFillStyle(0x1a0a2e));
+      minusBg.on('pointerdown', (_p, _x, _y, ev) => { ev.stopPropagation(); def.minus(); lbl.setText(def.label()); });
+      plusBg.on('pointerover',  () => plusBg.setFillStyle(0x003322));
+      plusBg.on('pointerout',   () => plusBg.setFillStyle(0x1a0a2e));
+      plusBg.on('pointerdown',  (_p, _x, _y, ev) => { ev.stopPropagation(); def.plus();  lbl.setText(def.label()); });
+      return { bg, lbl, minusBg, minusLbl, plusBg, plusLbl };
+    });
+
+    // ── Overlap zone toggle ───────────────────────────────────────────────────
+    this._showOverlapZone = false;
+    const ovBg  = p(this.add.rectangle(0, 0, PW - 12, BTN_H, 0x1a0a2e).setDepth(30).setInteractive({ useHandCursor: true }));
+    const ovLbl = p(this.add.text(0, 0, '[ ] Overlap zone', t(11, '#888888')).setOrigin(0.5, 0.5).setDepth(31));
+    ovBg.on('pointerover', () => ovBg.setFillStyle(0x330066));
+    ovBg.on('pointerout',  () => ovBg.setFillStyle(0x1a0a2e));
+    ovBg.on('pointerdown', (_p, _x, _y, ev) => {
+      ev.stopPropagation();
+      this._showOverlapZone = !this._showOverlapZone;
+      ovLbl.setText(this._showOverlapZone ? '[x] Overlap zone' : '[ ] Overlap zone');
+      ovLbl.setStyle({ fill: this._showOverlapZone ? '#ffff44' : '#888888' });
+    });
+
+    const repositionUtil = () => {
+      const spawnH = spawnOpen ? spawnEntries.length * (BTN_H + GAP) : 0;
+      let uy = HEADER_Y + BTN_H + GAP + spawnH + 8;
+      utilEntries.forEach((_, i) => {
+        const cy = uy + BTN_H / 2;
+        utilBgs[i].setPosition(PX + PW / 2, cy);
+        utilLbls[i].setPosition(PX + PW / 2, cy);
+        uy += BTN_H + GAP;
+      });
+      uy += 4;
+      statRows.forEach(row => {
+        const cy = uy + ROW_H / 2;
+        row.bg.setPosition(PX + PW / 2, cy);
+        row.lbl.setPosition(PX + PW / 2, cy);
+        row.minusBg.setPosition(PX + 14, cy);
+        row.minusLbl.setPosition(PX + 14, cy);
+        row.plusBg.setPosition(PX + PW - 14, cy);
+        row.plusLbl.setPosition(PX + PW - 14, cy);
+        uy += ROW_H + GAP;
+      });
+      this._debugCountText.setPosition(PX + PW / 2, uy + 2);
+      uy += 16;
+      ovBg.setPosition(PX + PW / 2,  uy + BTN_H / 2);
+      ovLbl.setPosition(PX + PW / 2, uy + BTN_H / 2);
+    };
+
+    repositionUtil(); // set initial positions
+
+    headerBg.on('pointerdown', (ptr, lx, ly, event) => {
+      event.stopPropagation();
+      spawnOpen = !spawnOpen;
+      headerLbl.setText(spawnOpen ? '▼ Spawn' : '▶ Spawn');
+      spawnBtns.forEach(({ bg, lbl }) => {
+        const show = panelVisible && spawnOpen;
+        bg.setVisible(show); lbl.setVisible(show);
+      });
+      repositionUtil();
+    });
+
+    // Back to title — fixed at bottom
+    const backBg = p(this.add.rectangle(PX + PW / 2, 510, PW - 12, 24, 0x1a0a2e).setDepth(30).setInteractive({ useHandCursor: true }));
+    p(this.add.text(PX + PW / 2, 510, '← Title', t(11, '#666666')).setOrigin(0.5, 0.5).setDepth(31));
     backBg.on('pointerover', () => backBg.setFillStyle(0x220033));
     backBg.on('pointerout',  () => backBg.setFillStyle(0x1a0a2e));
-    backBg.on('pointerdown', () => this.scene.start('TitleScene'));
+    backBg.on('pointerdown', (ptr, lx, ly, event) => { event.stopPropagation(); this.scene.start('TitleScene'); });
 
     // Graphics layer for hitbox outlines — drawn every frame in update()
     this._hitboxGfx = this.add.graphics().setDepth(50);
@@ -324,41 +465,107 @@ class GameScene extends Phaser.Scene {
       }
     };
 
-    const drawZone = (zone, color, label) => {
-      if (!zone?.body) return;
-      const b = zone.body;
-      const bw = Math.round(b.width), bh = Math.round(b.height);
-      // Dashed effect — draw as a slightly transparent filled rect + outline
-      g.lineStyle(1, color, 0.5);
-      g.strokeRect(zone.x - bw / 2, zone.y - bh / 2, bw, bh);
-      if (label) {
-        const txt = this.add.text(zone.x, zone.y, `${label} ${bw}×${bh}`, {
-          fontSize: '9px', fill: '#' + color.toString(16).padStart(6, '0'),
-          fontFamily: mono, stroke: '#000000', strokeThickness: 2,
-        }).setOrigin(0.5, 0.5).setDepth(51);
-        this._debugLabels.push(txt);
-      }
-    };
 
-    // Player — cyan body + yellow attack zone (always visible)
+    // Player — cyan body + shovel attack zone outline
     drawBody(this.player, 0x00ffff, 'player');
-    drawZone(this.player.attackZone, 0xffff00, 'atk');
-
-    // Clone — purple body + yellow attack zone
-    if (this.clone?.active) {
-      drawBody(this.clone, 0xcc66ff, 'clone');
-      drawZone(this.clone.attackZone, 0xffdd00, 'atk');
+    if (this.player.isAttacking) {
+      this._drawDebugShovel(g, this.player, 0xffff00, 0.9);
+    } else {
+      this._drawDebugShovel(g, this.player, 0xffff00, 0.2);
+    }
+    // Broad-phase overlap zone rectangle
+    if (this._showOverlapZone && this.player.attackZone?.body) {
+      const az = this.player.attackZone;
+      const ab = this.player.attackZone.body;
+      g.lineStyle(1, 0xff4444, this.player.attackZone.body.enable ? 0.9 : 0.3);
+      g.strokeRect(az.x - ab.width / 2, az.y - ab.height / 2, ab.width, ab.height);
     }
 
-    // Enemies — colour by type
+    // Clone — purple body + shovel attack zone outline
+    if (this.clone?.active) {
+      drawBody(this.clone, 0xcc66ff, 'clone');
+      if (this.clone.isAttacking) {
+        this._drawDebugShovel(g, this.clone, 0xffdd00, 0.9);
+      } else {
+        this._drawDebugShovel(g, this.clone, 0xffdd00, 0.2);
+      }
+      if (this._showOverlapZone && this.clone.attackZone?.body) {
+        const az = this.clone.attackZone;
+        const ab = this.clone.attackZone.body;
+        g.lineStyle(1, 0xff44ff, this.clone.attackZone.body.enable ? 0.9 : 0.3);
+        g.strokeRect(az.x - ab.width / 2, az.y - ab.height / 2, ab.width, ab.height);
+      }
+    }
+
+    // Enemies — colour by type; toad gets attack cone overlay
     this.enemies.getChildren().forEach(e => {
       if (!e.active) return;
       let col = 0xff4444;
       if (e instanceof HellHound)   col = 0xff8800;
       if (e instanceof PlagueCrow)  col = 0x88ccff;
-      if (e instanceof StoneKnight) col = 0xff88ff;
       drawBody(e, col, e.constructor.name);
+      if (e instanceof MutantToad && e._isAttacking) {
+        const toadParams = { NH: 15, FH: 30, FD: 30, CTRL: 40, fillAlpha: e._attackFlash ? 0.5 : 0 };
+        this._drawDebugShovel(g, e, 0xff4444, 0.9, toadParams);
+      }
     });
+  }
+
+  /** Draw the shovel attack shape outline on g for the given entity.
+   *  Optional params override geometry defaults (NH, FH, FD, CTRL). */
+  _drawDebugShovel(g, entity, color, alpha, params = {}) {
+    if (!entity?.active || !entity.body) return;
+    const NH = params.NH ?? 15, FH = params.FH ?? 30;
+    const FD = params.FD ?? 50, CTRL = params.CTRL ?? 70;
+    const N = 16;
+    const b  = entity.body;
+    const R2 = 0.7071067811865476;
+    const cx = b.x + b.width  / 2;
+    const cy = b.y + b.height / 2;
+    const DCONF = {
+      'right':      { fx:  1,   fy:  0,   ox: b.right, oy: cy       },
+      'left':       { fx: -1,   fy:  0,   ox: b.left,  oy: cy       },
+      'up':         { fx:  0,   fy: -1,   ox: cx,      oy: b.top    },
+      'down':       { fx:  0,   fy:  1,   ox: cx,      oy: b.bottom },
+      'up-right':   { fx:  R2,  fy: -R2,  ox: b.right, oy: b.top    },
+      'up-left':    { fx: -R2,  fy: -R2,  ox: b.left,  oy: b.top    },
+      'down-right': { fx:  R2,  fy:  R2,  ox: b.right, oy: b.bottom },
+      'down-left':  { fx: -R2,  fy:  R2,  ox: b.left,  oy: b.bottom },
+    };
+    const cfg = DCONF[entity.attackDir];
+    if (!cfg) return;
+    const { fx, fy, ox, oy } = cfg;
+    const px = -fy, py = fx;
+
+    const hA = { x: ox + px * NH,         y: oy + py * NH          };
+    const hB = { x: ox - px * NH,         y: oy - py * NH          };
+    const fA = { x: ox + fx*FD + px * FH, y: oy + fy*FD + py * FH };
+    const fB = { x: ox + fx*FD - px * FH, y: oy + fy*FD - py * FH };
+    const cp = { x: ox + fx * CTRL,       y: oy + fy * CTRL        };
+
+    const buildPath = () => {
+      g.beginPath();
+      g.moveTo(hA.x, hA.y);
+      g.lineTo(fA.x, fA.y);
+      for (let i = 1; i <= N; i++) {
+        const t = i / N, mt = 1 - t;
+        g.lineTo(
+          mt*mt*fA.x + 2*mt*t*cp.x + t*t*fB.x,
+          mt*mt*fA.y + 2*mt*t*cp.y + t*t*fB.y,
+        );
+      }
+      g.lineTo(hB.x, hB.y);
+      g.closePath();
+    };
+
+    if (params.fillAlpha) {
+      g.fillStyle(color, params.fillAlpha);
+      buildPath();
+      g.fillPath();
+    }
+    g.lineStyle(1, color, alpha);
+    buildPath();
+    g.strokePath();
   }
 
   _buildCloneControls() {
@@ -370,7 +577,7 @@ class GameScene extends Phaser.Scene {
         else                     this._summonClone();
       });
 
-    // Right-click: reposition clone anchor toward mouse
+    // Right-click: snap clone anchor to nearest cardinal 200px from player
     this.input.mouse.disableContextMenu();
     this.input.on('pointerdown', (ptr) => {
       if (ptr.rightButtonDown() && this.clone?.active && this.player.active) {
@@ -378,54 +585,90 @@ class GameScene extends Phaser.Scene {
           this.player.x, this.player.y,
           ptr.worldX, ptr.worldY
         );
-        const DIST = 110;
-        this.clone.anchorOffsetX = Math.cos(angle) * DIST;
-        this.clone.anchorOffsetY = Math.sin(angle) * DIST;
+        const { x: offX, y: offY } = this._cardinalOffset(angle, 200);
+        this.clone.anchorOffsetX = offX;
+        this.clone.anchorOffsetY = offY;
+        this.clone.startReposition();
+        if (this.cloneEnemyCollider) this.cloneEnemyCollider.active = false;
       }
     });
   }
 
   // ─── Attack visuals (arrows + hitbox preview) ──────────────────────────────
 
-  _mouseCardinal() {
+  _mouseDir() {
     const ptr = this.input.activePointer;
     const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, ptr.worldX, ptr.worldY);
     const deg = Phaser.Math.RadToDeg(angle);
-    if (deg >= -45 && deg < 45)   return 'right';
-    if (deg >= 45  && deg < 135)  return 'down';
-    if (deg >= -135 && deg < -45) return 'up';
+    if (deg >= -22.5  && deg <  22.5)  return 'right';
+    if (deg >=  22.5  && deg <  67.5)  return 'down-right';
+    if (deg >=  67.5  && deg < 112.5)  return 'down';
+    if (deg >= 112.5  && deg < 157.5)  return 'down-left';
+    if (deg >= -67.5  && deg < -22.5)  return 'up-right';
+    if (deg >= -112.5 && deg <  -67.5) return 'up';
+    if (deg >= -157.5 && deg < -112.5) return 'up-left';
     return 'left';
   }
 
   _updateAttackVisuals() {
-    const dir = this._mouseCardinal();
+    const mouseDir = this._mouseDir();
 
     if (!this.player.active) {
       this.playerArrow.clear(); this.playerHitbox.clear();
     } else {
-      this._drawArrow(this.playerArrow, this.player.x, this.player.y, dir, 0xffd700, this.player.isAttacking ? 0 : 0.9);
-      this._drawHitboxPreview(this.playerHitbox, this.player, dir, 0xffd700);
+      // Lock indicator to the actual attack direction during the attack window,
+      // so it matches _inShovel exactly. Fall back to mouse direction otherwise.
+      const playerDir = this.player.isAttacking ? this.player.attackDir : mouseDir;
+      this.playerArrow.clear();
+      this._drawHitboxPreview(this.playerHitbox, this.player, playerDir, 0xffd700);
     }
 
     if (this.clone?.active) {
-      this._drawArrow(this.cloneArrow, this.clone.x, this.clone.y, dir, 0xcc88ff, this.clone.isAttacking ? 0 : 0.85);
-      this._drawHitboxPreview(this.cloneHitbox, this.clone, dir, 0xcc88ff);
+      const cloneDir = this.clone.isAttacking ? this.clone.attackDir : mouseDir;
+      this.cloneArrow.clear();
+      this._drawHitboxPreview(this.cloneHitbox, this.clone, cloneDir, 0xcc88ff);
     } else {
       this.cloneArrow.clear(); this.cloneHitbox.clear();
     }
   }
 
+  _updateAnchorDot() {
+    this.anchorDot.clear();
+    let ax, ay;
+    if (this.clone?.active) {
+      ax = this.player.x + this.clone.anchorOffsetX;
+      ay = this.player.y + this.clone.anchorOffsetY;
+    } else if (this.player.active) {
+      const ptr   = this.input.activePointer;
+      const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, ptr.worldX, ptr.worldY);
+      const { x: offX, y: offY } = this._cardinalOffset(angle, 200);
+      ax = this.player.x + offX;
+      ay = this.player.y + offY;
+    } else {
+      return;
+    }
+    const WALL = 28;
+    ax = Phaser.Math.Clamp(ax, WALL, 960 - WALL);
+    ay = Phaser.Math.Clamp(ay, WALL, 540 - WALL);
+    this.anchorDot.fillStyle(0x76ff46, 0.9);
+    this.anchorDot.fillRect(ax - 1, ay - 1, 2, 2);
+  }
+
   _drawArrow(g, cx, cy, dir, color, alpha) {
     g.clear();
     if (alpha <= 0) return;
-    const D = 38, H = 14, W = 7;
-    let tx, ty, bx1, by1, bx2, by2;
-    switch (dir) {
-      case 'right': tx=cx+D; ty=cy;   bx1=cx+D-H; by1=cy-W; bx2=cx+D-H; by2=cy+W; break;
-      case 'left':  tx=cx-D; ty=cy;   bx1=cx-D+H; by1=cy-W; bx2=cx-D+H; by2=cy+W; break;
-      case 'up':    tx=cx; ty=cy-D;   bx1=cx-W; by1=cy-D+H; bx2=cx+W; by2=cy-D+H; break;
-      case 'down':  tx=cx; ty=cy+D;   bx1=cx-W; by1=cy+D-H; bx2=cx+W; by2=cy+D-H; break;
-    }
+    const D = 38, H = 14, W = 7, R2 = 0.7071;
+    const DVEC = {
+      'right':      { fx:  1,   fy:  0   }, 'down-right': { fx:  R2,  fy:  R2  },
+      'down':       { fx:  0,   fy:  1   }, 'down-left':  { fx: -R2,  fy:  R2  },
+      'left':       { fx: -1,   fy:  0   }, 'up-left':    { fx: -R2,  fy: -R2  },
+      'up':         { fx:  0,   fy: -1   }, 'up-right':   { fx:  R2,  fy: -R2  },
+    };
+    const { fx, fy } = DVEC[dir] ?? DVEC['right'];
+    const px = -fy, py = fx; // perpendicular
+    const tx = cx + D * fx,  ty = cy + D * fy;
+    const bx1 = tx - H * fx + W * px, by1 = ty - H * fy + W * py;
+    const bx2 = tx - H * fx - W * px, by2 = ty - H * fy - W * py;
     g.fillStyle(color, alpha);
     g.fillTriangle(tx, ty, bx1, by1, bx2, by2);
   }
@@ -433,26 +676,70 @@ class GameScene extends Phaser.Scene {
   _drawHitboxPreview(g, entity, dir, color) {
     g.clear();
     if (!entity.active || !entity.body) return;
-    // Mirror _syncAttackZone exactly — use body edges directly.
-    const b    = entity.body;
-    const bcx  = b.x + b.width  / 2;
-    const HALF = 30;
-    let cx, cy;
-    switch (dir) {
-      case 'right': cx = b.right  + HALF; cy = b.top    + HALF; break;
-      case 'left':  cx = b.left   - HALF; cy = b.top    + HALF; break;
-      case 'up':    cx = bcx;             cy = b.top    - HALF; break;
-      case 'down':  cx = bcx;             cy = b.bottom + HALF; break;
-    }
-    const rw = 60, rh = 60;
-    const rx = cx - HALF, ry = cy - HALF;
-    const zoneActive = entity.isAttacking && entity.attackZone?.body?.enable;
-    if (zoneActive) {
-      g.fillStyle(color, 0.35); g.fillRect(rx, ry, rw, rh);
-      g.lineStyle(2, color, 0.95); g.strokeRect(rx, ry, rw, rh);
+
+    const b  = entity.body;
+    const cx = b.x + b.width  / 2;
+    const cy = b.y + b.height / 2;
+
+    // Shovel shape: 30px hilt → 60px blade, blade far corners touch edges of 60×60 zone.
+    // Blade is a quadratic bezier from farA through a control point to farB.
+    // Control point depth = FD + 2*BG so the actual curve peak lands at FD + BG.
+    const NH   = 15;   // half of 30px hilt
+    const FH   = 30;   // half of 60px blade width
+    const FD   = 50;   // far-corner depth — with CTRL=70, bezier peak lands exactly at 60px (zone edge)
+    const CTRL = 70;   // bezier control depth → curve peaks at 65px (5px bulge)
+    const N    = 16;   // bezier segments
+
+    // Compute shovel vertices using a direction vector + perpendicular.
+    // Origin (ox, oy) is the body edge point the shovel originates from.
+    const R2 = 0.7071067811865476;
+    const DCONF = {
+      'right':      { fx:  1,   fy:  0,   ox: b.right,  oy: cy        },
+      'left':       { fx: -1,   fy:  0,   ox: b.left,   oy: cy        },
+      'up':         { fx:  0,   fy: -1,   ox: cx,       oy: b.top     },
+      'down':       { fx:  0,   fy:  1,   ox: cx,       oy: b.bottom  },
+      'up-right':   { fx:  R2,  fy: -R2,  ox: b.right,  oy: b.top     },
+      'up-left':    { fx: -R2,  fy: -R2,  ox: b.left,   oy: b.top     },
+      'down-right': { fx:  R2,  fy:  R2,  ox: b.right,  oy: b.bottom  },
+      'down-left':  { fx: -R2,  fy:  R2,  ox: b.left,   oy: b.bottom  },
+    };
+    const { fx, fy, ox, oy } = DCONF[dir] ?? DCONF['right'];
+    const px = -fy, py = fx; // 90° CCW perpendicular
+
+    const hA = { x: ox + px * NH,          y: oy + py * NH          };
+    const hB = { x: ox - px * NH,          y: oy - py * NH          };
+    const fA = { x: ox + fx*FD + px * FH,  y: oy + fy*FD + py * FH };
+    const fB = { x: ox + fx*FD - px * FH,  y: oy + fy*FD - py * FH };
+    const cp = { x: ox + fx * CTRL,        y: oy + fy * CTRL        };
+
+    // Build path: hA → (flank) → fA → bezier blade → fB → (flank) → hB → close (hilt)
+    const buildPath = () => {
+      g.beginPath();
+      g.moveTo(hA.x, hA.y);
+      g.lineTo(fA.x, fA.y);
+      // Quadratic bezier blade (fA → cp → fB) approximated with N segments
+      for (let i = 1; i <= N; i++) {
+        const t = i / N, mt = 1 - t;
+        g.lineTo(
+          mt * mt * fA.x + 2 * mt * t * cp.x + t * t * fB.x,
+          mt * mt * fA.y + 2 * mt * t * cp.y + t * t * fB.y,
+        );
+      }
+      g.lineTo(hB.x, hB.y);
+      g.closePath();  // closes hB → hA (the hilt edge)
+    };
+
+    const active = entity.isAttacking && entity.attackZone?.body?.enable;
+    if (active) {
+      g.fillStyle(color, 0.35);
+      buildPath();
+      g.fillPath();
+      g.lineStyle(2, color, 0.95);
     } else {
-      g.lineStyle(1, color, 0.28); g.strokeRect(rx, ry, rw, rh);
+      g.lineStyle(1, color, 0.28);
     }
+    buildPath();
+    g.strokePath();
   }
 
   // ─── Floating numbers ──────────────────────────────────────────────────────
@@ -486,19 +773,25 @@ class GameScene extends Phaser.Scene {
 
   // ─── Clone management ──────────────────────────────────────────────────────
 
+  /** Snap a world angle to the nearest cardinal offset {x, y} at `dist` px. */
+  _cardinalOffset(angle, dist) {
+    const deg = Phaser.Math.RadToDeg(angle);
+    const n   = ((deg % 360) + 360) % 360;
+    if (n < 45 || n >= 315) return { x: dist,  y: 0 };      // right
+    if (n < 135)             return { x: 0,     y: dist };   // down
+    if (n < 225)             return { x: -dist, y: 0 };      // left
+    return                          { x: 0,     y: -dist };  // up
+  }
+
   _summonClone() {
     if (this.clone?.active) return;
 
     const ptr   = this.input.activePointer;
     const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, ptr.worldX, ptr.worldY);
-    const DIST  = 110;
-    const offX  = Math.cos(angle) * DIST;
-    const offY  = Math.sin(angle) * DIST;
+    const { x: offX, y: offY } = this._cardinalOffset(angle, 200);
 
-    const spawnX = Phaser.Math.Clamp(this.player.x + offX, 50, 910);
-    const spawnY = Phaser.Math.Clamp(this.player.y + offY, 50, 490);
-
-    this.clone = new Clone(this, spawnX, spawnY, {
+    // Spawn at player position, then dash to anchor
+    this.clone = new Clone(this, this.player.x, this.player.y, {
       playerMaxHp: this.player.maxHp,
       playerAtk:   this.player.attackDamage,
       bonusHp:     window.Progression.bonusCloneHp || 0,
@@ -506,7 +799,12 @@ class GameScene extends Phaser.Scene {
     this.clone.anchorOffsetX = offX;
     this.clone.anchorOffsetY = offY;
 
+    // Dash clone to its anchor position using clone dash visual
+    this.clone.doDash(offX * 2.5, offY * 2.5); // 200px ÷ 0.2s = 500 px/s
+    this.clone.startReposition();
+
     this.cloneEnemyCollider = this.physics.add.collider(this.clone, this.enemies);
+    this.cloneEnemyCollider.active = false; // disabled until clone reaches anchor
     this.physics.add.overlap(this.clone.attackZone, this.enemies, this._onCloneAttackHit, null, this);
 
     this._updateCloneHUD();
@@ -551,7 +849,7 @@ class GameScene extends Phaser.Scene {
 
   // ─── Public API ────────────────────────────────────────────────────────────
 
-  spawnWave(toadCount, houndCount, crowCount = 0, knightCount = 0) {
+  spawnWave(toadCount, houndCount, crowCount = 0, demonCount = 0) {
     for (let i = 0; i < toadCount; i++) {
       const [x, y] = this._spawnPoint();
       this.enemies.add(new MutantToad(this, x, y), true);
@@ -564,9 +862,9 @@ class GameScene extends Phaser.Scene {
       const [x, y] = this._spawnPoint();
       this.enemies.add(new PlagueCrow(this, x, y), true);
     }
-    for (let i = 0; i < knightCount; i++) {
+    for (let i = 0; i < demonCount; i++) {
       const [x, y] = this._spawnPoint();
-      this.enemies.add(new StoneKnight(this, x, y), true);
+      this.enemies.add(new VoidDemon(this, x, y), true);
     }
   }
 
@@ -663,7 +961,7 @@ class GameScene extends Phaser.Scene {
         : `  (need ${3 - kills} more for tier 2)`;
       msg = `Clone ${verb} — ${kills} kills${bonus}`;
     }
-    this.showBankingPopup(msg);
+    this.showAnnouncement(msg, '#cc88ff');
 
     // Clone burst — fires when clone expires with ≥ 5 kills
     if (kills >= 5 && this.clone) {
@@ -715,7 +1013,7 @@ class GameScene extends Phaser.Scene {
   }
 
   spawnDeathEffect(x, y) {
-    const sprite = this.add.sprite(x, y, 'enemy-death').setDepth(6).setScale(1.4);
+    const sprite = this.add.sprite(x, y, 'enemy-death').setDepth(6).setScale(1);
     sprite.play('enemy-death-anim');
     sprite.once('animationcomplete', () => sprite.destroy());
   }
@@ -773,10 +1071,25 @@ class GameScene extends Phaser.Scene {
 
   // ─── Private helpers ───────────────────────────────────────────────────────
 
-  _onAttackHit(zone, enemy) {
-    if (!this.player.isAttacking)           return;
+  /** Returns true if any of 9 sample points on the enemy body are inside the attacker's shovel. */
+  _enemyInShovel(attacker, enemy) {
+    const b  = enemy.body;
+    const cx = b.x + b.width  / 2;
+    const cy = b.y + b.height / 2;
+    return [
+      [cx,      cy     ],                              // centre
+      [b.x,     b.y    ], [b.right, b.y    ],          // top corners
+      [b.x,     b.bottom], [b.right, b.bottom],        // bottom corners
+      [cx,      b.y    ], [cx,      b.bottom],         // top/bottom midpoints
+      [b.x,     cy     ], [b.right, cy     ],          // left/right midpoints
+    ].some(([tx, ty]) => attacker._inShovel(tx, ty));
+  }
+
+  _onAttackHit(_zone, enemy) {
+    if (!this.player.isAttacking)            return;
     if (!this.player.attackZone.body.enable) return;
-    if (this.player.hitEnemies.has(enemy))  return;
+    if (this.player.hitEnemies.has(enemy))   return;
+    if (!this._enemyInShovel(this.player, enemy)) return;
 
     this.player.hitEnemies.add(enemy);
     enemy.lastAttacker = 'player';
@@ -785,11 +1098,12 @@ class GameScene extends Phaser.Scene {
     enemy.takeDamage(dmg);
   }
 
-  _onCloneAttackHit(zone, enemy) {
+  _onCloneAttackHit(_zone, enemy) {
     if (!this.clone?.active)                  return;
     if (!this.clone.isAttacking)              return;
     if (!this.clone.attackZone?.body?.enable) return;
     if (this.clone.hitEnemies.has(enemy))     return;
+    if (!this._enemyInShovel(this.clone, enemy)) return;
 
     this.clone.hitEnemies.add(enemy);
     enemy.lastAttacker = 'clone';

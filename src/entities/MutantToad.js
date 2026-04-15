@@ -10,20 +10,26 @@ class MutantToad extends Phaser.Physics.Arcade.Sprite {
     // Physics body matched to visible sprite area across all frames (80×64)
     this.setBodySize(48, 36);
     this.setOffset(15, 28);
+    this.body.setMass(3);
 
     this._dead = false;
 
     // Stats
     this.maxHp        = 2;
     this.hp           = this.maxHp;
-    this.speed        = 70;
+    this.speed        = 150;   // leap speed (px/s)
     this.attackDamage = 2;
-    this.attackRange  = 55;
+    this.attackRange  = 75;
 
-    // Timers (ms)
-    this.attackCooldown = Phaser.Math.Between(1200, 2000);
-    this.jumpCooldown   = Phaser.Math.Between(2500, 4500);
-    this.isJumping      = false;
+    // Attack timers
+    this.attackCooldown = Phaser.Math.Between(1000, 1500);
+    this._isAttacking   = false;
+    this.attackDir      = 'right';
+
+    // Leap movement state
+    this._isLeaping   = false;
+    this._isPausing   = false;
+    this._attackFlash = false;
 
     this.play('toad-idle');
   }
@@ -37,6 +43,57 @@ class MutantToad extends Phaser.Physics.Arcade.Sprite {
     this.scene.time.delayedCall(120, () => { if (this.active) this.clearTint(); });
 
     if (this.hp <= 0) this._die();
+  }
+
+  // ─── Attack cone ───────────────────────────────────────────────────────────
+
+  /** Returns true if world point (tx, ty) is inside the toad's attack shovel.
+   *  NH=15, FH=30, FD=30, CTRL=90 — blade peak 60 px from body edge. */
+  _inShovel(tx, ty) {
+    if (!this.body) return false;
+    const NH = 15, FH = 30, FD = 30, CTRL = 40;
+    const b  = this.body;
+    const R2 = 0.7071067811865476;
+    const cx = b.x + b.width  / 2;
+    const cy = b.y + b.height / 2;
+    const DCONF = {
+      'right':      { fx:  1,   fy:  0,   ox: b.right, oy: cy       },
+      'left':       { fx: -1,   fy:  0,   ox: b.left,  oy: cy       },
+      'up':         { fx:  0,   fy: -1,   ox: cx,      oy: b.top    },
+      'down':       { fx:  0,   fy:  1,   ox: cx,      oy: b.bottom },
+      'up-right':   { fx:  R2,  fy: -R2,  ox: b.right, oy: b.top    },
+      'up-left':    { fx: -R2,  fy: -R2,  ox: b.left,  oy: b.top    },
+      'down-right': { fx:  R2,  fy:  R2,  ox: b.right, oy: b.bottom },
+      'down-left':  { fx: -R2,  fy:  R2,  ox: b.left,  oy: b.bottom },
+    };
+    const cfg = DCONF[this.attackDir];
+    if (!cfg) return false;
+    const { fx, fy, ox, oy } = cfg;
+    const px = -fy, py = fx;
+    const dx = tx - ox, dy = ty - oy;
+    const lx = dx * fx + dy * fy;
+    const ly = dx * px + dy * py;
+    if (lx < 0) return false;
+    if (lx <= FD) return Math.abs(ly) <= NH + (FH - NH) * (lx / FD);
+    if (Math.abs(ly) > FH) return false;
+    const t = (FH - ly) / (2 * FH);
+    const lxCurve = FD * (1 - 2*t + 2*t*t) + 2*t*(1-t) * CTRL;
+    return lx <= lxCurve;
+  }
+
+  /** Sample 9 points on the target's body — true if any fall inside the attack shovel. */
+  _targetInShovel(target) {
+    const b  = target.body;
+    if (!b) return false;
+    const cx = b.x + b.width  / 2;
+    const cy = b.y + b.height / 2;
+    return [
+      [cx,      cy      ],
+      [b.x,     b.y     ], [b.right, b.y     ],
+      [b.x,     b.bottom], [b.right, b.bottom],
+      [cx,      b.y     ], [cx,      b.bottom ],
+      [b.x,     cy      ], [b.right, cy       ],
+    ].some(([tx, ty]) => this._inShovel(tx, ty));
   }
 
   _die() {
@@ -65,58 +122,78 @@ class MutantToad extends Phaser.Physics.Arcade.Sprite {
     }
 
     this.attackCooldown -= delta;
-    this.jumpCooldown   -= delta;
 
-    const dist = Phaser.Math.Distance.Between(this.x, this.y, target.x, target.y);
+    const dist          = Phaser.Math.Distance.Between(this.x, this.y, target.x, target.y);
+    const angleToTarget = Phaser.Math.Angle.Between(this.x, this.y, target.x, target.y);
+    const DIRS = ['right','down-right','down','down-left','left','up-left','up','up-right'];
 
-    // Always face the target
+    // ── Locked during attack sequence — direction frozen at attack start ───────
+    if (this._isAttacking) {
+      this.setVelocity(0, 0);
+      this.body.setImmovable(true);
+      return;
+    }
+    this.body.setImmovable(false);
+
+    // Track target facing outside of attack sequence
     this.setFlipX(target.x < this.x);
+    this.attackDir = DIRS[((Math.round(angleToTarget / (Math.PI / 4)) % 8) + 8) % 8];
 
-    // ── In attack range ──────────────────────────────────────────────────────
+    // ── In attack range ───────────────────────────────────────────────────────
     if (dist <= this.attackRange) {
       this.setVelocity(0, 0);
 
+      // Mid-leap: freeze in place and wait for the leap timer to expire naturally
+      if (this._isLeaping) return;
+
+      // Leap finished or pausing — cancel pause and go straight to attack
+      this._isPausing = false;
+
       if (this.attackCooldown <= 0) {
-        this.attackCooldown = Phaser.Math.Between(1400, 2000);
+        this.attackCooldown = Phaser.Math.Between(1000, 1500);
+        this._isAttacking   = true;
         this.play('toad-attack', true);
-        target.takeDamage(this.attackDamage);
 
-        this.once('animationcomplete', () => {
-          if (this.active) this.play('toad-idle', true);
+        // Damage lands after 300ms — only if target is inside the attack cone
+        this.scene.time.delayedCall(300, () => {
+          if (!this.active || this._dead) return;
+          this._attackFlash = true;
+          this.scene.time.delayedCall(120, () => { if (this.active) this._attackFlash = false; });
+          if (this._targetInShovel(target)) target.takeDamage(this.attackDamage);
         });
-      } else if (!this.anims.currentAnim || !this.anims.currentAnim.key.includes('attack')) {
+
+        // 500ms recovery pause before resuming pursuit
+        this.scene.time.delayedCall(800, () => {
+          if (this.active) {
+            this.play('toad-idle', true);
+            this._isAttacking = false;
+          }
+        });
+      } else {
         this.play('toad-idle', true);
       }
       return;
     }
 
-    // ── Jump lunge ───────────────────────────────────────────────────────────
-    if (!this.isJumping && this.jumpCooldown <= 0 && dist < 320) {
-      this.isJumping    = true;
-      this.jumpCooldown = Phaser.Math.Between(3000, 5500);
+    // ── Mid-leap — let physics carry it, timer will end the leap ─────────────
+    if (this._isLeaping || this._isPausing) return;
 
-      const angle = Phaser.Math.Angle.Between(this.x, this.y, target.x, target.y);
-      this.setVelocity(Math.cos(angle) * 230, Math.sin(angle) * 230);
-      this.play('toad-jump', true);
+    // ── Start a new leap toward target ───────────────────────────────────────
+    const snap8 = Math.round(angleToTarget / (Math.PI / 4)) * (Math.PI / 4);
+    this._isLeaping = true;
+    this.setVelocity(Math.cos(snap8) * this.speed, Math.sin(snap8) * this.speed);
+    this.play('toad-jump', true);
 
-      this.scene.time.delayedCall(380, () => {
-        if (this.active) {
-          this.isJumping = false;
-          this.setVelocity(0, 0);
-          this.play('toad-idle', true);
-        }
+    this.scene.time.delayedCall(500, () => {
+      if (!this.active || this._isAttacking) return;
+      this._isLeaping = false;
+      this._isPausing = true;
+      this.setVelocity(0, 0);
+      this.play('toad-idle', true);
+
+      this.scene.time.delayedCall(300, () => {
+        if (this.active) this._isPausing = false;
       });
-      return;
-    }
-
-    // ── Walk toward target ───────────────────────────────────────────────────
-    if (!this.isJumping) {
-      const angle = Phaser.Math.Angle.Between(this.x, this.y, target.x, target.y);
-      this.setVelocity(Math.cos(angle) * this.speed, Math.sin(angle) * this.speed);
-
-      if (!this.anims.currentAnim || !this.anims.currentAnim.key.includes('attack')) {
-        this.play('toad-idle', true);
-      }
-    }
+    });
   }
 }

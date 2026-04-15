@@ -74,14 +74,36 @@ Entry point of the game. Displayed on launch and after respawning from the You D
 | Property | Value |
 |---|---|
 | Input | Left mouse click |
-| Directions | 4-directional — snapped to nearest cardinal (right / left / up / down) based on mouse angle at click time |
-| Attack zone size | 60×60 px |
-| Horizontal placement | Zone flush with body top edge, extending out from body side |
-| Vertical placement | Zone centred on body X, extending above/below body |
+| Directions | 8-directional — snapped to nearest 45° sector (right / up-right / up / up-left / left / down-left / down / down-right) based on mouse angle at click time |
+| Hit detection | Broad-phase: 160×160 invisible physics zone centred on body. Narrow-phase: `_inShovel()` precise point test — see **2.5.1** for geometry. Enemies are sampled at 9 points (centre, 4 corners, 4 edge midpoints). |
 | Active window | 50–150 ms after click (100 ms contact window) |
 | Attack cooldown | 300 ms |
 | Movement | Player velocity locked to 0 during swing |
 | Visual | See **2.6 Attack Visual** |
+
+#### 2.5.1 Attack Indicator
+Outline of the attack zone drawn every frame to show where the next swing will land. Updates in real time as the mouse moves.
+
+##### Attack Zone Preview
+Shovel shape flush with the body edge, fanning outward in the attack direction. Four named sides: **Hilt** (short straight near edge), **Left flank** and **Right flank** (diagonal sides), **Blade** (convex curved far edge). Supports all 8 directions; diagonal directions originate from the corresponding body corner.
+
+| Constant | Value | Meaning |
+|---|---|---|
+| `NH` | 15 | Half-hilt — hilt is **30 px** wide |
+| `FH` | 30 | Half-blade — blade is **60 px** wide at far corners |
+| `FD` | 50 | Far-corner depth from body edge |
+| `CTRL` | 70 | Bezier control depth — blade peak lands at **60 px** (zone edge, no overshoot) |
+| `N` | 16 | Line segments approximating the bezier curve |
+
+Blade peak formula: `0.5 × FD + 0.5 × CTRL = 60 px`
+
+| Style property | Value |
+|---|---|
+| Idle style | 1 px outline at 28% alpha |
+| Active style | Filled at 35% alpha + 2 px outline at 95% alpha |
+| Colour — player | `0xffd700` |
+| Colour — clone | `0xcc88ff` |
+| Depth | Player preview: 8 / Clone preview: 7 |
 
 #### 2.6 Attack Visual
 
@@ -91,12 +113,18 @@ Entry point of the game. Displayed on launch and after respawning from the You D
 | Duration | Plays once — 5 frames at 50 fps (100 ms); destroyed on animation complete |
 | Depth | 6 (player is 5) |
 
-| Direction | Texture | Path | Position | FlipX | Angle |
-|---|---|---|---|---|---|
-| Right | `slash-upward` | `/effects/slashes/slash-upward.png` | `body.right + 30`, `body.top + 30` | false | 0° |
-| Left | `slash-upward` | `/effects/slashes/slash-upward.png` | `body.left − 30`, `body.top + 30` | true | 0° |
-| Up | `slash-horizontal` | `/effects/slashes/slash-horizontal.png` | `body.centreX`, `body.top − 30` | false | −90° |
-| Down | `slash-horizontal` | `/effects/slashes/slash-horizontal.png` | `body.centreX`, `body.bottom + 30` | false | +90° |
+All 8 directions use `slash-upward`, no flipX, positioned 40 px from body centre in the attack direction, rotated to match.
+
+| Direction | Angle | Position |
+|---|---|---|
+| Right | 0° | `bodyCentreX + 40`, `bodyCentreY` |
+| Down-right | 45° | `bodyCentreX + 28`, `bodyCentreY + 28` |
+| Down | 90° | `bodyCentreX`, `bodyCentreY + 40` |
+| Down-left | 135° | `bodyCentreX − 28`, `bodyCentreY + 28` |
+| Left | 180° | `bodyCentreX − 40`, `bodyCentreY` |
+| Up-left | −135° | `bodyCentreX − 28`, `bodyCentreY − 28` |
+| Up | −90° | `bodyCentreX`, `bodyCentreY − 40` |
+| Up-right | −45° | `bodyCentreX + 28`, `bodyCentreY − 28` |
 
 #### 2.7 Dash
 | Property | Value |
@@ -123,7 +151,7 @@ Alpha tween applied to the player sprite — creates a noticeable flicker for th
 | On complete | Alpha reset to 1 |
 
 ##### 2.8.2 Spark Trail
-An animated spark sprite spawned at the player's position when the dash starts. Plays once and destroys itself on completion.
+An animated spark sprite spawned at the trailing edge of the player's physics body when the dash starts. Drifts in the dash direction and destroys itself on animation complete.
 
 | Property | Value |
 |---|---|
@@ -132,22 +160,24 @@ An animated spark sprite spawned at the player's position when the dash starts. 
 | Frame size | 63×32 px |
 | Frames | 0–4 (5 total) |
 | Frame rate | 25 fps |
-| Duration | 200 ms — 5 frames at 25 fps, matches dash duration |
+| Duration | 200 ms — matches dash duration |
 | Repeat | Once |
-| Depth | 4 (player is 5, floor is 0) |
-| Position | `body.centreX`, `body.centreY` |
-| Anchor | `1.0, 0.5` (right-centre edge) |
+| Depth | 4 |
+| Spawn position | Body centre offset by −normDir × body half-size (trailing edge) |
+| Rotation | `atan2(vy, vx)` — aligned to dash direction |
+| Anchor | `0.5, 0.5` |
+| Movement | Tweened 60 px in dash direction over 200 ms (Linear) |
 
 #### 2.9 Damage
 | Property | Value |
 |---|---|
-| Damage visual | Alpha flicker 0.2 → 1.0, duration 40 ms, repeat 3 (~120 ms total) |
+| Damage visual | Red tint flash (`0xff4444` ↔ white), 2 repeats, 200 ms total |
 
 #### 2.11 Death
 | Property | Value |
 |---|---|
 | Trigger | Player HP reaches 0 |
-| Delay | `onPlayerDeath()` called 300 ms after HP reaches 0 |
+| Delay | `onPlayerDeath()` called 100 ms after HP reaches 0 |
 
 ### 3. Clone
 
@@ -159,8 +189,8 @@ An animated spark sprite spawned at the player's position when the dash starts. 
 | Frame size | 128×64 px |
 | Physics body | 30×60 px world (local 20×40 at scale 1.5) |
 | Body offset | Centred on character, 2 px right |
-| Tint | `0x9966ff` (purple) |
-| Glow | Colour `0x9966ff`, outer strength 6, inner strength 2 |
+| Tint | `0x76ff46` (bright green) |
+| Glow | Colour `0x76ff46`, outer strength 1, inner strength 2 |
 | Alpha | 0.9 (slightly transparent) |
 | Depth | 4 (one behind player) |
 | Mass | 10 |
@@ -183,44 +213,47 @@ Scale with kill count (`k`) during the clone's current life.
 |---|---|
 | Max HP | `baseHp + floor(k ÷ 3)` (+1 per 3 kills) |
 | Attack Damage | `baseAtk + k` (+1 every kill) |
-| Speed | `160 + min(k × 3, 60)` px/s (max bonus: +60) |
+| Speed | `200 + min(k × 3, 60)` px/s (max bonus: +60) |
 
 #### 3.4 Summon & Dismiss
 | Property | Value |
 |---|---|
 | Cast input | Spacebar — summons clone if none active, dismisses if one is active |
-| Summon position | 100 px from player in the direction of the mouse cursor |
+| Summon position | 200 px from player in the direction of the mouse cursor |
 | Summon dash | Clone spawns at player position then instantly dashes to summon position (see **3.4.1 Clone Dash Visual**) |
 | Dismiss effect | Triggers full expiry bonuses, same as death |
 | Reposition input | Right-click while clone is active |
-| Reposition effect | Anchor snaps to the nearest of 4 fixed positions around the player (N/S/E/W), each 100 px away, chosen by snapping the mouse angle to the nearest cardinal direction |
+| Reposition effect | Anchor snaps to the nearest of 4 fixed positions around the player (N/S/E/W), each 200 px away, chosen by snapping the mouse angle to the nearest cardinal direction |
 
 #### 3.4.1 Clone Dash Visual
 Used any time the clone dashes — on summon, and whenever the player dashes (clone mirrors the dash). Same effects as **2.8 Dash Visual** with the following overrides:
 
 | Property | Value |
 |---|---|
-| Flash tint | `0x9966ff` |
+| Flash tint | `0x76ff46` |
 | Flash alpha | 0 → 0.9 (clone base alpha, not 1.0) |
-| Spark trail tint | `0x9966ff` |
-| Spark trail glow | Colour `0x9966ff`, outer strength 6, inner strength 2 |
+| Spark trail tint | `0x76ff46` |
+| Spark trail glow | Colour `0x76ff46`, outer strength 1, inner strength 2 |
 
 #### 3.5 Movement
 | Property | Value |
 |---|---|
 | Target | Player position + anchor offset |
-| Default anchor offset | 100 px from player at the nearest cardinal direction to the mouse cursor at summon time |
+| Default anchor offset | 200 px above the player (`anchorOffsetY = -200`) |
 | Facing | Mirrors player facing direction |
-| Movement speed | Always moves toward anchor at full speed |
+| Movement speed | Normal: `200 + min(k × 3, 60)` px/s. Repositioning: 2×. Inside dead zone (≤ 4 px): 30 px/s drift. |
+| Dead zone | 4 px radius circle — clone drifts at 30 px/s inside, full speed outside; prevents snapping on direction changes |
+| Repositioning | Flag set on summon and right-click reposition; cleared on reaching dead zone. While active: speed 2×, unit collision disabled. |
+| Animation sync | Run animation frame is synced to the player's via `anims.setProgress` each update tick |
 | Locked during | Active swing, active dash |
-| Idle threshold | idle on an anchor more than 100 ms |
+| Anchor indicator | 2×2 px green dot (`0x76ff46`) drawn at anchor world position every frame. Before summon: tracks mouse snapped to nearest cardinal. After summon: tracks current anchor offset. |
 
 #### 3.6 Attack
 | Property | Value |
 |---|---|
 | Trigger | Mirrors player attack simultaneously |
-| Direction | Same cardinal direction as player |
-| Attack zone | 60×60 px, identical placement to player (see **2.4**) |
+| Direction | Same 8-directional snap as player |
+| Hit detection | Identical to player — 160×160 broad-phase zone + `_inShovel()` narrow-phase (see **2.5**) |
 | Active window | 50–150 ms after trigger (derived from player — see **2.5**) |
 | Cooldown | 300 ms (derived from player — see **2.5**) |
 | Slash visual | Same as player with purple tint `0xcc88ff` (see **2.6**) |
@@ -253,13 +286,15 @@ Triggered on death or dismiss. Applied to the player immediately.
 | Property | Value |
 |---|---|
 | Trigger | Clone HP reaches 0 |
-| Delay | `onCloneDeath()` called 200 ms after HP reaches 0 |
+| Delay | `onCloneDeath()` called 50 ms after HP reaches 0 |
 | Effect | Expiry bonuses applied, clone dismissed |
-| Damage visual | Same as player (see **2.9**) but alpha range adjusted to 0.2 → 0.9 to match clone's base alpha |
+| Damage visual | Red tint flash (`0xff4444` ↔ white), 2 repeats, 200 ms total; alpha restored to 0.9 on complete |
 
 ### Enemies
 
 ---
+
+> **Enemy movement — 8-directional snap:** All enemy movement is snapped to the nearest 45° before applying velocity: `snapAngle = Math.round(angle / (π/4)) * (π/4)`. Projectiles (e.g. Plague Crow bolts) are exempt and travel in free-angle.
 
 ### 4. Mutant Toad
 
@@ -288,17 +323,30 @@ Triggered on death or dismiss. Applied to the player immediately.
 |---|---|
 | HP | 2 |
 | Attack Damage | 2 |
-| Speed | 70 px/s |
-| Attack Zone | 90° cone, 55 px range, facing direction of target |
-| Attack Cooldown | 1400–2000 ms (random) |
-| Jump Cooldown | 3000–5500 ms (random); initial 2500–4500 ms |
+| Leap speed | 150 px/s |
+| Leap duration | 500 ms |
+| Pause between leaps | 300 ms |
+| Attack directions | 8-directional cone |
+| Attack trigger range | 75 px (centre to centre) |
+| Attack cooldown | 1000–1500 ms (random) |
+| Hilt half-width (NH) | 15 px |
+| Blade half-width (FH) | 30 px |
+| Far-corner depth (FD) | 30 px |
+| Bezier control depth (CTRL) | 40 px |
+| Blade peak | 35 px from body edge — (FD + CTRL) ÷ 2 = (30 + 40) ÷ 2 |
+| Attack animation duration | 300 ms |
+| Damage timing | 300 ms after attack starts — only if target is inside the cone |
+| Recovery pause | 500 ms stationary after damage lands |
 
 #### 4.4 Behaviour
 | State | Condition | Action |
 |---|---|---|
-| Attack | Distance ≤ 55 px and cooldown expired | Stop, play `toad-attack`, deal damage, reset cooldown |
-| Jump Lunge | Distance ≤ 320 px and jump cooldown expired | Launch at 230 px/s toward target for 380 ms, play `toad-jump` |
-| Walk | Otherwise | Move toward target at 70 px/s, play `toad-idle` |
+| Attack | Distance ≤ 75 px and cooldown expired (not mid-leap) | Stop, play `toad-attack`; at 300 ms check cone — deal damage if target inside; play `toad-idle` and stay frozen for 500 ms recovery |
+| Waiting to attack | Distance ≤ 75 px but cooldown not expired | Stop, play `toad-idle` |
+| Frozen mid-leap | Distance ≤ 75 px while leap timer active | Velocity zeroed; toad freezes until leap timer expires, then enters attack sequence |
+| Leaping | Leap timer active and outside attack trigger range | Physics carries toad; timer ends leap after 500 ms |
+| Pausing | Between leaps | Velocity 0, `toad-idle`; resumes after 300 ms |
+| Start leap | Otherwise | Snap to nearest 8-direction, launch at 150 px/s, play `toad-jump` |
 
 ---
 
@@ -330,14 +378,15 @@ Triggered on death or dismiss. Applied to the player immediately.
 | HP | 1 |
 | Attack Damage | 1 |
 | Speed | 135 px/s |
-| Attack Zone | 90° cone, 48 px range, facing direction of target |
+| Attack directions | 8-directional shovel melee |
+| Attack range | 48 px |
 | Attack Cooldown | 1000–1600 ms (random); initial 900–1500 ms |
 
 #### 5.4 Behaviour
 | State | Condition | Action |
 |---|---|---|
-| Attack | Distance ≤ 48 px and cooldown expired | Stop, play `hound-attack`, deal damage on completion, reset cooldown |
-| Chase | Otherwise | Move toward target at 135 px/s, play `hound-run` |
+| Attack | Distance ≤ 48 px and cooldown expired | Stop, snap `attackDir` to nearest 8-direction, play `hound-attack`, deal damage on completion, reset cooldown |
+| Chase | Otherwise | Move toward target at 135 px/s (8-dir snapped), play `hound-run` |
 
 ---
 
@@ -383,65 +432,70 @@ Triggered on death or dismiss. Applied to the player immediately.
 #### 6.5 Behaviour
 | State | Condition | Action |
 |---|---|---|
-| Flee | Distance < 100 px | Move away from target at 77 px/s, play `crow-fly` |
-| Back away | Distance < 200 px | Move away from target at 55 px/s, play `crow-fly` |
+| Flee | Distance < 100 px | Move away from target at 77 px/s (8-dir snapped), play `crow-fly` |
+| Back away | Distance < 200 px | Move away from target at 55 px/s (8-dir snapped), play `crow-fly` |
 | Hover | Distance 200–320 px | Stop, play `crow-idle`; shoot if cooldown expired |
-| Move in | Distance > 320 px | Move toward target at 55 px/s, play `crow-fly` |
+| Move in | Distance > 320 px | Move toward target at 55 px/s (8-dir snapped), play `crow-fly` |
 
 ---
 
-### 7. Void Dragon
+### 7. Void Demon
 
 #### 7.1 Sprite & Body
 | Property | Value |
 |---|---|
-| Scale | 0.56× |
-| Frame size | 192×176 px |
-| Physics body | ~101×84 px world (local 180×150 at scale 0.56) |
-| Body offset | 6 px right, 10 px down (local units) |
+| Scale | 0.7× |
+| Frame size | 256×144 px texture; scales with sprite |
+| Source canvas | 312×220 — character center locked across all animations |
+| Physics body | 150×144 texture px; offset (53, 0) — centered horizontally; scales with sprite |
 | Depth | 4 |
-| Starting animation | `dragon-fly` |
+| Starting animation | `demon-idle` |
 | Mass | 20 |
 | Target | Nearest living target (player or active clone) |
 | Damage visual | Red tint (`0xff5555`) for 120 ms |
 
 #### 7.2 Animations
-| Key | Spritesheet | Frames | Frame Rate | Repeat |
-|---|---|---|---|---|
-| `dragon-fly` | `/characters/enemies/void-dragon/void-dragon-fly.png` | 0–8 | 10 fps | Loop |
-| `dragon-breath` | `/characters/enemies/demon-Files/Spritesheets/breath-fire.png` | 0–7 | 12 fps | Once |
+| Key | Spritesheet | Frame size | Frames | Frame Rate | Repeat | Used when |
+|---|---|---|---|---|---|---|
+| `demon-idle` | `void-demon/Spritesheets/demon-idle.png` | 256×144 | 0–5 (6) | 8 fps | Loop | Chasing / waiting |
+| `demon-attack-no-breath` | `void-demon/Spritesheets/demon-attack-no-breath.png` | 256×144 | 0–17 (18) | 13 fps | Loop | Breath wind-up + firing |
+| `demon-breath` | `void-demon/Spritesheets/breath-fire.png` | 100×96 | 0–7 (8) | 12 fps | Once | Scattered fire sprites during breath |
+
+Both `demon-idle` and `demon-attack-no-breath` are built by pasting source frames into a shared 312×220 reference canvas (idle shifted +52, +26 to align character center with attack frames), then cropped to 256×144. This ensures the sprite does not jump when switching animations.
 
 #### 7.3 Stats
 | Stat | Value |
 |---|---|
 | HP | 10 |
-| Melee Damage | 1 |
 | Breath Damage | 3 |
 | Speed | 45 px/s |
-| Melee Zone | 90° cone, 65 px range, facing direction of target |
-| Melee Cooldown | 1200 ms |
-| Breath Range | 170 px (depth of fire rectangle) |
+| Breath Range | 170 px |
 | Breath Cooldown | 3500–5000 ms (random); initial 2000–4000 ms |
 
 #### 7.4 Breath Attack
 | Property | Value |
 |---|---|
-| Wind-up duration | 500 ms — dragon stationary |
-| Wind-up tint | Orange (`0xff8800`) applied to dragon sprite |
-| Wind-up preview | Cone outline drawn in light orange (`0xffcc88`) at 40% alpha showing exactly where the fire cone will land; fades out as fire fires |
-| Fire cone angle | 60° |
-| Fire cone range | 170 px, extending from dragon centre in facing direction |
-| Damage | 3 — applied instantly to any target whose centre falls inside the cone |
-| Fire sprites | 9 staggered `dragon-breath` sprites scattered within the cone; scale 0.48, alpha 0.85, blend mode ADD, depth 6, spawned 55 ms apart; fade to alpha 0 over 150 ms on animation complete |
-| Cone visual | Fills with `0xff4400` at 18% alpha fading to 0; outlined with `0xff8800` fading to 0; duration 700 ms |
+| Wind-up duration | 500 ms — demon stationary, facing angle locked |
+| Wind-up tint | Orange (`0xff8800`) applied to demon sprite |
+| Wind-up preview | Shovel shape drawn in light orange (`0xffcc88`) at 40% alpha; position and angle locked for full attack duration |
+| Shovel origin | Body edge in facing direction, inset 10 px |
+| Shovel NH | 20 (40 px hilt) |
+| Shovel FH | 75 (150 px blade width) |
+| Shovel FD | 130 px far-corner depth |
+| Shovel CTRL | 210 px bezier control → blade peak at 170 px (= breath range) |
+| Damage shape | Exact shovel geometry — flank region (linear) + bezier blade region |
+| Damage | 3 — applied instantly to any target whose centre falls inside the shovel |
+| Fire sprites | 9 staggered `demon-breath` sprites scattered within the shovel area; scale 0.48, alpha 0.85, blend mode ADD, depth 6, spawned 55 ms apart; fade to alpha 0 over 150 ms on animation complete |
+| Fire visual | Fills with `0xff4400` at 18% alpha fading to 0; outlined with `0xff8800` fading to 0; duration 700 ms |
+| Post-fire | Returns to `demon-idle` animation; facing angle unlocks |
 
 #### 7.5 Behaviour
 | State | Condition | Action |
 |---|---|---|
-| Wind-up / Fire | Breath active | Stop, play wind-up then fire breath |
-| Breath | Distance ≤ 170 px and breath cooldown expired | Stop, face target, trigger breath attack (priority over melee) |
-| Melee | Distance ≤ 65 px and melee cooldown expired | Stop, deal 1 damage |
-| Chase | Otherwise | Move toward target at 45 px/s, play `dragon-fly` |
+| Wind-up / Fire | Breath active | Stop, lock facing angle; play `demon-attack-no-breath`, orange tint + shovel preview; fire; return to `demon-idle` |
+| Breath | Distance ≤ 170 px and breath cooldown expired | Stop, face target, trigger breath attack |
+| Idle in range | Distance ≤ 170 px but cooldown not yet expired | Stop and wait facing target |
+| Chase | Distance > 170 px | Move toward target at 45 px/s (8-dir snapped), play `demon-idle` |
 
 ---
 
@@ -470,7 +524,7 @@ Mass controls how much a unit is pushed when two solid bodies collide — heavie
 | Mutant Toad | 3 |
 | Hell Hound | 2 |
 | Plague Crow | 1 |
-| Void Dragon | 20 |
+| Void Demon | 20 |
 
 ---
 
@@ -480,11 +534,13 @@ Mass controls how much a unit is pushed when two solid bodies collide — heavie
 | Trigger | Any enemy reaches 0 HP |
 | Texture | `enemy-death` |
 | Source | `/effects/EnemyDeath/enemy-death.png` |
-| Frame size | 56×64 px |
+| Frame size | 64×64 px |
 | Frames | 0–7 (8 total) |
 | Frame rate | 14 fps |
+| Scale | 1× |
 | Repeat | Once; destroyed on animation complete |
 | Position | Enemy world centre at time of death |
+| Depth | 6 |
 
 ### 10. Announcement Text
 Shared text object used for wave start, wave clear, and other events. Fades in instantly, holds, then fades out.
@@ -531,14 +587,14 @@ Shared text object used for wave start, wave clear, and other events. Fades in i
 | Depth | 20 |
 
 #### 11.2 Enemy Composition
-Counts scale with wave number (`N`). Plague Crow appears from wave 2, Void Dragon from wave 3.
+Counts scale with wave number (`N`). Plague Crow appears from wave 2, Void Demon from wave 3.
 
 | Enemy | Formula | Wave 1 | Wave 2 | Wave 3 | Wave 5 |
 |---|---|---|---|---|---|
 | Mutant Toad | `2 + floor(N × 1.3)` | 3 | 4 | 5 | 8 |
 | Hell Hound | `floor(N × 0.8)` | 0 | 1 | 2 | 4 |
 | Plague Crow | `N ≥ 2: 1 + floor((N−2) × 0.6)` | — | 1 | 1 | 2 |
-| Void Dragon | `N ≥ 3: floor((N−3) × 0.5) + 1` | — | — | 1 | 2 |
+| Void Demon | `N ≥ 3: floor((N−3) × 0.5) + 1` | — | — | 1 | 2 |
 
 ### 12. Permanent Progression
 
@@ -659,6 +715,31 @@ Value format per upgrade:
 
 ---
 
+## 15. Debug Mode
+
+Enabled by clicking "[ DEBUG MODE ]" on the title screen (launches `GameScene` with `{ debug: true }`). Provides a debug panel and visual overlays for development.
+
+### 15.1 Debug Panel (top-left overlay)
+
+| Control | Description |
+|---|---|
+| Spawn buttons | One button per enemy type (Mutant Toad, Hell Hound, Plague Crow, Void Demon, 3× variants); spawns enemy at random arena position |
+| Stat rows | Four rows — Plr HP, Plr ATK, Cln HP, Cln ATK — each with − and + buttons to adjust values live |
+| Overlap zone toggle | "Show overlap zone" checkbox; when enabled, draws the 160×160 broad-phase attack rectangle for player and clone in grey at 30% alpha |
+
+### 15.2 Visual Overlays (drawn every frame when debug enabled)
+
+| Overlay | Target | Style |
+|---|---|---|
+| Shovel indicator (idle) | Player | `0xffd700`, 1 px outline at 20% alpha |
+| Shovel indicator (active) | Player | `0xffd700`, filled at 35% alpha + 2 px outline at 90% alpha; locked to `attackDir` during swing |
+| Shovel indicator (idle) | Clone (if active) | `0xdd99ff`, 1 px outline at 20% alpha |
+| Shovel indicator (active) | Clone (if active) | `0xdd99ff`, filled at 35% alpha + 2 px outline at 90% alpha |
+| Overlap zone rectangle | Player, Clone (if `_showOverlapZone` enabled) | Grey `0x888888`, 30% alpha, 160×160 px centred on attacker body |
+| Anchor dot | Always (pre-summon: mouse-snapped position; post-summon: live anchor) | 2×2 px solid `0x76ff46`, clamped to arena bounds (WALL=28) |
+
+---
+
 ## Assets
 
 | Asset | Source | Path |
@@ -667,8 +748,8 @@ Value format per upgrade:
 | Enemy — Mutant Toad | [Free Frog Enemy](https://craftpix.net/freebies/free-frog-enemy-sprite-sheets-pixel-art/) | `/characters/enemies/mutant-toad/Spritesheets/` |
 | Enemy — Hell Hound | [Free Hell Hound](https://craftpix.net/freebies/free-hell-hound-chibi-2d-game-sprites/) | `/characters/enemies/Hell-Hound-Files/Spritesheets/` |
 | Enemy — Plague Crow | — | `/characters/enemies/plague-crow/` |
-| Enemy — Void Dragon | — | `/characters/enemies/void-dragon/` |
-| Dragon breath fire | — | `/characters/enemies/demon-Files/Spritesheets/` |
+| Enemy — Void Demon | — | `/characters/enemies/demon-Files/Spritesheets/` |
+| Demon breath fire | — | `/characters/enemies/demon-Files/Spritesheets/` |
 | Slash effects | — | `/effects/slashes/` |
 | Enemy death effect | — | `/effects/EnemyDeath/` |
 | Dash spark | — | `/effects/dash-spark.png` |
@@ -710,7 +791,7 @@ Value format per upgrade:
 
 ### ✅ Milestone 3 — Combat Depth
 **Status: Complete**
-- [x] 2 new enemy types (Plague Crow, Void Dragon)
+- [x] 2 new enemy types (Plague Crow, Void Demon)
 - [x] Player special ability (dash)
 - [x] Clone ability: area burst at high kill count (Clone Burst)
 - [x] Permanent progression
