@@ -143427,24 +143427,23 @@
       this.load.image("cursor-dagger", base + "weapons/Dagger/dagger.png");
       this.load.spritesheet("gems", base + "ui/gems-spritesheet.png", { frameWidth: 16, frameHeight: 16 });
       this.load.image("cursor-sword", base + "weapons/fantasy%20weapons%20set/PNG/1.png");
-      this.load.image("dungeon-tileset", base + "environments/single-dungeon-crawler/PNG/dungeon-tileset.png");
-      this.load.spritesheet("dungeon-tiles-sheet", base + "environments/single-dungeon-crawler/PNG/dungeon-tileset.png", { frameWidth: 16, frameHeight: 16 });
+      this.load.spritesheet("top-down-forest-tileset", base + "environments/top-down-forest-tileset.png", { frameWidth: 16, frameHeight: 16 });
     }
     create() {
-      const pg = this.make.graphics({ x: 0, y: 0, add: false });
+      const pg = this.make.graphics({ x: 0, y: 0 });
       pg.fillStyle(16777215, 1);
       pg.fillCircle(4, 4, 4);
       pg.generateTexture("dash-particle", 8, 8);
       pg.destroy();
       this.createAnimations();
-      this.scene.start("TitleScene");
+      this.scene.start("GameScene", { debug: true });
     }
     createLoadingBar() {
       const w = this.cameras.main.width;
       const h = this.cameras.main.height;
       this.add.rectangle(w / 2, h / 2, 400, 20, 3355443);
       const bar = this.add.rectangle(w / 2 - 200, h / 2, 0, 20, 16766720).setOrigin(0, 0.5);
-      this.add.text(w / 2, h / 2 - 40, "Loading...", { fontSize: "24px", fill: "#ffffff", fontFamily: "monospace" }).setOrigin(0.5);
+      this.add.text(w / 2, h / 2 - 40, "Loading...", { fontSize: "24px", color: "#ffffff", fontFamily: "monospace" }).setOrigin(0.5);
       this.load.on("progress", (value) => {
         bar.width = 400 * value;
       });
@@ -144879,21 +144878,15 @@
     }
     // ─── Setup ─────────────────────────────────────────────────────────────────
     _buildWorld() {
-      const W = 960, H = 540, WALL = 28, TILE = 32;
+      const W = 960, H = 540, WALL = 28, TILE = 16;
       this.add.rectangle(W / 2, H / 2, W, H, 853528).setDepth(0);
       const gFloor = this.add.graphics().setDepth(1);
-      gFloor.fillStyle(4863337, 1);
+      gFloor.fillStyle(8947848, 1);
       gFloor.fillRect(WALL, WALL, W - WALL * 2, H - WALL * 2);
-      gFloor.lineStyle(1, 3482952, 0.9);
-      for (let x = WALL; x <= W - WALL; x += TILE)
-        gFloor.lineBetween(x, WALL, x, H - WALL);
-      for (let y = WALL; y <= H - WALL; y += TILE)
-        gFloor.lineBetween(WALL, y, W - WALL, y);
-      gFloor.fillStyle(5258610, 0.35);
       for (let col = 0; col * TILE < W - WALL * 2; col++) {
         for (let row = 0; row * TILE < H - WALL * 2; row++) {
-          if ((col + row) % 2 === 0)
-            gFloor.fillRect(WALL + col * TILE + 1, WALL + row * TILE + 1, TILE - 2, TILE - 2);
+          let textureFrame = 62;
+          this.add.image(WALL + col * TILE, WALL + row * TILE, "top-down-forest-tileset", textureFrame).setOrigin(0, 0).setDepth(1);
         }
       }
       const gWall = this.add.graphics().setDepth(2);
@@ -144974,14 +144967,14 @@
       this.dashIcon = this.add.sprite(CARD_X + 24, CARD_Y, "player-idle", 0).setScale(0.42).setTint(4508927).setDepth(21);
       this.dashLabel = this.add.text(CARD_X + 46, CARD_Y - 10, "DASH", {
         fontSize: "22px",
-        fill: "#44ccff",
+        color: "#44ccff",
         fontFamily: mono,
         stroke: "#000000",
         strokeThickness: 2
       }).setOrigin(0, 0.5).setDepth(21);
       this.add.text(CARD_X + 46, CARD_Y + 10, "SHIFT", {
         fontSize: "14px",
-        fill: "#336688",
+        color: "#336688",
         fontFamily: mono
       }).setOrigin(0, 0.5).setDepth(21);
       const BAR_Y = CARD_Y + CARD_H / 2 - 4;
@@ -145008,12 +145001,7 @@
         stroke: "#000000",
         strokeThickness: 5
       })).setOrigin(0.5).setDepth(25).setAlpha(0);
-      this.hintsText = this.add.text(
-        480,
-        528,
-        "WASD \u2014 Move    LClick \u2014 Attack    Shift \u2014 Dash    Space \u2014 Summon/Dismiss Clone    RClick \u2014 Reposition Clone",
-        s(11, "#666666")
-      ).setOrigin(0.5, 1).setDepth(20);
+      this.hintsText = this.add.text(480, 528, "WASD \u2014 Move    LClick \u2014 Attack    Shift \u2014 Dash    Space \u2014 Summon/Dismiss Clone    RClick \u2014 Reposition Clone", s(11, "#666666")).setOrigin(0.5, 1).setDepth(20);
       this.time.delayedCall(8e3, () => {
         this.tweens.add({ targets: this.hintsText, alpha: 0, duration: 1e3 });
       });
@@ -145061,11 +145049,17 @@
         panelItems.push(obj);
         return obj;
       };
-      p(this.add.rectangle(PX + PW / 2, 270, PW, 520, 655382, 0.85).setDepth(30).setOrigin(0.5, 0.5));
+      p(
+        this.add.rectangle(PX + PW / 2, 270, PW, 520, 655382, 0.85).setDepth(30).setOrigin(0.5, 0.5)
+      );
       let spawnOpen = false;
       const HEADER_Y = 38;
-      const headerBg = p(this.add.rectangle(PX + PW / 2, HEADER_Y + BTN_H / 2, PW - 12, BTN_H, 1706542).setDepth(30).setInteractive({ useHandCursor: true }));
-      const headerLbl = p(this.add.text(PX + PW / 2, HEADER_Y + BTN_H / 2, "\u25B6 Spawn", t(12, "#aa66dd")).setOrigin(0.5, 0.5).setDepth(31));
+      const headerBg = p(
+        this.add.rectangle(PX + PW / 2, HEADER_Y + BTN_H / 2, PW - 12, BTN_H, 1706542).setDepth(30).setInteractive({ useHandCursor: true })
+      );
+      const headerLbl = p(
+        this.add.text(PX + PW / 2, HEADER_Y + BTN_H / 2, "\u25B6 Spawn", t(12, "#aa66dd")).setOrigin(0.5, 0.5).setDepth(31)
+      );
       headerBg.on("pointerover", () => headerBg.setFillStyle(3342438));
       headerBg.on("pointerout", () => headerBg.setFillStyle(1706542));
       const spawnEntries = [
@@ -145079,8 +145073,12 @@
       ];
       const spawnBtns = spawnEntries.map((entry, i) => {
         const by = HEADER_Y + BTN_H + GAP + i * (BTN_H + GAP);
-        const bg = p(this.add.rectangle(PX + PW / 2, by + BTN_H / 2, PW - 12, BTN_H, 1181728).setDepth(30).setInteractive({ useHandCursor: true }));
-        const lbl = p(this.add.text(PX + PW / 2, by + BTN_H / 2, entry.label, t(12, entry.col)).setOrigin(0.5, 0.5).setDepth(31));
+        const bg = p(
+          this.add.rectangle(PX + PW / 2, by + BTN_H / 2, PW - 12, BTN_H, 1181728).setDepth(30).setInteractive({ useHandCursor: true })
+        );
+        const lbl = p(
+          this.add.text(PX + PW / 2, by + BTN_H / 2, entry.label, t(12, entry.col)).setOrigin(0.5, 0.5).setDepth(31)
+        );
         bg.on("pointerover", () => bg.setFillStyle(2621520));
         bg.on("pointerout", () => bg.setFillStyle(1181728));
         bg.on("pointerdown", (_p, _lx, _ly, event) => {
@@ -145091,17 +145089,23 @@
       });
       const utilEntries = [
         { label: "Dmg Player", col: "#ff4444", fn: () => this.player.takeDamage(1) },
-        { label: "Dmg Clone", col: "#cc44ff", fn: () => {
-          var _a;
-          if (((_a = this.clone) == null ? void 0 : _a.active) && !this.clone._dead)
-            this.clone.takeDamage(1);
-        } },
+        {
+          label: "Dmg Clone",
+          col: "#cc44ff",
+          fn: () => {
+            var _a;
+            if (((_a = this.clone) == null ? void 0 : _a.active) && !this.clone._dead)
+              this.clone.takeDamage(1);
+          }
+        },
         { label: "Clear All", col: "#ff4455", fn: () => this._debugClearEnemies() }
       ];
       const utilBgs = [];
       const utilLbls = [];
       utilEntries.forEach((entry) => {
-        const bg = p(this.add.rectangle(0, 0, PW - 12, BTN_H, 1706542).setDepth(30).setInteractive({ useHandCursor: true }));
+        const bg = p(
+          this.add.rectangle(0, 0, PW - 12, BTN_H, 1706542).setDepth(30).setInteractive({ useHandCursor: true })
+        );
         const lbl = p(this.add.text(0, 0, entry.label, t(12, entry.col)).setOrigin(0.5, 0.5).setDepth(31));
         bg.on("pointerover", () => bg.setFillStyle(3342438));
         bg.on("pointerout", () => bg.setFillStyle(1706542));
@@ -145195,7 +145199,9 @@
         return { bg, lbl, minusBg, minusLbl, plusBg, plusLbl };
       });
       this._showOverlapZone = false;
-      const ovBg = p(this.add.rectangle(0, 0, PW - 12, BTN_H, 1706542).setDepth(30).setInteractive({ useHandCursor: true }));
+      const ovBg = p(
+        this.add.rectangle(0, 0, PW - 12, BTN_H, 1706542).setDepth(30).setInteractive({ useHandCursor: true })
+      );
       const ovLbl = p(this.add.text(0, 0, "[ ] Overlap zone", t(11, "#888888")).setOrigin(0.5, 0.5).setDepth(31));
       ovBg.on("pointerover", () => ovBg.setFillStyle(3342438));
       ovBg.on("pointerout", () => ovBg.setFillStyle(1706542));
@@ -145243,8 +145249,12 @@
         });
         repositionUtil();
       });
-      const backBg = p(this.add.rectangle(PX + PW / 2, 510, PW - 12, 24, 1706542).setDepth(30).setInteractive({ useHandCursor: true }));
-      p(this.add.text(PX + PW / 2, 510, "\u2190 Title", t(11, "#666666")).setOrigin(0.5, 0.5).setDepth(31));
+      const backBg = p(
+        this.add.rectangle(PX + PW / 2, 510, PW - 12, 24, 1706542).setDepth(30).setInteractive({ useHandCursor: true })
+      );
+      p(
+        this.add.text(PX + PW / 2, 510, "\u2190 Title", t(11, "#666666")).setOrigin(0.5, 0.5).setDepth(31)
+      );
       backBg.on("pointerover", () => backBg.setFillStyle(2228275));
       backBg.on("pointerout", () => backBg.setFillStyle(1706542));
       backBg.on("pointerdown", (_ptr, _lx, _ly, event) => {
@@ -145280,7 +145290,7 @@
         if (label) {
           const txt = this.add.text(b.x + bw / 2, b.y - 2, `${label} ${bw}\xD7${bh}`, {
             fontSize: "9px",
-            fill: "#" + color.toString(16).padStart(6, "0"),
+            color: "#" + color.toString(16).padStart(6, "0"),
             fontFamily: mono,
             stroke: "#000000",
             strokeThickness: 2
@@ -145341,10 +145351,10 @@
       const cx = b.x + b.width / 2;
       const cy = b.y + b.height / 2;
       const DCONF = {
-        "right": { fx: 1, fy: 0, ox: b.right, oy: cy },
-        "left": { fx: -1, fy: 0, ox: b.left, oy: cy },
-        "up": { fx: 0, fy: -1, ox: cx, oy: b.top },
-        "down": { fx: 0, fy: 1, ox: cx, oy: b.bottom },
+        right: { fx: 1, fy: 0, ox: b.right, oy: cy },
+        left: { fx: -1, fy: 0, ox: b.left, oy: cy },
+        up: { fx: 0, fy: -1, ox: cx, oy: b.top },
+        down: { fx: 0, fy: 1, ox: cx, oy: b.bottom },
         "up-right": { fx: R2, fy: -R2, ox: b.right, oy: b.top },
         "up-left": { fx: -R2, fy: -R2, ox: b.left, oy: b.top },
         "down-right": { fx: R2, fy: R2, ox: b.right, oy: b.bottom },
@@ -145394,12 +145404,7 @@
       this.input.on("pointerdown", (ptr) => {
         var _a;
         if (ptr.rightButtonDown() && ((_a = this.clone) == null ? void 0 : _a.active) && this.player.active) {
-          const angle = __webpack_exports__Math.Angle.Between(
-            this.player.x,
-            this.player.y,
-            ptr.worldX,
-            ptr.worldY
-          );
+          const angle = __webpack_exports__Math.Angle.Between(this.player.x, this.player.y, ptr.worldX, ptr.worldY);
           const { x: offX, y: offY } = this._cardinalOffset(angle, 200);
           this.clone.anchorOffsetX = offX;
           this.clone.anchorOffsetY = offY;
@@ -145483,10 +145488,10 @@
       const NH = 15, FH = 30, FD = 50, CTRL = 70, N = 16;
       const R2 = 0.7071067811865476;
       const DCONF = {
-        "right": { fx: 1, fy: 0, ox: b.right, oy: cy },
-        "left": { fx: -1, fy: 0, ox: b.left, oy: cy },
-        "up": { fx: 0, fy: -1, ox: cx, oy: b.top },
-        "down": { fx: 0, fy: 1, ox: cx, oy: b.bottom },
+        right: { fx: 1, fy: 0, ox: b.right, oy: cy },
+        left: { fx: -1, fy: 0, ox: b.left, oy: cy },
+        up: { fx: 0, fy: -1, ox: cx, oy: b.top },
+        down: { fx: 0, fy: 1, ox: cx, oy: b.bottom },
         "up-right": { fx: R2, fy: -R2, ox: b.right, oy: b.top },
         "up-left": { fx: -R2, fy: -R2, ox: b.left, oy: b.top },
         "down-right": { fx: R2, fy: R2, ox: b.right, oy: b.bottom },
@@ -145505,10 +145510,7 @@
         g.lineTo(fA.x, fA.y);
         for (let i = 1; i <= N; i++) {
           const t = i / N, mt = 1 - t;
-          g.lineTo(
-            mt * mt * fA.x + 2 * mt * t * cp.x + t * t * fB.x,
-            mt * mt * fA.y + 2 * mt * t * cp.y + t * t * fB.y
-          );
+          g.lineTo(mt * mt * fA.x + 2 * mt * t * cp.x + t * t * fB.x, mt * mt * fA.y + 2 * mt * t * cp.y + t * t * fB.y);
         }
         g.lineTo(hB.x, hB.y);
         g.closePath();
@@ -145530,7 +145532,7 @@
       const jitter = __webpack_exports__Math.Between(-12, 12);
       const txt = this.add.text(x + jitter, y, `${amount}`, {
         fontSize: `${size}px`,
-        fill: color,
+        color,
         fontFamily: '"Courier New", Courier, monospace',
         stroke: "#000000",
         strokeThickness: 3
@@ -145547,7 +145549,7 @@
     spawnHealNumber(x, y, amount, color = "#44ffaa") {
       const txt = this.add.text(x, y, `+${amount}`, {
         fontSize: "20px",
-        fill: color,
+        color,
         fontFamily: '"Courier New", Courier, monospace',
         stroke: "#000000",
         strokeThickness: 3
@@ -145614,7 +145616,7 @@
           this.cloneHpContainer.add(
             this.add.text(i * GAP, 0, filled ? "\u2665" : "\u2661", {
               fontSize: "27px",
-              fill: filled ? "#ff99ff" : "#884488",
+              color: filled ? "#ff99ff" : "#884488",
               fontFamily: '"Courier New", Courier, monospace',
               stroke: "#000000",
               strokeThickness: 2
@@ -145861,7 +145863,7 @@
         this.hpContainer.add(
           this.add.text(i * 29, 0, filled ? "\u2665" : "\u2661", {
             fontSize: "27px",
-            fill: filled ? "#ff4466" : "#aa3355",
+            color: filled ? "#ff4466" : "#aa3355",
             fontFamily: '"Courier New", Courier, monospace',
             stroke: "#000000",
             strokeThickness: 2

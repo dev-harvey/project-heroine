@@ -8,11 +8,14 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build:bundle": "esbuild src/main.ts --bundle --outfile=dist/bundle.js --platform=browser --format=iife --target=es2017 --sourcemap",
     "build:bundle:watch": "esbuild src/main.ts --bundle --outfile=dist/bundle.js --platform=browser --format=iife --target=es2017 --sourcemap --watch",
-    "build": "npm run build:bundle"
+    "build": "npm run build:bundle",
+    "dev": "concurrently \"npm run build:bundle:watch\" \"browser-sync start --server --files 'dist/bundle.js' --index index.html --port 3000\""
   },
   "devDependencies": {
+    "browser-sync": "^3.0.4",
+    "concurrently": "^9.2.1",
+    "esbuild": "^0.19.0",
     "phaser": "^4.0.0",
-    "typescript": "^5.5.0",
-    "esbuild": "^0.19.0"
+    "typescript": "^5.5.0"
   }
 }

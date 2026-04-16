@@ -120,11 +120,11 @@ interface ITarget {
     halfHeight: number;
     offset:  { x: number; y: number };
     setSize(w: number, h: number): void;
-    setMass(mass: number): void;
-    setImmovable(flag: boolean): void;
-    setVelocity(x: number, y: number): unknown;
-    setCircle(radius: number): unknown;
-    setCollideWorldBounds(flag: boolean): unknown;
+    setMass?(mass: number): void;
+    setImmovable?(flag: boolean): void;
+    setVelocity?(x: number, y: number): unknown;
+    setCircle?(radius: number): unknown;
+    setCollideWorldBounds?(flag: boolean): unknown;
   };
   takeDamage(amount: number): void;
 }

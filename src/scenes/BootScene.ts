@@ -53,9 +53,8 @@ export default class BootScene extends Phaser.Scene {
     // Cursor sword
     this.load.image('cursor-sword', base + 'weapons/fantasy%20weapons%20set/PNG/1.png');
 
-    // Environment — loaded both ways so M2 can build a proper tilemap
-    this.load.image('dungeon-tileset', base + 'environments/single-dungeon-crawler/PNG/dungeon-tileset.png');
-    this.load.spritesheet('dungeon-tiles-sheet', base + 'environments/single-dungeon-crawler/PNG/dungeon-tileset.png', { frameWidth: 16, frameHeight: 16 });
+    // Environment
+    this.load.spritesheet('top-down-forest-tileset', base + 'environments/top-down-forest-tileset.png', { frameWidth: 16, frameHeight: 16 });
   }
 
   create(): void {
@@ -66,7 +65,8 @@ export default class BootScene extends Phaser.Scene {
     pg.destroy();
 
     this.createAnimations();
-    this.scene.start('TitleScene');
+    // this.scene.start('TitleScene');
+    this.scene.start('GameScene', { debug: true });
   }
 
   createLoadingBar(): void {

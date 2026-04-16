@@ -1,6 +1,6 @@
 .DS_Store
 .claude/
 node_modules/
-Legacy Collection/
+asset-collection/
 game-assets/
 *.zip
