@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Project Heroine</title>
+  <link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -18,27 +19,7 @@
   </style>
 </head>
 <body>
-  <!-- Phaser 3 -->
-  <script src="src/phaser.js"></script>
-
-  <!-- Entities -->
-  <script src="src/entities/Player.js"></script>
-  <script src="src/entities/Clone.js"></script>
-  <script src="src/entities/MutantToad.js"></script>
-  <script src="src/entities/HellHound.js"></script>
-  <script src="src/entities/PlagueCrow.js"></script>
-  <script src="src/entities/VoidDemon.js"></script>
-
-  <!-- Systems -->
-  <script src="src/systems/WaveManager.js"></script>
-
-  <!-- Scenes (BootScene must come first) -->
-  <script src="src/scenes/BootScene.js"></script>
-  <script src="src/scenes/TitleScene.js"></script>
-  <script src="src/scenes/GameScene.js"></script>
-  <script src="src/scenes/GameOverScene.js"></script>
-
-  <!-- Entry point -->
-  <script src="src/main.js"></script>
+  <!-- Single bundle build (created by esbuild) -->
+  <script src="dist/bundle.js"></script>
 </body>
 </html>

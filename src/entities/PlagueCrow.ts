@@ -1,37 +1,46 @@
-class PlagueCrow extends Phaser.Physics.Arcade.Sprite {
-  constructor(scene, x, y) {
-    super(scene, x, y, 'crow-idle');
+import * as Phaser from 'phaser';
+
+class PlagueCrow extends Phaser.Physics.Arcade.Sprite implements IEnemy {
+  _dead: boolean;
+
+  maxHp:        number;
+  hp:           number;
+  speed:        number;
+  attackDamage: number;
+  attackDir:    AttackDir;
+
+  shootCooldown: number;
+  private _projectiles: Phaser.GameObjects.Arc[];
+
+  lastAttacker?: string;
+
+  constructor(scene: Phaser.Scene, x: number, y: number) {
+    super(scene as any, x, y, 'crow-idle');
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
     this.setCollideWorldBounds(true);
     this.setDepth(4);
 
-    // Physics body matched to visible sprite area across all frames (48×48)
     this.setBodySize(28, 45);
     this.setOffset(12, 1);
-    this.body.setMass(1);
+    (this.body as Phaser.Physics.Arcade.Body).setMass(1);
 
     this._dead = false;
 
-    // Stats
     this.maxHp        = 2;
     this.hp           = this.maxHp;
     this.speed        = 55;
     this.attackDamage = 2;
+    this.attackDir    = 'right';
 
-    // Timers (ms)
     this.shootCooldown = Phaser.Math.Between(1500, 3000);
-
-    // Active projectiles fired by this crow
-    this._projectiles = [];
+    this._projectiles  = [];
 
     this.play('crow-idle');
   }
 
-  // ─── Combat ────────────────────────────────────────────────────────────────
-
-  takeDamage(amount) {
+  takeDamage(amount: number): void {
     if (this._dead) return;
     this.hp -= amount;
     this.setTint(0xff5555);
@@ -39,76 +48,67 @@ class PlagueCrow extends Phaser.Physics.Arcade.Sprite {
     if (this.hp <= 0) this._die();
   }
 
-  _die() {
+  _die(): void {
     if (this._dead) return;
     this._dead = true;
     this._destroyProjectiles();
-    this.scene.spawnDeathEffect(this.x, this.y);
-    this.scene.onEnemyKilled(this);
+    (this.scene as any).spawnDeathEffect?.(this.x, this.y);
+    (this.scene as any).onEnemyKilled?.(this);
     this.destroy();
   }
 
-  _destroyProjectiles() {
+  private _destroyProjectiles(): void {
     this._projectiles.forEach(p => { if (p.active) p.destroy(); });
     this._projectiles = [];
   }
 
-  // ─── Shooting ──────────────────────────────────────────────────────────────
-
-  _shoot(target) {
+  private _shoot(target: ITarget): void {
     const angle = Phaser.Math.Angle.Between(this.x, this.y, target.x, target.y);
     const speed = 200;
 
-    // Small projectile circle
     const proj = this.scene.add.circle(this.x, this.y, 5, 0x8833aa).setDepth(6);
     this.scene.physics.add.existing(proj);
-    proj.body.setCircle(5);
-    proj.body.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
-    proj.body.setCollideWorldBounds(true);
-    proj.body.onWorldBounds = true;
+    const projBody = proj.body as Phaser.Physics.Arcade.Body;
+    projBody.setCircle(5);
+    projBody.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+    projBody.setCollideWorldBounds(true);
+    (projBody as any).onWorldBounds = true;
 
     this._projectiles.push(proj);
 
-    // Destroy on world bounds hit
-    proj.body.world.on('worldbounds', (body) => {
+    (projBody as any).world.on('worldbounds', (body: Phaser.Physics.Arcade.Body) => {
       if (body.gameObject === proj && proj.active) proj.destroy();
     });
 
-    // Register overlap with player and clone
-    this.scene.physics.add.overlap(proj, this.scene.player, () => {
+    this.scene.physics.add.overlap(proj, (this.scene as any).player, () => {
       if (!proj.active) return;
       proj.destroy();
-      this.scene.player.takeDamage(this.attackDamage);
+      (this.scene as any).player?.takeDamage(this.attackDamage);
     });
 
-    if (this.scene.clone?.active) {
-      this.scene.physics.add.overlap(proj, this.scene.clone, () => {
+    if ((this.scene as any).clone?.active) {
+      this.scene.physics.add.overlap(proj, (this.scene as any).clone, () => {
         if (!proj.active) return;
         proj.destroy();
-        this.scene.clone?.takeDamage(this.attackDamage);
+        (this.scene as any).clone?.takeDamage(this.attackDamage);
       });
     }
 
-    // Auto-destroy after 3 s (safety)
     this.scene.time.delayedCall(3000, () => { if (proj.active) proj.destroy(); });
   }
 
-  // ─── Update ────────────────────────────────────────────────────────────────
-
-  update(time, delta, player, clone) {
+  update(_time: number, delta: number, player: ITarget, clone?: ITarget | null): void {
     if (!this.active || !player || player.hp <= 0) return;
 
-    // Hard clamp to arena bounds (wall = 28px, add 10px margin)
     this.x = Phaser.Math.Clamp(this.x, 38, 922);
     this.y = Phaser.Math.Clamp(this.y, 38, 502);
 
-    // Pick nearest living target
     const cloneAlive = clone?.active && !clone._dead;
-    let target = player;
+    let target: ITarget = player;
     if (cloneAlive) {
       const dp = Phaser.Math.Distance.Between(this.x, this.y, player.x, player.y);
-      const dc = Phaser.Math.Distance.Between(this.x, this.y, clone.x, clone.y);
-      if (dc < dp) target = clone;
+      const dc = Phaser.Math.Distance.Between(this.x, this.y, clone!.x, clone!.y);
+      if (dc < dp) target = clone!;
     }
 
     this.shootCooldown -= delta;
@@ -116,7 +116,6 @@ class PlagueCrow extends Phaser.Physics.Arcade.Sprite {
 
     this.setFlipX(target.x >= this.x);
 
-    // ── Too close — flee ─────────────────────────────────────────────────────
     if (dist < 100) {
       const angle = Phaser.Math.Angle.Between(target.x, target.y, this.x, this.y);
       const snap8 = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
@@ -125,29 +124,28 @@ class PlagueCrow extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
-    // ── Shoot ────────────────────────────────────────────────────────────────
     if (this.shootCooldown <= 0) {
       this.shootCooldown = Phaser.Math.Between(2000, 3000);
       this._shoot(target);
     }
 
-    // ── Kite: stay in preferred range 200–320 px ──────────────────────────────
     if (dist < 200) {
-      // Too close — back away
       const angle = Phaser.Math.Angle.Between(target.x, target.y, this.x, this.y);
       const snap8 = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
       this.setVelocity(Math.cos(snap8) * this.speed, Math.sin(snap8) * this.speed);
       this.play('crow-fly', true);
     } else if (dist > 320) {
-      // Too far — move in
       const angle = Phaser.Math.Angle.Between(this.x, this.y, target.x, target.y);
       const snap8 = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
       this.setVelocity(Math.cos(snap8) * this.speed, Math.sin(snap8) * this.speed);
       this.play('crow-fly', true);
     } else {
-      // In range — hover
       this.setVelocity(0, 0);
       this.play('crow-idle', true);
     }
   }
 }
+
+(window as any).PlagueCrow = PlagueCrow;
+
+export default PlagueCrow;
