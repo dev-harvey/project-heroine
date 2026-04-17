@@ -23,7 +23,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   wasd: WasdKeys;
   _shiftKey: Phaser.Input.Keyboard.Key;
 
-  attackZone: Phaser.Physics.Arcade.Sprite;
+  attackDetectionZone: Phaser.Physics.Arcade.Sprite;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene as any, x, y, "player-idle");
@@ -48,8 +48,8 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.isAttacking = false;
     this.attackDir = "right";
 
-    this.attackZone = scene.physics.add.sprite(x, y, "");
-    this.attackZone.body.enable = false;
+    this.attackDetectionZone = scene.physics.add.sprite(x, y, "");
+    this.attackDetectionZone.body.enable = false;
 
     this.isDashing = false;
 
@@ -80,10 +80,10 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       if (anim.key.startsWith("player-attack")) {
         if (frame.index === 4) {
           this._syncAttackZone();
-          this.attackZone.body.enable = true;
+          this.attackDetectionZone.body.enable = true;
         }
         if (frame.index === 7) {
-          this.attackZone.body.enable = false;
+          this.attackDetectionZone.body.enable = false;
           this.hitEnemies.clear();
         }
       }
@@ -92,7 +92,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.on("animationcomplete", (anim: Phaser.Animations.Animation) => {
       if (anim.key.startsWith("player-attack")) {
         this.isAttacking = false;
-        this.attackZone.body.enable = false;
+        this.attackDetectionZone.body.enable = false;
       }
     });
 
@@ -226,8 +226,8 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     const b = this.body as Phaser.Physics.Arcade.Body;
     const bcx = b.x + b.width / 2;
     const bcy = b.y + b.height / 2;
-    this.attackZone.body.setSize(playerConfig.ATTACK_DETECTION_ZONE.w, playerConfig.ATTACK_DETECTION_ZONE.h);
-    this.attackZone.setPosition(bcx, bcy);
+    this.attackDetectionZone.body.setSize(playerConfig.ATTACK_DETECTION_ZONE.w, playerConfig.ATTACK_DETECTION_ZONE.h);
+    this.attackDetectionZone.setPosition(bcx, bcy);
   }
 
   _inAttackZone(tx: number, ty: number): boolean {

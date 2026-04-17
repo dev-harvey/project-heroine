@@ -24,7 +24,7 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
   anchorOffsetY: number;
   _repositioning: boolean;
 
-  attackZone: Phaser.Physics.Arcade.Sprite;
+  attackDetectionZone: Phaser.Physics.Arcade.Sprite;
 
   constructor(scene: Phaser.Scene, x: number, y: number, player: Player, opts: CloneOptions = {}) {
     super(scene as any, x, y, "player-idle");
@@ -65,17 +65,17 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
     this._repositioning = false;
 
     // ── Attack zone
-    this.attackZone = scene.physics.add.sprite(x, y, "");
-    this.attackZone.body.enable = false;
+    this.attackDetectionZone = scene.physics.add.sprite(x, y, "");
+    this.attackDetectionZone.body.enable = false;
 
     this.on(Phaser.Animations.Events.ANIMATION_UPDATE, (anim, frame) => {      
       if (anim.key.startsWith("player-attack")) {
         if (frame.index === 4) {
           this._syncAttackZone();
-          this.attackZone.body.enable = true;
+          this.attackDetectionZone.body.enable = true;
         }
         if (frame.index === 7) {
-          this.attackZone.body.enable = false;
+          this.attackDetectionZone.body.enable = false;
           this.hitEnemies.clear();
         }
       }
@@ -84,7 +84,7 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
     this.on("animationcomplete", (anim: Phaser.Animations.Animation) => {
       if (anim.key.startsWith("player-attack")) {
         this.isAttacking = false;
-        (this.attackZone as any).body.enable = false;
+        (this.attackDetectionZone as any).body.enable = false;
       }
     });
 
@@ -228,12 +228,12 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
   }
 
   private _syncAttackZone(): void {
-    if (!this.attackZone) return;
+    if (!this.attackDetectionZone) return;
     const b = this.body as Phaser.Physics.Arcade.Body;
     const bcx = b.x + b.width / 2;
     const bcy = b.y + b.height / 2;
-    this.attackZone.body.setSize(cloneConfig.ATTACK_DETECTION_ZONE.w, cloneConfig.ATTACK_DETECTION_ZONE.h);
-    this.attackZone.setPosition(bcx, bcy);
+    this.attackDetectionZone.body.setSize(cloneConfig.ATTACK_DETECTION_ZONE.w, cloneConfig.ATTACK_DETECTION_ZONE.h);
+    this.attackDetectionZone.setPosition(bcx, bcy);
   }
 
   _inAttackZone(tx: number, ty: number): boolean {
@@ -276,10 +276,10 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
   dismiss(): void {
     if (!this.active) return;
     this.setActive(false).setVisible(false);
-    if (this.attackZone) {
-      this.attackZone.body.enable = false;
-      this.attackZone.destroy();
-      this.attackZone = null;
+    if (this.attackDetectionZone) {
+      this.attackDetectionZone.body.enable = false;
+      this.attackDetectionZone.destroy();
+      this.attackDetectionZone = null;
     }
     this.destroy();
   }

@@ -182,7 +182,7 @@ export default class GameScene extends Phaser.Scene {
     this.playerEnemyCollider = this.physics.add.collider(this.player, this.enemies);
     // this.cloneEnemyCollider = this.physics.add.collider(this.clone, this.enemies);
     this.physics.add.collider(this.enemies, this.enemies);
-    this.physics.add.overlap(this.player.attackZone, this.enemies, this._onAttackHit, undefined, this);
+    this.physics.add.overlap(this.player.attackDetectionZone, this.enemies, this._onAttackHit, undefined, this);
   }
 
   _buildUI(): void {
@@ -745,7 +745,7 @@ export default class GameScene extends Phaser.Scene {
     const ctrlPoint = { x: config.ox + config.fx * CURVE_CONTROL, y: config.oy + config.fy * CURVE_CONTROL };
 
     // 5. Drawing Logic
-    const isActuallyHitting = entity.isAttacking && entity.attackZone?.body?.enable;
+    const isActuallyHitting = entity.isAttacking && entity.attackDetectionZone?.body?.enable;
 
     // Set line and fill styles based on attack state
     if (isActuallyHitting) {
@@ -852,7 +852,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.cloneEnemyCollider = this.physics.add.collider(this.clone, this.enemies);
 
-    this.physics.add.overlap(this.clone.attackZone, this.enemies, this._onCloneAttackHit, undefined, this);
+    this.physics.add.overlap(this.clone.attackDetectionZone, this.enemies, this._onCloneAttackHit, undefined, this);
 
     this._updateCloneHUD();
     this.showAnnouncement("Clone Summoned!", "#cc88ff");
@@ -1054,7 +1054,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.enemies.getChildren().forEach((e: any) => e.setVelocity(0, 0));
     this.player.setActive(false).setVisible(false);
-    this.player.attackZone.setActive(false);
+    this.player.attackDetectionZone.setActive(false);
 
     this.scene.start("GameOverScene", {
       wave: currentWave,
@@ -1090,7 +1090,7 @@ export default class GameScene extends Phaser.Scene {
 
   _onAttackHit(_zone: any, enemy: any): void {
     if (!this.player.isAttacking) return;
-    if (!this.player.attackZone.body.enable) return;
+    if (!this.player.attackDetectionZone.body.enable) return;
     if (this.player.hitEnemies.has(enemy)) return;
     if (!this._enemyInAttackZone(this.player, enemy)) return;
 
@@ -1104,7 +1104,7 @@ export default class GameScene extends Phaser.Scene {
   _onCloneAttackHit(_zone: any, enemy: any): void {
     if (!this.clone?.active) return;
     if (!this.clone.isAttacking) return;
-    if (!this.clone.attackZone?.body?.enable) return;
+    if (!this.clone.attackDetectionZone?.body?.enable) return;
     if (this.clone.hitEnemies.has(enemy)) return;
     if (!this._enemyInAttackZone(this.clone, enemy)) return;
 
