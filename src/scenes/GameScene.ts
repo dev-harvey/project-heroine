@@ -156,6 +156,7 @@ export default class GameScene extends Phaser.Scene {
       if (this.clone?.active) this.clone.doDash(vx, vy);
       if (this.playerEnemyCollider) this.playerEnemyCollider.active = false;
       if (this.cloneEnemyCollider) this.cloneEnemyCollider.active = false;
+      // TODO: Change to sync to dash animation.
       this.time.delayedCall(320, () => {
         if (this.playerEnemyCollider) this.playerEnemyCollider.active = true;
         if (this.cloneEnemyCollider) this.cloneEnemyCollider.active = true;
@@ -178,9 +179,8 @@ export default class GameScene extends Phaser.Scene {
   }
 
   _buildPhysics(): void {
-    console.log("building physics");
-
     this.playerEnemyCollider = this.physics.add.collider(this.player, this.enemies);
+    // this.cloneEnemyCollider = this.physics.add.collider(this.clone, this.enemies);
     this.physics.add.collider(this.enemies, this.enemies);
     this.physics.add.overlap(this.player.attackZone, this.enemies, this._onAttackHit, undefined, this);
   }
@@ -634,7 +634,7 @@ export default class GameScene extends Phaser.Scene {
         this.clone.anchorOffsetX = offX;
         this.clone.anchorOffsetY = offY;
         this.clone.startReposition();
-        if (this.cloneEnemyCollider) this.cloneEnemyCollider.active = false;
+        // if (this.cloneEnemyCollider) this.cloneEnemyCollider.active = false;
       }
     });
   }
@@ -850,8 +850,7 @@ export default class GameScene extends Phaser.Scene {
     this.clone.doDash(offX * 2.5, offY * 2.5);
     this.clone.startReposition();
 
-    // this.cloneEnemyCollider = this.physics.add.collider(this.clone as any, this.enemies);
-    // this.cloneEnemyCollider.active = false;
+    this.cloneEnemyCollider = this.physics.add.collider(this.clone, this.enemies);
 
     this.physics.add.overlap(this.clone.attackZone, this.enemies, this._onCloneAttackHit, undefined, this);
 
