@@ -7,7 +7,7 @@ import PlagueCrow from "../entities/PlagueCrow";
 import VoidDemon from "../entities/VoidDemon";
 import WaveManager from "../systems/WaveManager";
 
-import { CLONE_CONFIG } from "../utils/Constants";
+import { CLONE_CONFIG as cloneConfig } from "../utils/Constants";
 
 export default class GameScene extends Phaser.Scene {
   // Core objects
@@ -826,6 +826,11 @@ export default class GameScene extends Phaser.Scene {
     if (this.clone?.active) {
       ax = this.player.x + this.clone.anchorOffsetX;
       ay = this.player.y + this.clone.anchorOffsetY;
+      // console.log(this.clone.anchorOffsetX);
+      // console.log(this.clone.anchorOffsetY);
+      // 
+      console.log(ax);
+      console.log(ay);
     } else if (this.player.active) {
       const ptr = this.input.activePointer;
       const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, ptr.worldX, ptr.worldY);
@@ -838,8 +843,11 @@ export default class GameScene extends Phaser.Scene {
     const WALL = 28;
     ax = Phaser.Math.Clamp(ax, WALL, 960 - WALL);
     ay = Phaser.Math.Clamp(ay, WALL, 540 - WALL);
-    this.anchorIndicator.fillStyle(0x76ff46, 0.9);
-    this.anchorIndicator.fillRect(ax - 1, ay - 1, 2, 2);
+
+    const size = 3;
+    this.anchorIndicator.lineStyle(1, cloneConfig.TINT, 1);
+    this.anchorIndicator.lineBetween(ax - size, ay - size, ax + size, ay + size);
+    this.anchorIndicator.lineBetween(ax - size, ay + size, ax + size, ay - size);
   }
 
   /**
@@ -987,7 +995,7 @@ export default class GameScene extends Phaser.Scene {
 
     const ptr = this.input.activePointer;
     const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, ptr.worldX, ptr.worldY);
-    const { x: offX, y: offY } = this._cardinalOffset(angle, CLONE_CONFIG.ANCHOR_OFFSET);
+    const { x: offX, y: offY } = this._cardinalOffset(angle, cloneConfig.ANCHOR_OFFSET);
 
     const prog = window.Progression;
     this.clone = new Clone(this, this.player.x, this.player.y, this.player, {
