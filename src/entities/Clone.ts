@@ -40,7 +40,8 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
 
     this.body.setMass(cloneConfig.MASS);
 
-    this.setTint(0x0bf5ff);
+    this.setTint(cloneConfig.TINT);
+    this.setBlendMode('OVERLAY');
 
     // ── Stats
     this._baseHp = cloneConfig.MAXHP;
@@ -88,7 +89,6 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
     });
 
     this.play("player-idle");
-    // TODO: does this so anything? scene.tweens.add({ targets: this, alpha: 0.9, duration: 350, ease: "Power2" });
   }
 
   // ─── Dynamic stats ──────────────────────────────────────────────────────────
@@ -130,22 +130,13 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
     const spawnX = bcx - nx * b.halfWidth;
     const spawnY = bcy - ny * b.halfHeight;
 
-    const spark = this.scene.add.sprite(spawnX, spawnY, "dash-spark").setDepth(3).setOrigin(0.5, 0.5).setRotation(Math.atan2(vy, vx)).setTint(0x76ff46);
+    const spark = this.scene.add.sprite(spawnX, spawnY, "dash-spark").setDepth(3).setOrigin(0.5, 0.5).setRotation(Math.atan2(vy, vx)).setTint(cloneConfig.TINT).setBlendMode("OVERLAY");
     spark.play("dash-spark");
     spark.once("animationcomplete", () => {
       if (spark.active) spark.destroy();
     });
 
     this.scene.tweens.add({ targets: spark, x: spawnX + nx * 60, y: spawnY + ny * 60, duration: 200, ease: "Linear" });
-    this.scene.tweens.add({
-      targets: this,
-      alpha: { from: 0, to: 0.9 },
-      duration: 100,
-      repeat: 1,
-      onComplete: () => {
-        if (this.active) this.setAlpha(0.9);
-      },
-    });
 
     // TODO: Change this to sync to animation. Check rest of project for delayedCall 
     this.scene.time.delayedCall(200, () => {
@@ -206,8 +197,8 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
       },
       onComplete: () => {
         if (this.active) {
-          this.setTint(0x76ff46);
-          this.setAlpha(0.9);
+          this.setTint(cloneConfig.TINT);
+          this.setAlpha(1);
         }
       },
     });
@@ -227,7 +218,7 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
     const b = this.body as Phaser.Physics.Arcade.Body;
     const bcx = this.x - this.displayWidth / 2 + b.offset.x * this.scaleX + b.halfWidth;
     const bcy = this.y - this.displayHeight / 2 + b.offset.y * this.scaleY + b.halfHeight;
-    const fx = this.scene.add.sprite(bcx, bcy, "enemy-death").setDepth(6).setTint(0x76ff46);
+    const fx = this.scene.add.sprite(bcx, bcy, "enemy-death").setDepth(6).setTint(cloneConfig.TINT);
     fx.play("enemy-death-anim");
     fx.once("animationcomplete", () => {
       if (fx.active) fx.destroy();

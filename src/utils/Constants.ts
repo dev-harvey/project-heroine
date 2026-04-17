@@ -1,3 +1,8 @@
+export const GAME_COLORS = {
+  ALPHA: 1,
+  BETA: 2
+}
+
 export const GAME_CONFIG = {
   GAME_WIDTH: 960,
   GAME_HEIGHT: 540, 
@@ -26,8 +31,8 @@ export const PLAYER_CONFIG = {
 }
 
 export const CLONE_CONFIG = {
-  TINT: 0x76ff46,
-  DEPTH: PLAYER_CONFIG.DEPTH - 1,
+  TINT: 0xcddf6c,
+  DEPTH: PLAYER_CONFIG.DEPTH + 1,
   SCALE: PLAYER_CONFIG.SCALE,
   BODY_SIZE: PLAYER_CONFIG.BODY_SIZE,
   MASS: PLAYER_CONFIG.MASS / 2,

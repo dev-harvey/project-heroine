@@ -109,12 +109,6 @@ export default class GameScene extends Phaser.Scene {
     this.enemies.getChildren().forEach((e: any) => {
       if (e.active) e.update(time, delta, this.player, this.clone);
     });
-
-    if (this._debugMode) {
-      const alive = this.enemies.getChildren().filter((e: any) => e.active).length;
-      if (this._debugCountText) this._debugCountText.setText(`Enemies: ${alive}`);
-      this._drawDebugAttackZonees();
-    }
   }
 
   // ─── Setup ─────────────────────────────────────────────────────────────────
@@ -147,7 +141,7 @@ export default class GameScene extends Phaser.Scene {
     gWall.fillRect(0, H - WALL, 960, WALL);
     gWall.fillRect(0, 0, WALL, H);
     gWall.fillRect(W - WALL, 0, WALL, H);
-    gWall.lineStyle(2, 0x8855cc, 0.9);
+    gWall.lineStyle(2, 0x8855cc, 1);
     gWall.strokeRect(WALL, WALL, W - WALL * 2, H - WALL * 2);
 
     this.physics.world.setBounds(WALL, WALL, W - WALL * 2, H - WALL * 2);
@@ -617,145 +611,12 @@ export default class GameScene extends Phaser.Scene {
       event.stopPropagation();
       this.scene.start("TitleScene");
     });
-
-    // this._hitboxGfx = this.add.graphics().setDepth(50);
   }
 
   _debugClearEnemies(): void {
     this.enemies.getChildren().forEach((e: any) => {
       if (e.active) e._die?.();
     });
-  }
-
-  _drawDebugAttackZonees(): void {
-    /* Disabled as think I can do this with phaser instead */
-    return;
-    const g = this._hitboxGfx;
-    if (!g) return;
-    g.clear();
-
-    if (this._debugLabels) this._debugLabels.forEach((t) => t.destroy());
-    this._debugLabels = [];
-
-    const mono = '"Courier New", Courier, monospace';
-
-    const drawBody = (sprite: any, color: number, label: string) => {
-      if (!sprite?.active || !sprite.body) return;
-      const b = sprite.body;
-      const bw = Math.round(b.width),
-        bh = Math.round(b.height);
-      g.lineStyle(1, color, 0.9);
-      g.strokeRect(b.x, b.y, bw, bh);
-      if (label) {
-        const txt = this.add
-          .text(b.x + bw / 2, b.y - 2, `${label} ${bw}×${bh}`, {
-            fontSize: "9px",
-            color: "#" + color.toString(16).padStart(6, "0"),
-            fontFamily: mono,
-            stroke: "#000000",
-            strokeThickness: 2,
-          })
-          .setOrigin(0.5, 1)
-          .setDepth(51);
-        this._debugLabels.push(txt);
-      }
-    };
-
-    drawBody(this.player, 0x00ffff, "player");
-    if (this.player.isAttacking) {
-      this._drawDebugAttackZone(g, this.player, 0xffff00, 0.9);
-    } else {
-      this._drawDebugAttackZone(g, this.player, 0xffff00, 0.2);
-    }
-    if (this._showOverlapZone && this.player.attackZone?.body) {
-      const az = this.player.attackZone;
-      const ab = this.player.attackZone.body;
-      g.lineStyle(1, 0xff4444, ab.enable ? 0.9 : 0.3);
-      g.strokeRect(az.x - ab.width / 2, az.y - ab.height / 2, ab.width, ab.height);
-    }
-
-    if (this.clone?.active) {
-      drawBody(this.clone, 0xcc66ff, "clone");
-      if (this.clone.isAttacking) {
-        this._drawDebugAttackZone(g, this.clone, 0xffdd00, 0.9);
-      } else {
-        this._drawDebugAttackZone(g, this.clone, 0xffdd00, 0.2);
-      }
-      if (this._showOverlapZone && this.clone.attackZone?.body) {
-        const az = this.clone.attackZone;
-        const ab = this.clone.attackZone.body;
-        g.lineStyle(1, 0xff44ff, ab.enable ? 0.9 : 0.3);
-        g.strokeRect(az.x - ab.width / 2, az.y - ab.height / 2, ab.width, ab.height);
-      }
-    }
-
-    this.enemies.getChildren().forEach((e: any) => {
-      if (!e.active) return;
-      let col = 0xff4444;
-      if (e instanceof HellHound) col = 0xff8800;
-      if (e instanceof PlagueCrow) col = 0x88ccff;
-      drawBody(e, col, e.constructor.name);
-      if (e instanceof MutantToad && e._isAttacking) {
-        const toadParams = { NH: 15, FH: 30, FD: 30, CTRL: 40, fillAlpha: e._attackFlash ? 0.5 : 0 };
-        this._drawDebugAttackZone(g, e, 0xff4444, 0.9, toadParams);
-      }
-    });
-  }
-
-  _drawDebugAttackZone(g: Phaser.GameObjects.Graphics, entity: any, color: number, alpha: number, params: AttackZoneParams = {}): void {
-    if (!entity?.active || !entity.body) return;
-    const NH = params.NH ?? 15,
-      FH = params.FH ?? 30;
-    const FD = params.FD ?? 50,
-      CTRL = params.CTRL ?? 70;
-    const N = 16;
-    const b = entity.body;
-    const R2 = 0.7071067811865476;
-    const cx = b.x + b.width / 2;
-    const cy = b.y + b.height / 2;
-    const DCONF: Record<AttackDir, DirConfig> = {
-      right: { fx: 1, fy: 0, ox: b.right, oy: cy },
-      left: { fx: -1, fy: 0, ox: b.left, oy: cy },
-      up: { fx: 0, fy: -1, ox: cx, oy: b.top },
-      down: { fx: 0, fy: 1, ox: cx, oy: b.bottom },
-      "up-right": { fx: R2, fy: -R2, ox: b.right, oy: b.top },
-      "up-left": { fx: -R2, fy: -R2, ox: b.left, oy: b.top },
-      "down-right": { fx: R2, fy: R2, ox: b.right, oy: b.bottom },
-      "down-left": { fx: -R2, fy: R2, ox: b.left, oy: b.bottom },
-    };
-    const cfg = DCONF[entity.attackDir];
-    if (!cfg) return;
-    const { fx, fy, ox, oy } = cfg;
-    const px = -fy,
-      py = fx;
-
-    const hA = { x: ox + px * NH, y: oy + py * NH };
-    const hB = { x: ox - px * NH, y: oy - py * NH };
-    const fA = { x: ox + fx * FD + px * FH, y: oy + fy * FD + py * FH };
-    const fB = { x: ox + fx * FD - px * FH, y: oy + fy * FD - py * FH };
-    const cp = { x: ox + fx * CTRL, y: oy + fy * CTRL };
-
-    const buildPath = () => {
-      g.beginPath();
-      g.moveTo(hA.x, hA.y);
-      g.lineTo(fA.x, fA.y);
-      for (let i = 1; i <= N; i++) {
-        const t = i / N,
-          mt = 1 - t;
-        g.lineTo(mt * mt * fA.x + 2 * mt * t * cp.x + t * t * fB.x, mt * mt * fA.y + 2 * mt * t * cp.y + t * t * fB.y);
-      }
-      g.lineTo(hB.x, hB.y);
-      g.closePath();
-    };
-
-    if (params.fillAlpha) {
-      g.fillStyle(color, params.fillAlpha);
-      buildPath();
-      g.fillPath();
-    }
-    g.lineStyle(1, color, alpha);
-    buildPath();
-    g.strokePath();
   }
 
   _buildCloneControls(): void {
@@ -814,23 +675,22 @@ export default class GameScene extends Phaser.Scene {
   }
 
   _updateAnchorIndicator(): void {
+    if (!this.player.active) {
+      return;
+    }
     this.anchorIndicator.clear();
-    let ax: number, ay: number;
-    if (this.player.active) {
-      const ptr = this.input.activePointer;
+    let anchorX: number, anchorY: number;
+    const ptr = this.input.activePointer;
       const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, ptr.worldX, ptr.worldY);
       const { x: offX, y: offY } = this._cardinalOffset(angle, 150);
       const wall = gameConfig.GAME_WALL;
-      ax = Phaser.Math.Clamp(this.player.x + offX, wall, gameConfig.GAME_WIDTH - wall);
-      ay = Phaser.Math.Clamp(this.player.y + offY, wall, gameConfig.GAME_HEIGHT - wall);
+      anchorX = Phaser.Math.Clamp(this.player.x + offX, wall, gameConfig.GAME_WIDTH - wall);
+      anchorY = Phaser.Math.Clamp(this.player.y + offY, wall, gameConfig.GAME_HEIGHT - wall);
 
       const size = 3;
       this.anchorIndicator.lineStyle(1, cloneConfig.TINT, 1);
-      this.anchorIndicator.lineBetween(ax - size, ay - size, ax + size, ay + size);
-      this.anchorIndicator.lineBetween(ax - size, ay + size, ax + size, ay - size);
-    } else {
-      return;
-    }
+      this.anchorIndicator.lineBetween(Math.round(anchorX - size), Math.round(anchorY - size), Math.round(anchorX + size), Math.round(anchorY + size));
+      this.anchorIndicator.lineBetween(Math.round(anchorX - size), Math.round(anchorY + size), Math.round(anchorX + size), Math.round(anchorY - size));
   }
 
   /**
