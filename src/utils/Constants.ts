@@ -1,3 +1,10 @@
+export const GAME_CONFIG = {
+  GAME_WIDTH: 960,
+  GAME_HEIGHT: 540, 
+  GAME_WALL: 28,
+  GAME_TILE: 16
+}
+
 export const PLAYER_CONFIG = {
   DEPTH: 5, 
   SCALE: 1,

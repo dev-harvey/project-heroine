@@ -245,7 +245,7 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
     this.attackZone.setPosition(bcx, bcy);
   }
 
-  _inHitbox(tx: number, ty: number): boolean {
+  _inAttackZone(tx: number, ty: number): boolean {
     if (!this.body) return false;
     const NH = 15,
       FH = 30,

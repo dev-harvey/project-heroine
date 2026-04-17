@@ -7,7 +7,7 @@ import PlagueCrow from "../entities/PlagueCrow";
 import VoidDemon from "../entities/VoidDemon";
 import WaveManager from "../systems/WaveManager";
 
-import { CLONE_CONFIG as cloneConfig } from "../utils/Constants";
+import { CLONE_CONFIG as cloneConfig, GAME_CONFIG as gameConfig } from "../utils/Constants";
 
 export default class GameScene extends Phaser.Scene {
   // Core objects
@@ -113,17 +113,17 @@ export default class GameScene extends Phaser.Scene {
     if (this._debugMode) {
       const alive = this.enemies.getChildren().filter((e: any) => e.active).length;
       if (this._debugCountText) this._debugCountText.setText(`Enemies: ${alive}`);
-      this._drawDebugHitboxes();
+      this._drawDebugAttackZonees();
     }
   }
 
   // ─── Setup ─────────────────────────────────────────────────────────────────
 
   _buildWorld(): void {
-    const W = 960,
-      H = 540,
-      WALL = 28,
-      TILE = 16;
+    const W = gameConfig.GAME_WIDTH,
+      H = gameConfig.GAME_HEIGHT,
+      WALL = gameConfig.GAME_WALL,
+      TILE = gameConfig.GAME_TILE;
 
     this.add.rectangle(W / 2, H / 2, W, H, 0x0d0618).setDepth(0);
 
@@ -133,14 +133,7 @@ export default class GameScene extends Phaser.Scene {
 
     for (let col = 0; col * TILE < W - WALL * 2; col++) {
       for (let row = 0; row * TILE < H - WALL * 2; row++) {
-        let textureFrame = 62;
-        // if (!true) {
-        //   // rock
-        //   textureFrame = 170;
-        // } else {
-        //   // default grass
-        //   textureFrame = 62;
-        // }
+        let textureFrame = 62; // edit this to change the texture. 62 = plain grass
         this.add
           .image(WALL + col * TILE, WALL + row * TILE, "top-down-forest-tileset", textureFrame)
           .setOrigin(0, 0)
@@ -634,7 +627,7 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  _drawDebugHitboxes(): void {
+  _drawDebugAttackZonees(): void {
     /* Disabled as think I can do this with phaser instead */
     return;
     const g = this._hitboxGfx;
@@ -670,9 +663,9 @@ export default class GameScene extends Phaser.Scene {
 
     drawBody(this.player, 0x00ffff, "player");
     if (this.player.isAttacking) {
-      this._drawDebugHitbox(g, this.player, 0xffff00, 0.9);
+      this._drawDebugAttackZone(g, this.player, 0xffff00, 0.9);
     } else {
-      this._drawDebugHitbox(g, this.player, 0xffff00, 0.2);
+      this._drawDebugAttackZone(g, this.player, 0xffff00, 0.2);
     }
     if (this._showOverlapZone && this.player.attackZone?.body) {
       const az = this.player.attackZone;
@@ -684,9 +677,9 @@ export default class GameScene extends Phaser.Scene {
     if (this.clone?.active) {
       drawBody(this.clone, 0xcc66ff, "clone");
       if (this.clone.isAttacking) {
-        this._drawDebugHitbox(g, this.clone, 0xffdd00, 0.9);
+        this._drawDebugAttackZone(g, this.clone, 0xffdd00, 0.9);
       } else {
-        this._drawDebugHitbox(g, this.clone, 0xffdd00, 0.2);
+        this._drawDebugAttackZone(g, this.clone, 0xffdd00, 0.2);
       }
       if (this._showOverlapZone && this.clone.attackZone?.body) {
         const az = this.clone.attackZone;
@@ -704,12 +697,12 @@ export default class GameScene extends Phaser.Scene {
       drawBody(e, col, e.constructor.name);
       if (e instanceof MutantToad && e._isAttacking) {
         const toadParams = { NH: 15, FH: 30, FD: 30, CTRL: 40, fillAlpha: e._attackFlash ? 0.5 : 0 };
-        this._drawDebugHitbox(g, e, 0xff4444, 0.9, toadParams);
+        this._drawDebugAttackZone(g, e, 0xff4444, 0.9, toadParams);
       }
     });
   }
 
-  _drawDebugHitbox(g: Phaser.GameObjects.Graphics, entity: any, color: number, alpha: number, params: HitboxParams = {}): void {
+  _drawDebugAttackZone(g: Phaser.GameObjects.Graphics, entity: any, color: number, alpha: number, params: AttackZoneParams = {}): void {
     if (!entity?.active || !entity.body) return;
     const NH = params.NH ?? 15,
       FH = params.FH ?? 30;
@@ -808,13 +801,13 @@ export default class GameScene extends Phaser.Scene {
       this.playerAttackIndicator.clear();
     } else {
       const playerDir = this.player.isAttacking ? this.player.attackDir : playerMouseDir;
-      this._drawHitboxPreview(this.playerAttackIndicator, this.player, playerDir, 0xffd700);
+      this._drawAttackZonePreview(this.playerAttackIndicator, this.player, playerDir, 0xffd700);
     }
 
     if (this.clone?.active) {
       const cloneMouseDir = this._mouseDir(this.clone);
       const cloneDir = this.clone.isAttacking ? this.clone.attackDir : cloneMouseDir;
-      this._drawHitboxPreview(this.cloneAttackIndicator, this.clone, cloneDir, 0xcc88ff);
+      this._drawAttackZonePreview(this.cloneAttackIndicator, this.clone, cloneDir, 0xcc88ff);
     } else {
       this.cloneAttackIndicator.clear();
     }
@@ -823,38 +816,28 @@ export default class GameScene extends Phaser.Scene {
   _updateAnchorIndicator(): void {
     this.anchorIndicator.clear();
     let ax: number, ay: number;
-    if (this.clone?.active) {
-      ax = this.player.x + this.clone.anchorOffsetX;
-      ay = this.player.y + this.clone.anchorOffsetY;
-      // console.log(this.clone.anchorOffsetX);
-      // console.log(this.clone.anchorOffsetY);
-      // 
-      console.log(ax);
-      console.log(ay);
-    } else if (this.player.active) {
+    if (this.player.active) {
       const ptr = this.input.activePointer;
       const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, ptr.worldX, ptr.worldY);
       const { x: offX, y: offY } = this._cardinalOffset(angle, 150);
-      ax = this.player.x + offX;
-      ay = this.player.y + offY;
+      const wall = gameConfig.GAME_WALL;
+      ax = Phaser.Math.Clamp(this.player.x + offX, wall, gameConfig.GAME_WIDTH - wall);
+      ay = Phaser.Math.Clamp(this.player.y + offY, wall, gameConfig.GAME_HEIGHT - wall);
+
+      const size = 3;
+      this.anchorIndicator.lineStyle(1, cloneConfig.TINT, 1);
+      this.anchorIndicator.lineBetween(ax - size, ay - size, ax + size, ay + size);
+      this.anchorIndicator.lineBetween(ax - size, ay + size, ax + size, ay - size);
     } else {
       return;
     }
-    const WALL = 28;
-    ax = Phaser.Math.Clamp(ax, WALL, 960 - WALL);
-    ay = Phaser.Math.Clamp(ay, WALL, 540 - WALL);
-
-    const size = 3;
-    this.anchorIndicator.lineStyle(1, cloneConfig.TINT, 1);
-    this.anchorIndicator.lineBetween(ax - size, ay - size, ax + size, ay + size);
-    this.anchorIndicator.lineBetween(ax - size, ay + size, ax + size, ay - size);
   }
 
   /**
    * Draws a shovel-shaped debug preview of the attack range.
    * Shape: A trapezoid with a curved outer edge.
    */
-  _drawHitboxPreview(g: Phaser.GameObjects.Graphics, entity: Player | Clone, dir: string, color: number): void {
+  _drawAttackZonePreview(g: Phaser.GameObjects.Graphics, entity: Player | Clone, dir: string, color: number): void {
     g.clear();
 
     // 1. Safety Check: Don't draw if the entity is dead or has no physics body
@@ -892,7 +875,7 @@ export default class GameScene extends Phaser.Scene {
     const px = -config.fy;
     const py = config.fx;
 
-    // 4. Calculate the 4 Corners of the Hitbox Shape
+    // 4. Calculate the 4 Corners of the hitbox Shape
     const handleA = { x: config.ox + px * NEAR_HALF_WIDTH, y: config.oy + py * NEAR_HALF_WIDTH };
     const handleB = { x: config.ox - px * NEAR_HALF_WIDTH, y: config.oy - py * NEAR_HALF_WIDTH };
     const tipA = { x: config.ox + config.fx * ATTACK_DISTANCE + px * FAR_HALF_WIDTH, y: config.oy + config.fy * ATTACK_DISTANCE + py * FAR_HALF_WIDTH };
@@ -1229,7 +1212,7 @@ export default class GameScene extends Phaser.Scene {
 
   // ─── Private helpers ───────────────────────────────────────────────────────
 
-  _enemyInHitbox(attacker: any, enemy: any): boolean {
+  _enemyInAttackZone(attacker: any, enemy: any): boolean {
     const b = enemy.body;
     const cx = b.x + b.width / 2;
     const cy = b.y + b.height / 2;
@@ -1243,14 +1226,14 @@ export default class GameScene extends Phaser.Scene {
       [cx, b.bottom],
       [b.x, cy],
       [b.right, cy],
-    ].some(([tx, ty]) => attacker._inHitbox(tx, ty));
+    ].some(([tx, ty]) => attacker._inAttackZone(tx, ty));
   }
 
   _onAttackHit(_zone: any, enemy: any): void {
     if (!this.player.isAttacking) return;
     if (!this.player.attackZone.body.enable) return;
     if (this.player.hitEnemies.has(enemy)) return;
-    if (!this._enemyInHitbox(this.player, enemy)) return;
+    if (!this._enemyInAttackZone(this.player, enemy)) return;
 
     this.player.hitEnemies.add(enemy);
     enemy.lastAttacker = "player";
@@ -1264,7 +1247,7 @@ export default class GameScene extends Phaser.Scene {
     if (!this.clone.isAttacking) return;
     if (!this.clone.attackZone?.body?.enable) return;
     if (this.clone.hitEnemies.has(enemy)) return;
-    if (!this._enemyInHitbox(this.clone, enemy)) return;
+    if (!this._enemyInAttackZone(this.clone, enemy)) return;
 
     this.clone.hitEnemies.add(enemy);
     enemy.lastAttacker = "clone";

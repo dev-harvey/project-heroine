@@ -22,7 +22,7 @@ interface DirConfig {
 }
 
 /** Optional geometry overrides for debug shovel drawing / hit tests. */
-interface HitboxParams {
+interface AttackZoneParams {
   NH?: number;
   FH?: number;
   FD?: number;

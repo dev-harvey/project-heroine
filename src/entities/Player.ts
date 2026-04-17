@@ -230,7 +230,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.attackZone.setPosition(bcx, bcy);
   }
 
-  _inHitbox(tx: number, ty: number): boolean {
+  _inAttackZone(tx: number, ty: number): boolean {
     const b = this.body as Phaser.Physics.Arcade.Body;
     if (!b) return false;
     const NH = 15,
