@@ -10,11 +10,6 @@ declare global {
     };
   }
 
-  // Minimal preFX surface used for WebGL glow effects.
-  interface PreFX {
-    addGlow(color: number, intensity?: number, radius?: number): void;
-  }
-
   // Extend the global Window with our runtime stores.
   interface Window {
     Progression:  ProgressionStore;

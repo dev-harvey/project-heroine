@@ -5,12 +5,11 @@
 
 // ─── Primitive aliases ─────────────────────────────────────────────────────
 
+/** Four-directional attack / movement animation direction literal. */
+type FacingDir = "right" | "down" | "left" | "up";
+
 /** Eight-directional attack / movement direction literal. */
-type AttackDir =
-  | 'right' | 'up-right' | 'down-right'
-  | 'down'  | 'down-left'
-  | 'left'  | 'up-left'
-  | 'up';
+type AttackDir = "right" | "up-right" | "down-right" | "down" | "down-left" | "left" | "up-left" | "up";
 
 // ─── Shared geometry ───────────────────────────────────────────────────────
 
@@ -23,11 +22,11 @@ interface DirConfig {
 }
 
 /** Optional geometry overrides for debug shovel drawing / hit tests. */
-interface ShovelParams {
-  NH?:        number;
-  FH?:        number;
-  FD?:        number;
-  CTRL?:      number;
+interface HitboxParams {
+  NH?: number;
+  FH?: number;
+  FD?: number;
+  CTRL?: number;
   fillAlpha?: number;
 }
 
@@ -35,9 +34,9 @@ interface ShovelParams {
 
 /** Object returned by `scene.input.keyboard.addKeys()` for WASD. */
 interface WasdKeys {
-  up:    { isDown: boolean };
-  down:  { isDown: boolean };
-  left:  { isDown: boolean };
+  up: { isDown: boolean };
+  down: { isDown: boolean };
+  left: { isDown: boolean };
   right: { isDown: boolean };
 }
 
@@ -45,9 +44,7 @@ interface WasdKeys {
 
 /** Options passed to the Clone constructor. */
 interface CloneOptions {
-  playerMaxHp?: number;
-  playerAtk?:   number;
-  bonusHp?:     number;
+  bonusHp?: number;
 }
 
 // ─── Scene data payloads ───────────────────────────────────────────────────
@@ -59,26 +56,26 @@ interface GameSceneData {
 
 /** Data object passed to `GameOverScene.create()`. */
 interface GameOverData {
-  wave?:          number;
-  kills?:         number;
-  cloneKills?:    number;
-  playerAtk?:     number;
-  playerMaxHp?:   number;
-  healGiven?:     number;
-  permHpGained?:  number;
+  wave?: number;
+  kills?: number;
+  cloneKills?: number;
+  playerAtk?: number;
+  playerMaxHp?: number;
+  healGiven?: number;
+  permHpGained?: number;
   permAtkGained?: number;
-  runGold?:       number;
+  runGold?: number;
 }
 
 // ─── Global runtime stores ─────────────────────────────────────────────────
 
 /** Persistent run-to-run bonus stats (window.Progression). */
 interface ProgressionStore {
-  bonusMaxHp:        number;
-  bonusDamage:       number;
-  bonusCloneHp:      number;
+  bonusMaxHp: number;
+  bonusDamage: number;
+  bonusCloneHp: number;
   dashCooldownBonus: number;
-  goldBoost:         number;
+  goldBoost: number;
 }
 
 /** Accumulated gold (window.Gold). */
@@ -88,9 +85,9 @@ interface GoldStore {
 
 /** Per-page-load session statistics (window.Session). */
 interface SessionStore {
-  runs:        number;
+  runs: number;
   highestWave: number;
-  totalKills:  number;
+  totalKills: number;
 }
 
 // ─── Entity contracts ──────────────────────────────────────────────────────
@@ -100,25 +97,25 @@ interface SessionStore {
  * Structurally compatible with both Player and Clone without importing either.
  */
 interface ITarget {
-  x:       number;
-  y:       number;
-  hp:      number;
-  active:  boolean;
+  x: number;
+  y: number;
+  hp: number;
+  active: boolean;
   /** True while the object is in its death sequence (clone-specific). */
-  _dead?:  boolean;
-  body:    {
-    x:       number;
-    y:       number;
-    width:   number;
-    height:  number;
-    top:     number;
-    bottom:  number;
-    left:    number;
-    right:   number;
-    enable:  boolean;
-    halfWidth:  number;
+  _dead?: boolean;
+  body: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+    enable: boolean;
+    halfWidth: number;
     halfHeight: number;
-    offset:  { x: number; y: number };
+    offset: { x: number; y: number };
     setSize(w: number, h: number): void;
     setMass?(mass: number): void;
     setImmovable?(flag: boolean): void;
@@ -134,9 +131,9 @@ interface ITarget {
  * Extends ITarget so enemies can also be passed as targets (e.g. for burst damage).
  */
 interface IEnemy extends ITarget {
-  maxHp:          number;
-  attackDir:      AttackDir;
-  lastAttacker?:  string;
+  maxHp: number;
+  attackDir: AttackDir;
+  lastAttacker?: string;
   update(time: number, delta: number, player: ITarget, clone?: ITarget | null): void;
   _die?(): void;
 }
