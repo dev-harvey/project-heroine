@@ -1,7 +1,8 @@
 import * as Phaser from "phaser";
 import Player from "./Player";
 
-import { CLONE_CONFIG as cloneConfig } from "../utils/Constants";
+import { CLONE_CONFIG as cloneConfig } from "../utils/constants";
+import { Dash } from "../skills/Dash";
 
 class Clone extends Phaser.Physics.Arcade.Sprite {
   // Stats
@@ -12,19 +13,20 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
 
   // State
   _dead: boolean;
-  _isDashing: boolean;
-  isAttacking: boolean;
-  attackCooldown: number;
-  facingDir: FacingDir;
-  attackDir: AttackDir;
-  hitEnemies: Set<Phaser.GameObjects.GameObject>;
-  targetPlayer: Player;
 
+  targetPlayer: Player;
   anchorOffsetX: number;
   anchorOffsetY: number;
   _repositioning: boolean;
+  facingDir: FacingDir;
 
+  isAttacking: boolean;
+  attackCooldown: number;
+  attackDir: AttackDir;
   attackDetectionZone: Phaser.Physics.Arcade.Sprite;
+  hitEnemies: Set<Phaser.GameObjects.GameObject>;
+
+  dash: Dash;
 
   constructor(scene: Phaser.Scene, x: number, y: number, player: Player, opts: CloneOptions = {}) {
     super(scene as any, x, y, "player-idle");
@@ -53,11 +55,12 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
 
     // ── State
     this._dead = false;
-    this._isDashing = false;
     this.isAttacking = false;
     this.attackCooldown = 0;
     this.attackDir = "right";
     this.hitEnemies = new Set();
+
+    this.dash = new Dash(scene, this, cloneConfig.DASH_DURATION, cloneConfig.DASH_DISTANCE, cloneConfig.DASH_COOLDOWN);
 
     // fallback anchor point is to the right.
     this.anchorOffsetX = cloneConfig.ANCHOR_OFFSET;
@@ -114,34 +117,6 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
     const oldMax = this.maxHp;
     this._killCount++;
     if (this.maxHp > oldMax) this.hp = Math.min(this.hp + 1, this.maxHp);
-  }
-
-  doDash(vx: number, vy: number): void {
-    if (this._dead || !this.active) return;
-
-    this._isDashing = true;
-    this.setVelocity(vx, vy);
-
-    const b = this.body as Phaser.Physics.Arcade.Body;
-    const nx = vx / 500;
-    const ny = vy / 500;
-    const bcx = this.x - this.displayWidth / 2 + b.offset.x * this.scaleX + b.halfWidth;
-    const bcy = this.y - this.displayHeight / 2 + b.offset.y * this.scaleY + b.halfHeight;
-    const spawnX = bcx - nx * b.halfWidth;
-    const spawnY = bcy - ny * b.halfHeight;
-
-    const spark = this.scene.add.sprite(spawnX, spawnY, "dash-spark").setDepth(3).setOrigin(0.5, 0.5).setRotation(Math.atan2(vy, vx)).setTint(cloneConfig.TINT).setBlendMode("OVERLAY");
-    spark.play("dash-spark");
-    spark.once("animationcomplete", () => {
-      if (spark.active) spark.destroy();
-    });
-
-    this.scene.tweens.add({ targets: spark, x: spawnX + nx * 60, y: spawnY + ny * 60, duration: 200, ease: "Linear" });
-
-    // TODO: Change this to sync to animation. Check rest of project for delayedCall 
-    this.scene.time.delayedCall(200, () => {
-      this._isDashing = false;
-    });
   }
 
   _mouseToDir(): AttackDir {
@@ -289,15 +264,16 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
     if (!this.active || this._dead) return;
 
     this.attackCooldown = Math.max(0, this.attackCooldown - delta);
+    this.dash.update(delta);
 
-    if (this._isDashing) {
-      this._syncAttackZone();
-      return;
-    }
+    this._syncAttackZone();
 
     if (this.isAttacking) {
       this.setVelocity(0, 0);
-      this._syncAttackZone();
+      return;
+    }
+
+    if (this.dash.isActive) {
       return;
     }
 

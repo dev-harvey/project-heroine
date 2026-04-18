@@ -1,6 +1,8 @@
 import * as Phaser from "phaser";
 
-import { PLAYER_CONFIG as playerConfig } from "../utils/Constants";
+import { PLAYER_CONFIG as playerConfig } from "../utils/constants";
+import { getMouseDirectionFromTarget } from "../utils/utils";
+import { Dash } from "../skills/Dash";
 
 export default class Player extends Phaser.Physics.Arcade.Sprite {
   maxHp: number;
@@ -15,9 +17,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   attackDir: AttackDir;
   hitEnemies: Set<Phaser.GameObjects.GameObject>;
 
-  isDashing: boolean;
-  dashCooldown: number;
-  dashCooldownMax: number;
+  dash: Dash;
 
   cursors: Phaser.Types.Input.Keyboard.CursorKeys;
   wasd: WasdKeys;
@@ -51,10 +51,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.attackDetectionZone = scene.physics.add.sprite(x, y, "");
     this.attackDetectionZone.body.enable = false;
 
-    this.isDashing = false;
-
-    this.dashCooldown = 0;
-    this.dashCooldownMax = playerConfig.DASH_COOLDOWN;
+    this.dash = new Dash(scene, this, playerConfig.DASH_DURATION, playerConfig.DASH_DISTANCE, playerConfig.DASH_COOLDOWN);
 
     this.isInvincible = false;
     this.hitEnemies = new Set();
@@ -73,7 +70,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
     this._shiftKey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
     this._shiftKey.on("down", () => {
-      if (this.active) this._doDash();
+      if (this.active) this.dash.execute();
     });
 
     this.on(Phaser.Animations.Events.ANIMATION_UPDATE, (anim, frame) => {
@@ -102,10 +99,10 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   doAttack(): void {
     if (this.isAttacking || this.attackCooldown > 0) return;
 
-    this.attackDir = this._mouseToDir();
+    this.attackDir = getMouseDirectionFromTarget(this);
     this.isAttacking = true;
     this.attackCooldown = playerConfig.ATTACK_COOLDOWN;
-    this.hitEnemies.clear(); /* <- Gemini do I need this? */
+    this.hitEnemies.clear();
     this.emit("attack", this.attackDir);
     this.setVelocity(0, 0);
 
@@ -148,78 +145,6 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     if (this.hp <= 0) {
       this.scene.time.delayedCall(100, () => (this.scene as any).onPlayerDeath?.());
     }
-  }
-
-  _doDash(): void {
-    if (this.isDashing || this.dashCooldown > 0 || this.isAttacking) return;
-
-    let vx = 0,
-      vy = 0;
-    const left = this.wasd.left.isDown || this.cursors.left.isDown;
-    const right = this.wasd.right.isDown || this.cursors.right.isDown;
-    const up = this.wasd.up.isDown || this.cursors.up.isDown;
-    const down = this.wasd.down.isDown || this.cursors.down.isDown;
-
-    if (left) vx -= 1;
-    if (right) vx += 1;
-    if (up) vy -= 1;
-    if (down) vy += 1;
-
-    const len = Math.sqrt(vx * vx + vy * vy) || 1;
-    vx = (vx / len) * 500;
-    vy = (vy / len) * 500;
-
-    this.isDashing = true;
-    this.isInvincible = true;
-    this.dashCooldown = this.dashCooldownMax;
-    this.setVelocity(vx, vy);
-
-    this.emit("dash", vx, vy);
-
-    const b = this.body as Phaser.Physics.Arcade.Body;
-    const nx = vx / 500;
-    const ny = vy / 500;
-    const bcx = b.x + b.width / 2;
-    const bcy = b.y + b.height / 2;
-    const spawnX = bcx - nx * (b.width / 2);
-    const spawnY = bcy - ny * (b.height / 2);
-
-    const spark = this.scene.add.sprite(spawnX, spawnY, "dash-spark").setDepth(4).setOrigin(0.5, 0.5).setRotation(Math.atan2(vy, vx));
-    spark.play("dash-spark");
-    spark.once("animationcomplete", () => {
-      if (spark.active) spark.destroy();
-    });
-
-    this.scene.tweens.add({ targets: spark, x: spawnX + nx * 60, y: spawnY + ny * 60, duration: 200, ease: "Linear" });
-    this.scene.tweens.add({
-      targets: this,
-      alpha: { from: 0, to: 1 },
-      duration: 100,
-      repeat: 1,
-      onComplete: () => {
-        if (this.active) this.setAlpha(1);
-      },
-    });
-
-    this.scene.time.delayedCall(200, () => {
-      if (!this.active) return;
-      this.isDashing = false;
-      this.isInvincible = false;
-    });
-  }
-
-  _mouseToDir(): AttackDir {
-    const ptr = this.scene.input.activePointer;
-    const angle = Phaser.Math.Angle.Between(this.x, this.y, ptr.worldX, ptr.worldY);
-    const deg = Phaser.Math.RadToDeg(angle);
-    if (deg >= -22.5 && deg < 22.5) return "right";
-    if (deg >= 22.5 && deg < 67.5) return "down-right";
-    if (deg >= 67.5 && deg < 112.5) return "down";
-    if (deg >= 112.5 && deg < 157.5) return "down-left";
-    if (deg >= -67.5 && deg < -22.5) return "up-right";
-    if (deg >= -112.5 && deg < -67.5) return "up";
-    if (deg >= -157.5 && deg < -112.5) return "up-left";
-    return "left";
   }
 
   _syncAttackZone(): void {
@@ -271,15 +196,16 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     if (this.hp <= 0) return;
 
     this.attackCooldown = Math.max(0, this.attackCooldown - delta);
-    this.dashCooldown = Math.max(0, this.dashCooldown - delta);
+    this.dash.update(delta);
 
-    if (this.isDashing) {
-      this._syncAttackZone();
-      return;
-    }
+    this._syncAttackZone();
+
     if (this.isAttacking) {
       this.setVelocity(0, 0);
-      this._syncAttackZone();
+      return;
+    }
+
+    if (this.dash.isActive) {
       return;
     }
 

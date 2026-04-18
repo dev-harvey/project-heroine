@@ -7,7 +7,8 @@ import PlagueCrow from "../entities/PlagueCrow";
 import VoidDemon from "../entities/VoidDemon";
 import WaveManager from "../systems/WaveManager";
 
-import { CLONE_CONFIG as cloneConfig, GAME_CONFIG as gameConfig } from "../utils/Constants";
+import { CLONE_CONFIG, CLONE_CONFIG as cloneConfig, GAME_COLORS, GAME_CONFIG as gameConfig, PLAYER_CONFIG } from "../utils/constants";
+import { getMouseDirectionFromTarget } from "../utils/utils";
 
 export default class GameScene extends Phaser.Scene {
   // Core objects
@@ -101,7 +102,6 @@ export default class GameScene extends Phaser.Scene {
     if (this.clone?.active) {
       this.clone.update(time, delta);
       this._updateCloneHUD();
-      // if (this.cloneEnemyCollider && !this.clone._repositioning) this.cloneEnemyCollider.active = true;
     }
 
     this._updateAnchorIndicator();
@@ -153,25 +153,26 @@ export default class GameScene extends Phaser.Scene {
       if (this.clone?.active) this.clone.doAttack();
     });
     this.player.on("dash", (vx: number, vy: number) => {
-      if (this.clone?.active) this.clone.doDash(vx, vy);
+      this.player.isInvincible = true;
+      if (this.clone?.active) this.clone.dash.execute();
       if (this.playerEnemyCollider) this.playerEnemyCollider.active = false;
       if (this.cloneEnemyCollider) this.cloneEnemyCollider.active = false;
-      // TODO: Change to sync to dash animation.
-      this.time.delayedCall(320, () => {
+      this.time.delayedCall(PLAYER_CONFIG.DASH_DURATION, () => {
+        this.player.isInvincible = false;
         if (this.playerEnemyCollider) this.playerEnemyCollider.active = true;
         if (this.cloneEnemyCollider) this.cloneEnemyCollider.active = true;
       });
     });
 
-    const prog = window.Progression;
-    this.player.maxHp += prog.bonusMaxHp || 0;
-    this.player.hp = this.player.maxHp;
-    this.player.attackDamage += prog.bonusDamage || 0;
+    // const prog = window.Progression;
+    // this.player.maxHp += prog.bonusMaxHp || 0;
+    // this.player.hp = this.player.maxHp;
+    // this.player.attackDamage += prog.bonusDamage || 0;
 
-    const dashBonus = prog.dashCooldownBonus || 0;
-    if (dashBonus > 0) {
-      this.player.dashCooldownMax = Math.max(300, this.player.dashCooldownMax - dashBonus);
-    }
+    // const dashBonus = prog.dashCooldownBonus || 0;
+    // if (dashBonus > 0) {
+    //   this.player.dashCooldownMax = Math.max(300, this.player.dashCooldownMax - dashBonus);
+    // }
   }
 
   _buildGroups(): void {
@@ -180,7 +181,6 @@ export default class GameScene extends Phaser.Scene {
 
   _buildPhysics(): void {
     this.playerEnemyCollider = this.physics.add.collider(this.player, this.enemies);
-    // this.cloneEnemyCollider = this.physics.add.collider(this.clone, this.enemies);
     this.physics.add.collider(this.enemies, this.enemies);
     this.physics.add.overlap(this.player.attackDetectionZone, this.enemies, this._onAttackHit, undefined, this);
   }
@@ -641,34 +641,20 @@ export default class GameScene extends Phaser.Scene {
 
   // ─── Attack visuals ────────────────────────────────────────────────────────
 
-  _mouseDir(origin: Phaser.Physics.Arcade.Sprite): string {
-    const ptr = this.input.activePointer;
-    const angle = Phaser.Math.Angle.Between(origin.x, origin.y, ptr.worldX, ptr.worldY);
-    const deg = Phaser.Math.RadToDeg(angle);
-    if (deg >= -22.5 && deg < 22.5) return "right";
-    if (deg >= 22.5 && deg < 67.5) return "down-right";
-    if (deg >= 67.5 && deg < 112.5) return "down";
-    if (deg >= 112.5 && deg < 157.5) return "down-left";
-    if (deg >= -67.5 && deg < -22.5) return "up-right";
-    if (deg >= -112.5 && deg < -67.5) return "up";
-    if (deg >= -157.5 && deg < -112.5) return "up-left";
-    return "left";
-  }
-
   _updateAttackVisuals(): void {
-    const playerMouseDir = this._mouseDir(this.player);
+    const playerMouseDir = getMouseDirectionFromTarget(this.player);
 
     if (!this.player.active) {
       this.playerAttackIndicator.clear();
     } else {
       const playerDir = this.player.isAttacking ? this.player.attackDir : playerMouseDir;
-      this._drawAttackZonePreview(this.playerAttackIndicator, this.player, playerDir, 0xffd700);
+      this._drawAttackZonePreview(this.playerAttackIndicator, this.player, playerDir, PLAYER_CONFIG.ATTACK_INDICATOR.COLOR);
     }
 
     if (this.clone?.active) {
-      const cloneMouseDir = this._mouseDir(this.clone);
+      const cloneMouseDir = getMouseDirectionFromTarget(this.clone);
       const cloneDir = this.clone.isAttacking ? this.clone.attackDir : cloneMouseDir;
-      this._drawAttackZonePreview(this.cloneAttackIndicator, this.clone, cloneDir, 0xcc88ff);
+      this._drawAttackZonePreview(this.cloneAttackIndicator, this.clone, cloneDir, CLONE_CONFIG.ATTACK_INDICATOR.COLOR);
     } else {
       this.cloneAttackIndicator.clear();
     }
@@ -752,7 +738,7 @@ export default class GameScene extends Phaser.Scene {
       g.fillStyle(color, 0.35); // Solid-ish fill when attacking
       g.lineStyle(2, color, 1);
     } else {
-      g.lineStyle(1, color, 0.3); // Faint outline when idle
+      g.lineStyle(1, color, 0.5); // Faint outline when idle
     }
 
     // Trace the path
@@ -847,7 +833,7 @@ export default class GameScene extends Phaser.Scene {
     this.clone.anchorOffsetX = offX;
     this.clone.anchorOffsetY = offY;
 
-    this.clone.doDash(offX * 2.5, offY * 2.5);
+    this.clone.dash.execute();
     this.clone.startReposition();
 
     this.cloneEnemyCollider = this.physics.add.collider(this.clone, this.enemies);
@@ -1151,8 +1137,8 @@ export default class GameScene extends Phaser.Scene {
     this.atkText.setText(`ATK: ${this.player.attackDamage}`);
 
     const CARD_W = 150;
-    if (this.player.dashCooldown > 0) {
-      const pct = this.player.dashCooldown / this.player.dashCooldownMax;
+    if (this.player.dash.cooldownTimer > 0) {
+      const pct = this.player.dash.cooldown / this.player.dash.cooldownTimer;
       this.dashBarFill.setDisplaySize(Math.max(0, CARD_W * (1 - pct)), 3);
       this.dashLabel.setStyle({ fill: "#1a5566" });
       this.dashIcon.setTint(0x1a5566);
