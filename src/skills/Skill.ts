@@ -1,0 +1,1 @@
+// TODO: base skill class for shared skill utilities like cooldowns
