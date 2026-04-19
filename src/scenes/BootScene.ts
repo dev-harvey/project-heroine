@@ -32,6 +32,9 @@ export default class BootScene extends Phaser.Scene {
     // Dash spark trail (63×32 per frame — 5 frames)
     this.load.spritesheet("dash-spark", base + "effects/dash-spark.png", { frameWidth: 63, frameHeight: 32 });
 
+    // Anchor indicator (energy-smack - 128x96 - 8 frames)
+    this.load.spritesheet("anchor-indicator", base + "effects/anchor-indicator.png", { frameWidth: 128, frameHeight: 96 });
+
     // Plague Crow
     this.load.spritesheet("crow-fly", base + "characters/enemies/plague-crow/plague-crow-fly.png", { frameWidth: 48, frameHeight: 48 });
     this.load.spritesheet("crow-idle", base + "characters/enemies/plague-crow/plague-crow-idle.png", { frameWidth: 48, frameHeight: 48 });
@@ -119,7 +122,10 @@ export default class BootScene extends Phaser.Scene {
     this.anims.create({ key: "slash-horizontal", frames: this.anims.generateFrameNumbers("slash-horizontal", { start: 0, end: 4 }), frameRate: 50, repeat: 0 });
 
     this.anims.create({ key: "enemy-death-anim", frames: this.anims.generateFrameNumbers("enemy-death", { start: 0, end: 7 }), frameRate: 14, repeat: 0 });
+
     this.anims.create({ key: "dash-spark", frames: this.anims.generateFrameNumbers("dash-spark", { start: 0, end: 4 }), frameRate: 25, repeat: 0 });
+    
+    this.anims.create({ key: "anchor-indicator", frames: this.anims.generateFrameNumbers("anchor-indicator", { start: 0, end: 7 }), frameRate: 8, repeat: -1 });
   }
 }
 

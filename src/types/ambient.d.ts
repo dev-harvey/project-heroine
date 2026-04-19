@@ -21,6 +21,8 @@ interface DirConfig {
   oy: number;
 }
 
+type XYPosition = { x: number; y: number };
+
 /** Optional geometry overrides for debug shovel drawing / hit tests. */
 interface AttackZoneParams {
   NH?: number;

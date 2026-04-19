@@ -7,8 +7,8 @@ import PlagueCrow from "../entities/PlagueCrow";
 import VoidDemon from "../entities/VoidDemon";
 import WaveManager from "../systems/WaveManager";
 
-import { CLONE_CONFIG, CLONE_CONFIG as cloneConfig, GAME_COLORS, GAME_CONFIG as gameConfig, PLAYER_CONFIG } from "../utils/constants";
-import { getMouseDirectionFromTarget } from "../utils/utils";
+import { CLONE_CONFIG, CLONE_CONFIG as cloneConfig, GAME_COLORS, GAME_CONFIG, GAME_CONFIG as gameConfig, PLAYER_CONFIG } from "../utils/constants";
+import { getAnchorOctoOffset, getAnchorPosition, getMouseDirectionFromTarget } from "../utils/utils";
 
 export default class GameScene extends Phaser.Scene {
   // Core objects
@@ -42,7 +42,6 @@ export default class GameScene extends Phaser.Scene {
   // Arrows & preview graphics
   playerAttackIndicator!: Phaser.GameObjects.Graphics;
   cloneAttackIndicator!: Phaser.GameObjects.Graphics;
-  anchorIndicator!: Phaser.GameObjects.Graphics;
 
   // Stats
   killCount: number = 0;
@@ -99,12 +98,12 @@ export default class GameScene extends Phaser.Scene {
     this._updateHPBar();
     this._updateAttackVisuals();
 
+    this.player.anchorIndicator.update();
+
     if (this.clone?.active) {
       this.clone.update(time, delta);
       this._updateCloneHUD();
     }
-
-    this._updateAnchorIndicator();
 
     this.enemies.getChildren().forEach((e: any) => {
       if (e.active) e.update(time, delta, this.player, this.clone);
@@ -148,7 +147,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   _buildPlayer(): void {
-    this.player = new Player(this, 480, 270);
+    this.player = new Player(this, GAME_CONFIG.GAME_WIDTH / 2, GAME_CONFIG.GAME_HEIGHT / 2);
     this.player.on("attack", () => {
       if (this.clone?.active) this.clone.doAttack();
     });
@@ -318,7 +317,6 @@ export default class GameScene extends Phaser.Scene {
   _buildIndicators(): void {
     this.playerAttackIndicator = this.add.graphics().setDepth(8);
     this.cloneAttackIndicator = this.add.graphics().setDepth(7);
-    this.anchorIndicator = this.add.graphics().setDepth(3);
   }
 
   _buildWaveManager(): void {
@@ -629,17 +627,14 @@ export default class GameScene extends Phaser.Scene {
     this.input.mouse.disableContextMenu();
     this.input.on("pointerdown", (ptr: any) => {
       if (ptr.rightButtonDown() && this.clone?.active && this.player.active) {
-        const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, ptr.worldX, ptr.worldY);
-        const { x: offX, y: offY } = this._cardinalOffset(angle, 150);
-        this.clone.anchorOffsetX = offX;
-        this.clone.anchorOffsetY = offY;
+        const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, this.input.activePointer.worldX, this.input.activePointer.worldY);
+        this.player.anchorOffset = getAnchorOctoOffset(angle, CLONE_CONFIG.ANCHOR_OFFSET);
         this.clone.startReposition();
-        // if (this.cloneEnemyCollider) this.cloneEnemyCollider.active = false;
       }
     });
   }
 
-  // ─── Attack visuals ────────────────────────────────────────────────────────
+  // ─── Visuals ───────────────────────────────────────────────────────────────
 
   _updateAttackVisuals(): void {
     const playerMouseDir = getMouseDirectionFromTarget(this.player);
@@ -658,25 +653,6 @@ export default class GameScene extends Phaser.Scene {
     } else {
       this.cloneAttackIndicator.clear();
     }
-  }
-
-  _updateAnchorIndicator(): void {
-    if (!this.player.active) {
-      return;
-    }
-    this.anchorIndicator.clear();
-    let anchorX: number, anchorY: number;
-    const ptr = this.input.activePointer;
-      const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, ptr.worldX, ptr.worldY);
-      const { x: offX, y: offY } = this._cardinalOffset(angle, 150);
-      const wall = gameConfig.GAME_WALL;
-      anchorX = Phaser.Math.Clamp(this.player.x + offX, wall, gameConfig.GAME_WIDTH - wall);
-      anchorY = Phaser.Math.Clamp(this.player.y + offY, wall, gameConfig.GAME_HEIGHT - wall);
-
-      const size = 3;
-      this.anchorIndicator.lineStyle(1, cloneConfig.TINT, 1);
-      this.anchorIndicator.lineBetween(Math.round(anchorX - size), Math.round(anchorY - size), Math.round(anchorX + size), Math.round(anchorY + size));
-      this.anchorIndicator.lineBetween(Math.round(anchorX - size), Math.round(anchorY + size), Math.round(anchorX + size), Math.round(anchorY - size));
   }
 
   /**
@@ -810,28 +786,16 @@ export default class GameScene extends Phaser.Scene {
 
   // ─── Clone management ──────────────────────────────────────────────────────
 
-  _cardinalOffset(angle: number, dist: number): { x: number; y: number } {
-    const deg = Phaser.Math.RadToDeg(angle);
-    const n = ((deg % 360) + 360) % 360;
-    if (n < 45 || n >= 315) return { x: dist, y: 0 };
-    if (n < 135) return { x: 0, y: dist };
-    if (n < 225) return { x: -dist, y: 0 };
-    return { x: 0, y: -dist };
-  }
-
   _summonClone(): void {
     if (this.clone?.active) return;
-
-    const ptr = this.input.activePointer;
-    const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, ptr.worldX, ptr.worldY);
-    const { x: offX, y: offY } = this._cardinalOffset(angle, cloneConfig.ANCHOR_OFFSET);
 
     const prog = window.Progression;
     this.clone = new Clone(this, this.player.x, this.player.y, this.player, {
       bonusHp: prog.bonusCloneHp || 0,
     });
-    this.clone.anchorOffsetX = offX;
-    this.clone.anchorOffsetY = offY;
+
+    const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, this.input.activePointer.worldX, this.input.activePointer.worldY);
+    this.player.anchorOffset = getAnchorOctoOffset(angle, CLONE_CONFIG.ANCHOR_OFFSET);
 
     this.clone.dash.execute();
     this.clone.startReposition();

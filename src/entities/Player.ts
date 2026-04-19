@@ -1,8 +1,9 @@
 import * as Phaser from "phaser";
 
-import { PLAYER_CONFIG as playerConfig } from "../utils/constants";
-import { getMouseDirectionFromTarget } from "../utils/utils";
+import { CLONE_CONFIG, GAME_CONFIG, PLAYER_CONFIG as playerConfig } from "../utils/constants";
+import { getAnchorPosition, getMouseDirectionFromTarget, getAnchorOctoOffset } from "../utils/utils";
 import { Dash } from "../skills/Dash";
+import AnchorIndicator from "./AnchorIndicator";
 
 export default class Player extends Phaser.Physics.Arcade.Sprite {
   maxHp: number;
@@ -17,6 +18,11 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   attackDir: AttackDir;
   hitEnemies: Set<Phaser.GameObjects.GameObject>;
 
+  anchorPosition: XYPosition;
+  anchorOffset: XYPosition;
+  anchorIndicatorPosition: XYPosition;
+  anchorIndicator: AnchorIndicator;
+
   dash: Dash;
 
   cursors: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -26,7 +32,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   attackDetectionZone: Phaser.Physics.Arcade.Sprite;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
-    super(scene as any, x, y, "player-idle");
+    super(scene, x, y, "player-idle");
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
@@ -51,7 +57,12 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.attackDetectionZone = scene.physics.add.sprite(x, y, "");
     this.attackDetectionZone.body.enable = false;
 
-    this.dash = new Dash(scene, this, playerConfig.DASH_DURATION, playerConfig.DASH_DISTANCE, playerConfig.DASH_COOLDOWN);
+    this.anchorPosition = { x: this.x, y: this.y };
+    this.anchorOffset = getAnchorOctoOffset(-90, CLONE_CONFIG.ANCHOR_OFFSET); // -90 means top left
+    this.anchorIndicator = new AnchorIndicator(scene, this);
+    this.anchorIndicatorPosition = { x: this.x, y: this.y };
+
+    this.dash = new Dash(this, playerConfig.DASH_DURATION, playerConfig.DASH_DISTANCE, playerConfig.DASH_COOLDOWN);
 
     this.isInvincible = false;
     this.hitEnemies = new Set();
@@ -248,8 +259,15 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       this.play("player-idle", true);
     }
 
+
+    const playerPosition = { x: this.x, y: this.y };
+    this.anchorPosition = getAnchorPosition(playerPosition, playerPosition, this.anchorOffset);
+
+    const ptr = this.scene.input.activePointer;
+    this.anchorIndicatorPosition = getAnchorPosition(playerPosition, { x: ptr.x, y: ptr.y });
+
     this._syncAttackZone();
   }
 }
 
-(window as any).Player = Player;
+window.Player = Player;

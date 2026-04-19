@@ -1,7 +1,6 @@
 import { getMouseDirectionFromTarget } from "../utils/utils";
 
 export class Dash {
-  private scene: Phaser.Scene;
   private target: Phaser.Physics.Arcade.Sprite;
   private isReady: boolean = true;
 
@@ -22,8 +21,7 @@ export class Dash {
     return this._cooldownTimer;
   }
 
-  constructor(scene: Phaser.Scene, target: Phaser.Physics.Arcade.Sprite, duration: number, distance: number, cooldown: number) {
-    this.scene = scene;
+  constructor(target: Phaser.Physics.Arcade.Sprite, duration: number, distance: number, cooldown: number) {
     this.target = target;
     this._duration = duration;
     this._distance = distance;
