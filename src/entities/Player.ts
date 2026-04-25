@@ -17,6 +17,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   attackCooldownMax: number;
   isInvincible: boolean;
   attackDir: AttackDir;
+  attackDetectionZone: Phaser.Physics.Arcade.Image;
   attackIndicator: AttackIndicator;
   hitEnemies: Set<Phaser.GameObjects.GameObject>;
 
@@ -30,8 +31,6 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   cursors: Phaser.Types.Input.Keyboard.CursorKeys;
   wasd: WasdKeys;
   _shiftKey: Phaser.Input.Keyboard.Key;
-
-  attackDetectionZone: Phaser.Physics.Arcade.Image;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y, "player-idle");
@@ -56,10 +55,10 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.isAttacking = false;
     this.attackDir = "right";
 
-    this.attackIndicator = new AttackIndicator(scene, this);
-
     this.attackDetectionZone = scene.physics.add.image(x, y, "");
     this.attackDetectionZone.body.enable = false;
+
+    this.attackIndicator = new AttackIndicator(scene, this);
 
     this.anchorPosition = { x: this.x, y: this.y };
     this.anchorOffset = getAnchorOctoOffset(-90, CLONE_CONFIG.ANCHOR_OFFSET); // -90 means top left

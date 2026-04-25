@@ -46,7 +46,7 @@ export default class AttackIndicator extends Phaser.Physics.Arcade.Sprite {
     const x = 30;
     const y = 35;
     const direction = getMouseDirectionFromTarget(this.attacker);
-
+    // TODO: move this to constants so that it doesn't make a new record every frame
     const directionConfig: Record<string, { angle: number; offsetX: number; offsetY: number }> = {
       right: { angle: 0, offsetX: x, offsetY: 0 },
       "down-right": { angle: 45, offsetX: x, offsetY: y },

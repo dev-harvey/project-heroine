@@ -72,11 +72,11 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
 
     this.on(Phaser.Animations.Events.ANIMATION_UPDATE, (anim, frame) => {
       if (anim.key.startsWith("player-attack")) {
-        if (frame.index === 4) {
+        if (frame.index === 3) {
           this._syncAttackZone();
           this.attackDetectionZone.body.enable = true;
         }
-        if (frame.index === 7) {
+        if (frame.index === 6) {
           this.attackDetectionZone.body.enable = false;
           this.hitEnemies.clear();
         }
@@ -86,7 +86,7 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
     this.on("animationcomplete", (anim: Phaser.Animations.Animation) => {
       if (anim.key.startsWith("player-attack")) {
         this.isAttacking = false;
-        (this.attackDetectionZone as any).body.enable = false;
+        (this.attackDetectionZone).body.enable = false;
       }
     });
 
@@ -203,12 +203,15 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
   }
 
   private _syncAttackZone(): void {
+    // TODO: This is duplicated from player
     if (!this.attackDetectionZone) return;
     const b = this.body as Phaser.Physics.Arcade.Body;
     const bcx = b.x + b.width / 2;
     const bcy = b.y + b.height / 2;
-    this.attackDetectionZone.body.setCircle(CLONE_CONFIG.ATTACK_RANGE);
+    const radius = CLONE_CONFIG.ATTACK_RANGE;
     this.attackDetectionZone.setPosition(bcx, bcy);
+    this.attackDetectionZone.setSize(radius * 2, radius * 2);
+    this.attackDetectionZone.body.setCircle(radius);
   }
 
   dismiss(): void {
@@ -219,6 +222,11 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
       this.attackDetectionZone.destroy();
       this.attackDetectionZone = null;
     }
+    if (this.attackIndicator) {
+      this.attackIndicator.body.enable = false;
+      this.attackIndicator.destroy();
+      this.attackIndicator = null;
+    }
     this.destroy();
   }
 
@@ -227,8 +235,6 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
 
     this.attackCooldown = Math.max(0, this.attackCooldown - delta);
     this.dash.update(delta);
-
-    this._syncAttackZone();
 
     if (this.isAttacking) {
       this.setVelocity(0, 0);
@@ -274,8 +280,6 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
     } else {
       this.play("player-idle", true);
     }
-
-    this._syncAttackZone();
   }
 }
 
