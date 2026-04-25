@@ -1,5 +1,7 @@
 import * as Phaser from "phaser";
 import { CLONE_CONFIG, GAME_CONFIG } from "./constants";
+import Player from "../entities/Player";
+import Clone from "../entities/Clone";
 
 export function getMouseDirectionFromTarget(target: Phaser.Physics.Arcade.Sprite, mode: "cardinal" | "octo" = "octo"): AttackDir {
   const ptr = target.scene.input.activePointer;
@@ -36,4 +38,24 @@ export function getAnchorPosition(a: XYPosition, b: XYPosition, offset?: XYPosit
     x: Phaser.Math.Clamp(a.x + calculatedOffset.x, GAME_CONFIG.GAME_WALL, GAME_CONFIG.GAME_WIDTH - GAME_CONFIG.GAME_WALL),
     y: Phaser.Math.Clamp(a.y + calculatedOffset.y, GAME_CONFIG.GAME_WALL, GAME_CONFIG.GAME_HEIGHT - GAME_CONFIG.GAME_WALL),
   };
+}
+
+// TODO: add Enemy type / move all to Entity
+/*
+  Returns true if entity B is behind entity A.
+*/
+export function checkIfBBehindA(a: Player | Clone | any, b: Player | Clone | any): boolean {
+  const FORWARD: Record<string, { fx: number; fy: number }> = {
+    right: { fx: 1, fy: 0 },
+    left: { fx: -1, fy: 0 },
+    up: { fx: 0, fy: -1 },
+    down: { fx: 0, fy: 1 },
+    "up-right": { fx: 0.7071, fy: -0.7071 },
+    "up-left": { fx: -0.7071, fy: -0.7071 },
+    "down-right": { fx: 0.7071, fy: 0.7071 },
+    "down-left": { fx: -0.7071, fy: 0.7071 },
+  };
+  const fwd = FORWARD[a.attackDir];
+  if ((b.x - a.x) * fwd.fx + (b.y - a.y) * fwd.fy < 0) return true;
+  return false;
 }

@@ -3,6 +3,7 @@ import Player from "./Player";
 
 import { CLONE_CONFIG } from "../utils/constants";
 import { Dash } from "../skills/Dash";
+import AttackIndicator from "./AttackIndicator";
 
 class Clone extends Phaser.Physics.Arcade.Sprite {
   // Stats
@@ -21,7 +22,8 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
   isAttacking: boolean;
   attackCooldown: number;
   attackDir: AttackDir;
-  attackDetectionZone: Phaser.Physics.Arcade.Sprite;
+  attackIndicator: AttackIndicator;
+  attackDetectionZone: Phaser.Physics.Arcade.Image;
   hitEnemies: Set<Phaser.GameObjects.GameObject>;
 
   dash: Dash;
@@ -63,8 +65,10 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
     this._repositioning = false;
 
     // ── Attack zone
-    this.attackDetectionZone = scene.physics.add.sprite(x, y, "");
+    this.attackDetectionZone = scene.physics.add.image(x, y, "");
     this.attackDetectionZone.body.enable = false;
+
+    this.attackIndicator = new AttackIndicator(scene, this, CLONE_CONFIG.TINT);
 
     this.on(Phaser.Animations.Events.ANIMATION_UPDATE, (anim, frame) => {
       if (anim.key.startsWith("player-attack")) {
@@ -203,45 +207,8 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
     const b = this.body as Phaser.Physics.Arcade.Body;
     const bcx = b.x + b.width / 2;
     const bcy = b.y + b.height / 2;
-    this.attackDetectionZone.body.setSize(CLONE_CONFIG.ATTACK_DETECTION_ZONE.w, CLONE_CONFIG.ATTACK_DETECTION_ZONE.h);
+    this.attackDetectionZone.body.setCircle(CLONE_CONFIG.ATTACK_RANGE);
     this.attackDetectionZone.setPosition(bcx, bcy);
-  }
-
-  _inAttackZone(tx: number, ty: number): boolean {
-    if (!this.body) return false;
-    const NH = 15,
-      FH = 30,
-      FD = 50,
-      CTRL = 70;
-    const b = this.body as Phaser.Physics.Arcade.Body;
-    const R2 = 0.7071067811865476;
-    const cx = b.x + b.width / 2;
-    const cy = b.y + b.height / 2;
-    const DCONF: Record<AttackDir, DirConfig> = {
-      right: { fx: 1, fy: 0, ox: b.right, oy: cy },
-      left: { fx: -1, fy: 0, ox: b.left, oy: cy },
-      up: { fx: 0, fy: -1, ox: cx, oy: b.top },
-      down: { fx: 0, fy: 1, ox: cx, oy: b.bottom },
-      "up-right": { fx: R2, fy: -R2, ox: b.right, oy: b.top },
-      "up-left": { fx: -R2, fy: -R2, ox: b.left, oy: b.top },
-      "down-right": { fx: R2, fy: R2, ox: b.right, oy: b.bottom },
-      "down-left": { fx: -R2, fy: R2, ox: b.left, oy: b.bottom },
-    };
-    const cfg = DCONF[this.attackDir];
-    if (!cfg) return false;
-    const { fx, fy, ox, oy } = cfg;
-    const px = -fy,
-      py = fx;
-    const dx = tx - ox,
-      dy = ty - oy;
-    const lx = dx * fx + dy * fy;
-    const ly = dx * px + dy * py;
-    if (lx < 0) return false;
-    if (lx <= FD) return Math.abs(ly) <= NH + (FH - NH) * (lx / FD);
-    if (Math.abs(ly) > FH) return false;
-    const t = (FH - ly) / (2 * FH);
-    const lxCurve = FD * (1 - 2 * t + 2 * t * t) + 2 * t * (1 - t) * CTRL;
-    return lx <= lxCurve;
   }
 
   dismiss(): void {
@@ -311,8 +278,5 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
     this._syncAttackZone();
   }
 }
-
-// Expose for legacy runtime while migration continues
-(window as any).Clone = Clone;
 
 export default Clone;

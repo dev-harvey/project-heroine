@@ -7,8 +7,8 @@ import PlagueCrow from "../entities/PlagueCrow";
 import VoidDemon from "../entities/VoidDemon";
 import WaveManager from "../systems/WaveManager";
 
-import { CLONE_CONFIG, CLONE_CONFIG as cloneConfig, GAME_COLORS, GAME_CONFIG, GAME_CONFIG as gameConfig, PLAYER_CONFIG } from "../utils/constants";
-import { getAnchorOctoOffset, getAnchorPosition, getMouseDirectionFromTarget } from "../utils/utils";
+import { CLONE_CONFIG, DIAGONAL_VECTOR, GAME_CONFIG, PLAYER_CONFIG } from "../utils/constants";
+import { checkIfBBehindA, getAnchorOctoOffset, getMouseDirectionFromTarget } from "../utils/utils";
 
 export default class GameScene extends Phaser.Scene {
   // Core objects
@@ -99,10 +99,12 @@ export default class GameScene extends Phaser.Scene {
     this._updateAttackVisuals();
 
     this.player.anchorIndicator.update();
+    this.player.attackIndicator.update();
 
     if (this.clone?.active) {
       this.clone.update(time, delta);
       this._updateCloneHUD();
+      this.clone.attackIndicator.update();
     }
 
     this.enemies.getChildren().forEach((e: any) => {
@@ -113,10 +115,10 @@ export default class GameScene extends Phaser.Scene {
   // ─── Setup ─────────────────────────────────────────────────────────────────
 
   _buildWorld(): void {
-    const W = gameConfig.GAME_WIDTH,
-      H = gameConfig.GAME_HEIGHT,
-      WALL = gameConfig.GAME_WALL,
-      TILE = gameConfig.GAME_TILE;
+    const W = GAME_CONFIG.GAME_WIDTH,
+      H = GAME_CONFIG.GAME_HEIGHT,
+      WALL = GAME_CONFIG.GAME_WALL,
+      TILE = GAME_CONFIG.GAME_TILE;
 
     this.add.rectangle(W / 2, H / 2, W, H, 0x0d0618).setDepth(0);
 
@@ -182,6 +184,8 @@ export default class GameScene extends Phaser.Scene {
     this.playerEnemyCollider = this.physics.add.collider(this.player, this.enemies);
     this.physics.add.collider(this.enemies, this.enemies);
     this.physics.add.overlap(this.player.attackDetectionZone, this.enemies, this._onAttackHit, undefined, this);
+
+    this.physics.add.overlap(this.player.attackDetectionZone, this.enemies, (_zone, enemy) => this._onAttackHit(this.player, enemy as any));
   }
 
   _buildUI(): void {
@@ -643,13 +647,13 @@ export default class GameScene extends Phaser.Scene {
       this.playerAttackIndicator.clear();
     } else {
       const playerDir = this.player.isAttacking ? this.player.attackDir : playerMouseDir;
-      this._drawAttackZonePreview(this.playerAttackIndicator, this.player, playerDir, PLAYER_CONFIG.ATTACK_INDICATOR.COLOR);
+      // this._drawAttackZonePreview(this.playerAttackIndicator, this.player, playerDir, PLAYER_CONFIG.ATTACK_INDICATOR.COLOR);
     }
 
     if (this.clone?.active) {
       const cloneMouseDir = getMouseDirectionFromTarget(this.clone);
       const cloneDir = this.clone.isAttacking ? this.clone.attackDir : cloneMouseDir;
-      this._drawAttackZonePreview(this.cloneAttackIndicator, this.clone, cloneDir, CLONE_CONFIG.ATTACK_INDICATOR.COLOR);
+      // this._drawAttackZonePreview(this.cloneAttackIndicator, this.clone, cloneDir, CLONE_CONFIG.ATTACK_INDICATOR.COLOR);
     } else {
       this.cloneAttackIndicator.clear();
     }
@@ -659,13 +663,13 @@ export default class GameScene extends Phaser.Scene {
    * Draws a shovel-shaped debug preview of the attack range.
    * Shape: A trapezoid with a curved outer edge.
    */
-  _drawAttackZonePreview(g: Phaser.GameObjects.Graphics, entity: Player | Clone, dir: string, color: number): void {
+  _drawAttackZonePreview(g: Phaser.GameObjects.Graphics, player: Player | Clone, dir: string, color: number): void {
     g.clear();
 
     // 1. Safety Check: Don't draw if the entity is dead or has no physics body
-    if (!entity.active || !entity.body) return;
+    if (!player.active || !player.body) return;
 
-    const body = entity.body as Phaser.Physics.Arcade.Body;
+    const body = player.body as Phaser.Physics.Arcade.Body;
     const centerX = body.x + body.width / 2;
     const centerY = body.y + body.height / 2;
 
@@ -676,7 +680,6 @@ export default class GameScene extends Phaser.Scene {
     const ATTACK_DISTANCE = 50; // How far forward the shovel reaches
     const CURVE_CONTROL = 70; // How "puffed out" the curve is
     const CURVE_SAMPLES = 16; // Smoothness of the curve
-    const R2 = 0.707; // Math helper for diagonal normalization
 
     // 3. Direction Mapping
     // fx/fy = Forward direction | ox/oy = Starting point (edge of player)
@@ -685,10 +688,10 @@ export default class GameScene extends Phaser.Scene {
       left: { fx: -1, fy: 0, ox: body.left, oy: centerY },
       up: { fx: 0, fy: -1, ox: centerX, oy: body.top },
       down: { fx: 0, fy: 1, ox: centerX, oy: body.bottom },
-      "up-right": { fx: R2, fy: -R2, ox: body.right, oy: body.top },
-      "up-left": { fx: -R2, fy: -R2, ox: body.left, oy: body.top },
-      "down-right": { fx: R2, fy: R2, ox: body.right, oy: body.bottom },
-      "down-left": { fx: -R2, fy: R2, ox: body.left, oy: body.bottom },
+      "up-right": { fx: DIAGONAL_VECTOR, fy: -DIAGONAL_VECTOR, ox: body.right, oy: body.top },
+      "up-left": { fx: -DIAGONAL_VECTOR, fy: -DIAGONAL_VECTOR, ox: body.left, oy: body.top },
+      "down-right": { fx: DIAGONAL_VECTOR, fy: DIAGONAL_VECTOR, ox: body.right, oy: body.bottom },
+      "down-left": { fx: -DIAGONAL_VECTOR, fy: DIAGONAL_VECTOR, ox: body.left, oy: body.bottom },
     };
 
     const config = DIR_MAP[dir] ?? DIR_MAP["right"];
@@ -707,7 +710,7 @@ export default class GameScene extends Phaser.Scene {
     const ctrlPoint = { x: config.ox + config.fx * CURVE_CONTROL, y: config.oy + config.fy * CURVE_CONTROL };
 
     // 5. Drawing Logic
-    const isActuallyHitting = entity.isAttacking && entity.attackDetectionZone?.body?.enable;
+    const isActuallyHitting = player.isAttacking && player.attackDetectionZone?.body?.enable;
 
     // Set line and fill styles based on attack state
     if (isActuallyHitting) {
@@ -802,7 +805,9 @@ export default class GameScene extends Phaser.Scene {
 
     this.cloneEnemyCollider = this.physics.add.collider(this.clone, this.enemies);
 
-    this.physics.add.overlap(this.clone.attackDetectionZone, this.enemies, this._onCloneAttackHit, undefined, this);
+    // this.physics.add.overlap(this.clone.attackDetectionZone, this.enemies, this._onCloneAttackHit, undefined, this);
+
+    this.physics.add.overlap(this.clone.attackDetectionZone, this.enemies, (_zone, enemy) => this._onAttackHit(this.player, enemy as any));
 
     this._updateCloneHUD();
     this.showAnnouncement("Clone Summoned!", "#cc88ff");
@@ -1021,48 +1026,17 @@ export default class GameScene extends Phaser.Scene {
 
   // ─── Private helpers ───────────────────────────────────────────────────────
 
-  _enemyInAttackZone(attacker: any, enemy: any): boolean {
-    const b = enemy.body;
-    const cx = b.x + b.width / 2;
-    const cy = b.y + b.height / 2;
-    return [
-      [cx, cy],
-      [b.x, b.y],
-      [b.right, b.y],
-      [b.x, b.bottom],
-      [b.right, b.bottom],
-      [cx, b.y],
-      [cx, b.bottom],
-      [b.x, cy],
-      [b.right, cy],
-    ].some(([tx, ty]) => attacker._inAttackZone(tx, ty));
-  }
+  _onAttackHit(attacker: Player | Clone, enemy: any): void {
+    if (!attacker.isAttacking) return;
+    if (!attacker.attackDetectionZone.body.enable) return;
+    if (attacker.hitEnemies.has(enemy)) return;
 
-  _onAttackHit(_zone: any, enemy: any): void {
-    if (!this.player.isAttacking) return;
-    if (!this.player.attackDetectionZone.body.enable) return;
-    if (this.player.hitEnemies.has(enemy)) return;
-    if (!this._enemyInAttackZone(this.player, enemy)) return;
+    if (checkIfBBehindA(attacker, enemy)) return;
 
-    this.player.hitEnemies.add(enemy);
-    enemy.lastAttacker = "player";
-    const dmg = this.player.attackDamage;
-    this.spawnDamageNumber(enemy.x, enemy.y - 10, dmg, "#ffff00", 26);
-    enemy.takeDamage(dmg);
-  }
-
-  _onCloneAttackHit(_zone: any, enemy: any): void {
-    if (!this.clone?.active) return;
-    if (!this.clone.isAttacking) return;
-    if (!this.clone.attackDetectionZone?.body?.enable) return;
-    if (this.clone.hitEnemies.has(enemy)) return;
-    if (!this._enemyInAttackZone(this.clone, enemy)) return;
-
-    this.clone.hitEnemies.add(enemy);
-    enemy.lastAttacker = "clone";
-    const dmg = this.clone.attackDamage;
-    this.spawnDamageNumber(enemy.x, enemy.y - 10, dmg, "#ffff00", 26);
-    enemy.takeDamage(dmg);
+    attacker.hitEnemies.add(enemy);
+    enemy.lastAttacker = this.player ? "player" : "clone";
+    this.spawnDamageNumber(enemy.x, enemy.y - 10, attacker.attackDamage, "#ffff00", 26);
+    enemy.takeDamage(attacker.attackDamage);
   }
 
   _spawnPoint(): [number, number] {

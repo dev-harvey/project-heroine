@@ -1,9 +1,10 @@
 import * as Phaser from "phaser";
 
-import { CLONE_CONFIG, GAME_CONFIG, PLAYER_CONFIG as playerConfig } from "../utils/constants";
+import { CLONE_CONFIG, DIAGONAL_VECTOR, GAME_CONFIG, PLAYER_CONFIG, PLAYER_CONFIG as playerConfig } from "../utils/constants";
 import { getAnchorPosition, getMouseDirectionFromTarget, getAnchorOctoOffset } from "../utils/utils";
 import { Dash } from "../skills/Dash";
 import AnchorIndicator from "./AnchorIndicator";
+import AttackIndicator from "./AttackIndicator";
 
 export default class Player extends Phaser.Physics.Arcade.Sprite {
   maxHp: number;
@@ -16,6 +17,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   attackCooldownMax: number;
   isInvincible: boolean;
   attackDir: AttackDir;
+  attackIndicator: AttackIndicator;
   hitEnemies: Set<Phaser.GameObjects.GameObject>;
 
   anchorPosition: XYPosition;
@@ -29,7 +31,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   wasd: WasdKeys;
   _shiftKey: Phaser.Input.Keyboard.Key;
 
-  attackDetectionZone: Phaser.Physics.Arcade.Sprite;
+  attackDetectionZone: Phaser.Physics.Arcade.Image;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y, "player-idle");
@@ -54,7 +56,9 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.isAttacking = false;
     this.attackDir = "right";
 
-    this.attackDetectionZone = scene.physics.add.sprite(x, y, "");
+    this.attackIndicator = new AttackIndicator(scene, this);
+
+    this.attackDetectionZone = scene.physics.add.image(x, y, "");
     this.attackDetectionZone.body.enable = false;
 
     this.anchorPosition = { x: this.x, y: this.y };
@@ -162,45 +166,12 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     const b = this.body as Phaser.Physics.Arcade.Body;
     const bcx = b.x + b.width / 2;
     const bcy = b.y + b.height / 2;
-    this.attackDetectionZone.body.setSize(playerConfig.ATTACK_DETECTION_ZONE.w, playerConfig.ATTACK_DETECTION_ZONE.h);
-    this.attackDetectionZone.setPosition(bcx, bcy);
-  }
 
-  _inAttackZone(tx: number, ty: number): boolean {
-    const b = this.body as Phaser.Physics.Arcade.Body;
-    if (!b) return false;
-    const NH = 15,
-      FH = 30,
-      FD = 50,
-      CTRL = 70;
-    const R2 = 0.7071067811865476;
-    const cx = b.x + b.width / 2;
-    const cy = b.y + b.height / 2;
-    const DCONF: Record<AttackDir, DirConfig> = {
-      right: { fx: 1, fy: 0, ox: b.right, oy: cy },
-      left: { fx: -1, fy: 0, ox: b.left, oy: cy },
-      up: { fx: 0, fy: -1, ox: cx, oy: b.top },
-      down: { fx: 0, fy: 1, ox: cx, oy: b.bottom },
-      "up-right": { fx: R2, fy: -R2, ox: b.right, oy: b.top },
-      "up-left": { fx: -R2, fy: -R2, ox: b.left, oy: b.top },
-      "down-right": { fx: R2, fy: R2, ox: b.right, oy: b.bottom },
-      "down-left": { fx: -R2, fy: R2, ox: b.left, oy: b.bottom },
-    };
-    const cfg = DCONF[this.attackDir];
-    if (!cfg) return false;
-    const { fx, fy, ox, oy } = cfg;
-    const px = -fy,
-      py = fx;
-    const dx = tx - ox,
-      dy = ty - oy;
-    const lx = dx * fx + dy * fy;
-    const ly = dx * px + dy * py;
-    if (lx < 0) return false;
-    if (lx <= FD) return Math.abs(ly) <= NH + (FH - NH) * (lx / FD);
-    if (Math.abs(ly) > FH) return false;
-    const t = (FH - ly) / (2 * FH);
-    const lxCurve = FD * (1 - 2 * t + 2 * t * t) + 2 * t * (1 - t) * CTRL;
-    return lx <= lxCurve;
+    const radius = PLAYER_CONFIG.ATTACK_RANGE;
+
+    this.attackDetectionZone.setPosition(bcx, bcy);
+    this.attackDetectionZone.setSize(radius * 2, radius * 2);
+    this.attackDetectionZone.body.setCircle(radius);
   }
 
   update(_time: number, delta: number): void {
@@ -220,7 +191,8 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
-    /* Two can be pressed at once which is why this isn't enabled. Probably in the long run should rewrite for a getPressedMovementButtons function */
+    /* Two can be pressed at once which is why this isn't enabled. 
+    TODO: Probably in the long run should rewrite for a getPressedMovementButtons function */
     // const inputDirection = (this.wasd.left.isDown || this.cursors.left.isDown) ? 'left' : (this.wasd.right.isDown || this.cursors.right.isDown) ? 'right' : (this.wasd.up.isDown || this.cursors.up.isDown) ? 'up' : (this.wasd.down.isDown || this.cursors.down.isDown) ? 'down' : 'idle';
 
     const left = this.wasd.left.isDown || this.cursors.left.isDown;
@@ -261,6 +233,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
 
     const playerPosition = { x: this.x, y: this.y };
+    // TODO: Shouldn't pass playerPosition twice, it's a get around. This could all maybe move to the anchor file like I do it for attack indicator
     this.anchorPosition = getAnchorPosition(playerPosition, playerPosition, this.anchorOffset);
 
     const ptr = this.scene.input.activePointer;

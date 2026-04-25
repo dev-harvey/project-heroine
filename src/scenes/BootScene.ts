@@ -35,6 +35,9 @@ export default class BootScene extends Phaser.Scene {
     // Anchor indicator (energy-smack - 128x96 - 8 frames)
     this.load.spritesheet("anchor-indicator", base + "effects/anchor-indicator.png", { frameWidth: 128, frameHeight: 96 });
 
+    // Attack indicator (pulsing-arrow - 128x96 - 8 frames)
+    this.load.spritesheet("attack-indicator", base + "effects/attack-indicator.png", { frameWidth: 32, frameHeight: 32 });
+
     // Plague Crow
     this.load.spritesheet("crow-fly", base + "characters/enemies/plague-crow/plague-crow-fly.png", { frameWidth: 48, frameHeight: 48 });
     this.load.spritesheet("crow-idle", base + "characters/enemies/plague-crow/plague-crow-idle.png", { frameWidth: 48, frameHeight: 48 });
@@ -101,7 +104,16 @@ export default class BootScene extends Phaser.Scene {
     this.anims.create({ key: "player-attack-left", frames: this.anims.generateFrameNumbers("player-attack", { start: 8, end: 15 }), frameRate: 16, repeat: 0 });
     this.anims.create({ key: "player-attack-right", frames: this.anims.generateFrameNumbers("player-attack", { start: 16, end: 23 }), frameRate: 16, repeat: 0 });
     this.anims.create({ key: "player-attack-up", frames: this.anims.generateFrameNumbers("player-attack", { start: 24, end: 31 }), frameRate: 16, repeat: 0 });
+
+    this.anims.create({ key: "dash-spark", frames: this.anims.generateFrameNumbers("dash-spark", { start: 0, end: 4 }), frameRate: 25, repeat: 0 });
     
+    this.anims.create({ key: "anchor-indicator", frames: this.anims.generateFrameNumbers("anchor-indicator", { start: 0, end: 7 }), frameRate: 8, repeat: -1 });
+
+    this.anims.create({ key: "attack-indicator", frames: this.anims.generateFrameNumbers("attack-indicator", { start: 0, end: 5 }), frameRate: 10, repeat: 0 });
+
+    /* Enemies */
+
+    this.anims.create({ key: "enemy-death-anim", frames: this.anims.generateFrameNumbers("enemy-death", { start: 0, end: 7 }), frameRate: 14, repeat: 0 });
 
     this.anims.create({ key: "toad-idle", frames: this.anims.generateFrameNumbers("toad-idle", { start: 0, end: 3 }), frameRate: 8, repeat: -1 });
     this.anims.create({ key: "toad-jump", frames: this.anims.generateFrameNumbers("toad-jump", { start: 0, end: 3 }), frameRate: 10, repeat: 0 });
@@ -117,15 +129,7 @@ export default class BootScene extends Phaser.Scene {
     this.anims.create({ key: "demon-idle", frames: this.anims.generateFrameNumbers("demon-idle", { start: 0, end: 5 }), frameRate: 8, repeat: -1 });
     this.anims.create({ key: "demon-attack-no-breath", frames: this.anims.generateFrameNumbers("demon-attack-no-breath", { start: 0, end: 17 }), frameRate: 13, repeat: -1 });
     this.anims.create({ key: "demon-breath", frames: this.anims.generateFrameNumbers("demon-breath", { start: 0, end: 7 }), frameRate: 12, repeat: 0 });
-
-    this.anims.create({ key: "slash-upward", frames: this.anims.generateFrameNumbers("slash-upward", { start: 0, end: 4 }), frameRate: 50, repeat: 0 });
-    this.anims.create({ key: "slash-horizontal", frames: this.anims.generateFrameNumbers("slash-horizontal", { start: 0, end: 4 }), frameRate: 50, repeat: 0 });
-
-    this.anims.create({ key: "enemy-death-anim", frames: this.anims.generateFrameNumbers("enemy-death", { start: 0, end: 7 }), frameRate: 14, repeat: 0 });
-
-    this.anims.create({ key: "dash-spark", frames: this.anims.generateFrameNumbers("dash-spark", { start: 0, end: 4 }), frameRate: 25, repeat: 0 });
     
-    this.anims.create({ key: "anchor-indicator", frames: this.anims.generateFrameNumbers("anchor-indicator", { start: 0, end: 7 }), frameRate: 8, repeat: -1 });
   }
 }
 
