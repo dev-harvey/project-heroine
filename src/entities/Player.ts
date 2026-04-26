@@ -65,7 +65,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.anchorIndicator = new AnchorIndicator(scene, this);
     this.anchorIndicatorPosition = { x: this.x, y: this.y };
 
-    this.dash = new Dash(this, playerConfig.DASH_DURATION, playerConfig.DASH_DISTANCE, playerConfig.DASH_COOLDOWN);
+    this.dash = new Dash(this, this, playerConfig.DASH_DURATION, playerConfig.DASH_DISTANCE, playerConfig.DASH_COOLDOWN);
 
     this.isInvincible = false;
     this.hitEnemies = new Set();

@@ -1,8 +1,10 @@
+import Clone from "../entities/Clone";
 import { getMouseDirectionFromTarget } from "../utils/utils";
 
 export class Dash {
-  private target: Phaser.Physics.Arcade.Sprite;
-  private isReady: boolean = true;
+  private _player: Phaser.Physics.Arcade.Sprite;
+  private _target: Phaser.Physics.Arcade.Sprite;
+  private _isReady: boolean = true;
 
   private _duration: number;
   private _distance: number;
@@ -10,7 +12,7 @@ export class Dash {
   private _cooldownTimer: number;
 
   public get isActive() : boolean {
-    return !this.isReady;
+    return !this._isReady;
   }
   
   public get cooldown() : number {
@@ -21,8 +23,9 @@ export class Dash {
     return this._cooldownTimer;
   }
 
-  constructor(target: Phaser.Physics.Arcade.Sprite, duration: number, distance: number, cooldown: number) {
-    this.target = target;
+  constructor(player: Phaser.Physics.Arcade.Sprite, target: Phaser.Physics.Arcade.Sprite, duration: number, distance: number, cooldown: number) {
+    this._player = player
+    this._target = target;
     this._duration = duration;
     this._distance = distance;
     this._cooldown = cooldown;
@@ -30,10 +33,10 @@ export class Dash {
   }
 
   public execute() {
-    if (!this.isReady || this.cooldownTimer) return;
-    this.isReady = false;
-
-    const mouseDir = getMouseDirectionFromTarget(this.target);
+    if (!this._isReady || this.cooldownTimer) return;
+    this._isReady = false;
+    // TODO: the clone insteance shouldn't also get the mouse direction, it could just use the players if we save it somewhere or something
+    const mouseDir = (this._target === this._player) ? getMouseDirectionFromTarget(this._target) : getMouseDirectionFromTarget(this._player);
     const moveDir = {
       x: 0,
       y: 0,
@@ -84,21 +87,21 @@ export class Dash {
     const dashSpeed = this._distance / (this._duration / 1000);
     const vx = (moveDir.x / vectorLength) * dashSpeed;
     const vy = (moveDir.y / vectorLength) * dashSpeed;
-    this.target.setVelocity(vx, vy);
+    this._target.setVelocity(vx, vy);
 
-    this.target.emit("dash", vx, vy);
+    this._target.emit("dash", vx, vy);
 
     // Flicker the player character to indicate invincibility/dash
-    this.target.scene.tweens.add({
+    this._target.scene.tweens.add({
       targets: this,
       alpha: { from: 0, to: 1 },
       duration: this._duration,
       repeat: 0,
       ease: "easeOutQuad",
       onComplete: () => {
-        this.target.setAlpha(1);
+        this._target.setAlpha(1);
         this._cooldownTimer = this._cooldown;
-        this.isReady = true;
+        this._isReady = true;
       },
     });
   }

@@ -631,9 +631,11 @@ export default class GameScene extends Phaser.Scene {
     this.input.mouse.disableContextMenu();
     this.input.on("pointerdown", (ptr: any) => {
       if (ptr.rightButtonDown() && this.clone?.active && this.player.active) {
+
         const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, this.input.activePointer.worldX, this.input.activePointer.worldY);
         this.player.anchorOffset = getAnchorOctoOffset(angle, CLONE_CONFIG.ANCHOR_OFFSET);
         this.clone.startReposition();
+        
       }
     });
   }
@@ -799,13 +801,11 @@ export default class GameScene extends Phaser.Scene {
 
     const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, this.input.activePointer.worldX, this.input.activePointer.worldY);
     this.player.anchorOffset = getAnchorOctoOffset(angle, CLONE_CONFIG.ANCHOR_OFFSET);
-
-    this.clone.dash.execute();
-    this.clone.startReposition();
-
+    
     this.cloneEnemyCollider = this.physics.add.collider(this.clone, this.enemies);
 
-    // this.physics.add.overlap(this.clone.attackDetectionZone, this.enemies, this._onCloneAttackHit, undefined, this);
+    // this.clone.dash.execute();
+    this.clone.startReposition();
 
     this.physics.add.overlap(this.clone.attackDetectionZone, this.enemies, (_zone, enemy) => this._onAttackHit(this.player, enemy as any));
 

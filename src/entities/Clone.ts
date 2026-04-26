@@ -60,7 +60,7 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
     this.attackDir = "right";
     this.hitEnemies = new Set();
 
-    this.dash = new Dash(this, CLONE_CONFIG.DASH_DURATION, CLONE_CONFIG.DASH_DISTANCE, CLONE_CONFIG.DASH_COOLDOWN);
+    this.dash = new Dash(this.targetPlayer, this, CLONE_CONFIG.DASH_DURATION, CLONE_CONFIG.DASH_DISTANCE, CLONE_CONFIG.DASH_COOLDOWN);
 
     this._repositioning = false;
 
@@ -136,8 +136,8 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
   doAttack(): void {
     if (this._dead || this.isAttacking || this.attackCooldown > 0) return;
 
+    this._repositioning = false;
     this.attackDir = this._mouseToDir();
-    // this.attackDir = "right";
     this.isAttacking = true;
     this.attackCooldown = 300;
     this.hitEnemies.clear();
@@ -250,14 +250,15 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
     const distance = Phaser.Math.Distance.Between(anchorPosition.x, anchorPosition.y, cloneCenter.x, cloneCenter.y);
     let speed = this.speed;
 
+    // TODO: These speeds should be in constants
     if (distance < 2) {
       this._repositioning = false;
       speed = 0;
     } else if (distance < 10) {
       this._repositioning = false;
-      speed = 25;
+      speed = CLONE_CONFIG.SPEED * 0.2;
     } else if (this._repositioning) {
-      speed = this.targetPlayer.speed * 2;
+      speed = CLONE_CONFIG.SPEED * 4;
     }
 
     this.scene.physics.moveToObject(this, anchorPosition, speed);
