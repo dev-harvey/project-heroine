@@ -72,6 +72,11 @@ export const GAME_CONFIG = {
   GAME_TILE: 16
 }
 
+export const UI_CONFIG = {
+  BODY_FONT: 'Oswald, sans-serif',
+  HEADER_FONT: 'Cinzel Decorative, serif',
+}
+
 export const PLAYER_CONFIG = {
   DEPTH: 5, 
   SCALE: 1,

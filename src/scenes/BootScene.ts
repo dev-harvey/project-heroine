@@ -47,20 +47,18 @@ export default class BootScene extends Phaser.Scene {
     this.load.spritesheet("demon-attack-no-breath", base + "characters/enemies/void-demon/Spritesheets/demon-attack-no-breath.png", { frameWidth: 256, frameHeight: 144 });
     this.load.spritesheet("demon-breath", base + "characters/enemies/void-demon/Spritesheets/breath-fire.png", { frameWidth: 100, frameHeight: 96 });
 
-    // Slash effects (52×56 per frame × 5; 65×40 per frame × 5)
-    this.load.spritesheet("slash-upward", base + "effects/slashes/slash-upward.png", { frameWidth: 52, frameHeight: 56 });
-    this.load.spritesheet("slash-horizontal", base + "effects/slashes/slash-horizontal.png", { frameWidth: 65, frameHeight: 40 });
-
-    // Custom cursor
-    this.load.image("cursor-dagger", base + "weapons/Dagger/dagger.png");
-
     // Gems — load as spritesheet; each gem cell is 16×16 (frame 0 = top-left)
     this.load.spritesheet("gems", base + "ui/gems-spritesheet.png", { frameWidth: 16, frameHeight: 16 });
 
-    // Cursor sword
-    this.load.image("cursor-sword", base + "weapons/fantasy%20weapons%20set/PNG/1.png");
+    /* UI Assets */
 
-    // Environment
+    this.load.image("cursor-sword", base + "ui/cursor-sword.png");
+
+    this.load.image("heart", base + "ui/heart.png");
+    this.load.image("heart-empty", base + "ui/heart-empty.png");
+
+    /* Environment Assets */
+
     this.load.spritesheet("top-down-forest-tileset", base + "environments/top-down-forest-tileset.png", { frameWidth: 16, frameHeight: 16 });
   }
 

@@ -7,8 +7,9 @@ import PlagueCrow from "../entities/PlagueCrow";
 import VoidDemon from "../entities/VoidDemon";
 import WaveManager from "../systems/WaveManager";
 
-import { CLONE_CONFIG, DIAGONAL_VECTOR, GAME_CONFIG, PLAYER_CONFIG } from "../utils/constants";
+import { CLONE_CONFIG, DIAGONAL_VECTOR, GAME_CONFIG, PLAYER_CONFIG, UI_CONFIG } from "../utils/constants";
 import { checkIfBBehindA, getAnchorOctoOffset, getMouseDirectionFromTarget } from "../utils/utils";
+import GameUI from "../systems/GameUI";
 
 export default class GameScene extends Phaser.Scene {
   // Core objects
@@ -16,6 +17,9 @@ export default class GameScene extends Phaser.Scene {
   clone: Clone | null = null;
   enemies!: Phaser.Physics.Arcade.Group;
   waveManager!: WaveManager;
+
+  ui: GameUI;
+
   cursorSprite!: Phaser.GameObjects.Image;
 
   // Colliders
@@ -23,7 +27,6 @@ export default class GameScene extends Phaser.Scene {
   cloneEnemyCollider: Phaser.Physics.Arcade.Collider | null = null;
 
   // UI
-  hpContainer!: Phaser.GameObjects.Container;
   cloneHpContainer!: Phaser.GameObjects.Container;
   atkText!: Phaser.GameObjects.Text;
   cloneAtkText!: Phaser.GameObjects.Text;
@@ -53,10 +56,8 @@ export default class GameScene extends Phaser.Scene {
 
   // Debug
   _debugMode: boolean = false;
-  _debugCountText: Phaser.GameObjects.Text | null = null;
   _hitboxGfx!: Phaser.GameObjects.Graphics;
-  _debugLabels: Phaser.GameObjects.Text[] = [];
-  _showOverlapZone: boolean = false;
+  _debugLabels: Phaser.GameObjects.Text[] = []
 
   constructor() {
     super({ key: "GameScene" });
@@ -189,29 +190,31 @@ export default class GameScene extends Phaser.Scene {
   }
 
   _buildUI(): void {
-    const mono = '"Courier New", Courier, monospace';
-    const s = (sz: number, col: string) => ({ fontSize: `${sz}px`, fill: col, fontFamily: mono });
+    // TODO: UI UPDATE
+    this.ui = new GameUI(this, this.player, this.clone);
 
-    this.input.setDefaultCursor("none");
-    this.cursorSprite = this.add.image(0, 0, "cursor-sword").setScale(1.1).setAngle(-45).setOrigin(0.9, 0).setDepth(100).setScrollFactor(0);
+    const mono = UI_CONFIG.BODY_FONT;
 
-    this.hpContainer = this.add.container(36, 16).setDepth(20);
-    this._rebuildHearts();
+    // Helper to avoid repeating font/size/color boilerplate for every text object
+    const textStyle = (sz: number, col: string) => ({ fontSize: `${sz}px`, fill: col, fontFamily: mono });
 
+    // Player attack stat display, top-left below hearts
     this.atkText = this.add
       .text(36, 46, "ATK: 1", {
-        ...s(20, "#ffcc44"),
+        ...textStyle(20, "#ffcc44"),
         stroke: "#000000",
         strokeThickness: 2,
       })
       .setOrigin(0, 0)
       .setDepth(20);
 
+    // Clone HP hearts — same pattern as player HP, positioned below player stats
     this.cloneHpContainer = this.add.container(36, 72).setDepth(20);
 
+    // Clone ATK and kill count — hidden until a clone is active
     this.cloneAtkText = this.add
       .text(36, 96, "", {
-        ...s(19, "#dd88ff"),
+        ...textStyle(19, "#dd88ff"),
         stroke: "#000000",
         strokeThickness: 2,
       })
@@ -221,7 +224,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.cloneKillsText = this.add
       .text(36, 120, "", {
-        ...s(18, "#ffee55"),
+        ...textStyle(18, "#ffee55"),
         stroke: "#000000",
         strokeThickness: 2,
       })
@@ -229,17 +232,15 @@ export default class GameScene extends Phaser.Scene {
       .setDepth(20)
       .setVisible(false);
 
+    // Dash cooldown card — bottom-left HUD element with icon, label, keybind, and a fill bar
     const CARD_X = 14,
       CARD_Y = 510,
       CARD_W = 154,
       CARD_H = 51;
-    this.dashCardBg = this.add.rectangle(CARD_X, CARD_Y, CARD_W, CARD_H, 0x0a0616, 0.88).setOrigin(0, 0.5).setDepth(19);
-    const dashBorder = this.add.graphics().setDepth(19);
-    dashBorder.lineStyle(1, 0x44ccff, 0.6);
-    dashBorder.strokeRect(CARD_X, CARD_Y - CARD_H / 2, CARD_W, CARD_H);
+    this.dashCardBg = this.add.rectangle(CARD_X, CARD_Y, CARD_W, CARD_H, 0x0a0616, 0.88).setStrokeStyle(1, 0x44ccff, 0.6).setOrigin(0, 0.5).setDepth(19);
     this.dashIcon = this.add
-      .sprite(CARD_X + 24, CARD_Y, "player-idle", 0)
-      .setScale(0.42)
+      .sprite(CARD_X + 25, CARD_Y - 1, "player-run", 7)
+      .setScale(0.8)
       .setTint(0x44ccff)
       .setDepth(21);
     this.dashLabel = this.add
@@ -252,6 +253,7 @@ export default class GameScene extends Phaser.Scene {
       })
       .setOrigin(0, 0.5)
       .setDepth(21);
+    // Keybind hint below the DASH label
     this.add
       .text(CARD_X + 46, CARD_Y + 10, "SHIFT", {
         fontSize: "14px",
@@ -260,6 +262,7 @@ export default class GameScene extends Phaser.Scene {
       })
       .setOrigin(0, 0.5)
       .setDepth(21);
+    // Dash cooldown bar — dark track with a blue fill that shrinks/grows as cooldown progresses
     const BAR_Y = CARD_Y + CARD_H / 2 - 4;
     this.add
       .rectangle(CARD_X + 2, BAR_Y, CARD_W - 4, 4, 0x112233, 1)
@@ -270,49 +273,56 @@ export default class GameScene extends Phaser.Scene {
       .setOrigin(0, 0.5)
       .setDepth(22);
 
+    // Gold display — gem icon + running total, top-left below clone stats
     this.goldIcon = this.add.sprite(28, 147, "gems", 134).setOrigin(0, 0.5).setDepth(20).setScale(1.6);
     this.goldText = this.add
       .text(50, 147, `${window.Gold?.total ?? 0}g`, {
-        ...s(19, "#ffd700"),
+        ...textStyle(19, "#ffd700"),
         stroke: "#000000",
         strokeThickness: 2,
       })
       .setOrigin(0, 0.5)
       .setDepth(20);
 
+    // Wave counter — centered at the top of the screen
     this.waveText = this.add
       .text(480, 12, "Wave 1", {
-        ...s(27, "#ffd700"),
+        ...textStyle(27, "#ffd700"),
         stroke: "#000000",
         strokeThickness: 3,
       })
       .setOrigin(0.5, 0)
       .setDepth(20);
+    // Kill counter — top-right corner
     this.killText = this.add
       .text(928, 12, "Kills: 0", {
-        ...s(22, "#aaffaa"),
+        ...textStyle(22, "#aaffaa"),
         stroke: "#000000",
         strokeThickness: 2,
       })
       .setOrigin(1, 0)
       .setDepth(20);
 
+    // In debug mode these are redundant with other tooling, so hide them
     if (this._debugMode) {
       this.waveText.setVisible(false);
       this.killText.setVisible(false);
     }
 
+    // Large center-screen announcement text (e.g. "Wave 2!") — starts invisible,
+    // tweened in/out by the wave manager when needed
     this.announceText = this.add
       .text(480, 200, "", {
-        ...s(52, "#ffd700"),
+        ...textStyle(52, "#ffd700"),
         stroke: "#000000",
-        strokeThickness: 5,
+        strokeThickness: 1,
       })
       .setOrigin(0.5)
       .setDepth(25)
       .setAlpha(0);
 
-    this.hintsText = this.add.text(480, 528, "WASD — Move    LClick — Attack    Shift — Dash    Space — Summon/Dismiss Clone    RClick — Reposition Clone", s(11, "#666666")).setOrigin(0.5, 1).setDepth(20);
+    // Control hints shown at the bottom of the screen, fade out after 8 seconds
+    this.hintsText = this.add.text(480, 528, "WASD — Move    LClick — Attack    Shift — Dash    Space — Summon/Dismiss Clone    RClick — Reposition Clone", textStyle(11, "#666666")).setOrigin(0.5, 1).setDepth(20);
     this.time.delayedCall(8000, () => {
       this.tweens.add({ targets: this.hintsText, alpha: 0, duration: 1000 });
     });
@@ -332,7 +342,7 @@ export default class GameScene extends Phaser.Scene {
 
   _buildDebugPanel(): void {
     /* TODO: This section is baffling and needs a rewrite, but fine for now */
-    const mono = '"Courier New", Courier, monospace';
+    const mono = UI_CONFIG.BODY_FONT;
     const t = (sz: number, col: string) => ({ fontSize: `${sz}px`, fill: col, fontFamily: mono });
 
     const PW = 160,
@@ -344,7 +354,7 @@ export default class GameScene extends Phaser.Scene {
     const toggleBg = this.add
       .rectangle(PX + PW / 2, 14, PW - 12, 22, 0x1a0a2e)
       .setDepth(32)
-      .setInteractive({ useHandCursor: true });
+      .setInteractive({ useHandCursor: false });
     const toggleLbl = this.add
       .text(PX + PW / 2, 14, "DEBUG ▶", t(13, "#aa44cc"))
       .setOrigin(0.5, 0.5)
@@ -363,7 +373,7 @@ export default class GameScene extends Phaser.Scene {
           bg.setVisible(false);
           lbl.setVisible(false);
         });
-        repositionUtil();
+        statsUtil();
       }
     });
 
@@ -388,7 +398,7 @@ export default class GameScene extends Phaser.Scene {
       this.add
         .rectangle(PX + PW / 2, HEADER_Y + BTN_H / 2, PW - 12, BTN_H, 0x1a0a2e)
         .setDepth(30)
-        .setInteractive({ useHandCursor: true }),
+        .setInteractive({ useHandCursor: false }),
     );
     const headerLbl = p(
       this.add
@@ -404,9 +414,6 @@ export default class GameScene extends Phaser.Scene {
       { label: "Hell Hound", col: "#ff8844", fn: () => this.spawnWave(0, 1, 0, 0) },
       { label: "Plague Crow", col: "#88ccff", fn: () => this.spawnWave(0, 0, 1, 0) },
       { label: "Void Demon", col: "#ff88ff", fn: () => this.spawnWave(0, 0, 0, 1) },
-      { label: "3× Toads", col: "#88ff88", fn: () => this.spawnWave(3, 0, 0, 0) },
-      { label: "3× Hounds", col: "#ff8844", fn: () => this.spawnWave(0, 3, 0, 0) },
-      { label: "3× Crows", col: "#88ccff", fn: () => this.spawnWave(0, 0, 3, 0) },
     ];
 
     const spawnBtns = spawnEntries.map((entry, i) => {
@@ -415,7 +422,7 @@ export default class GameScene extends Phaser.Scene {
         this.add
           .rectangle(PX + PW / 2, by + BTN_H / 2, PW - 12, BTN_H, 0x120820)
           .setDepth(30)
-          .setInteractive({ useHandCursor: true }),
+          .setInteractive({ useHandCursor: false }),
       );
       const lbl = p(
         this.add
@@ -452,7 +459,7 @@ export default class GameScene extends Phaser.Scene {
         this.add
           .rectangle(0, 0, PW - 12, BTN_H, 0x1a0a2e)
           .setDepth(30)
-          .setInteractive({ useHandCursor: true }),
+          .setInteractive({ useHandCursor: false }),
       );
       const lbl = p(this.add.text(0, 0, entry.label, t(12, entry.col)).setOrigin(0.5, 0.5).setDepth(31));
       bg.on("pointerover", () => bg.setFillStyle(0x330066));
@@ -464,8 +471,6 @@ export default class GameScene extends Phaser.Scene {
       utilBgs.push(bg);
       utilLbls.push(lbl);
     });
-
-    this._debugCountText = p(this.add.text(0, 0, "Enemies: 0", t(10, "#555555")).setOrigin(0.5, 0).setDepth(30));
 
     const ROW_H = 26;
     const statDefs = [
@@ -517,9 +522,9 @@ export default class GameScene extends Phaser.Scene {
     const statRows = statDefs.map((def) => {
       const bg = p(this.add.rectangle(0, 0, PW - 12, ROW_H, 0x0a0616).setDepth(30));
       const lbl = p(this.add.text(0, 0, def.label(), t(10, "#ccaaff")).setOrigin(0.5, 0.5).setDepth(32));
-      const minusBg = p(this.add.rectangle(0, 0, 22, 20, 0x1a0a2e).setDepth(31).setInteractive({ useHandCursor: true }));
+      const minusBg = p(this.add.rectangle(0, 0, 22, 20, 0x1a0a2e).setDepth(31).setInteractive({ useHandCursor: false }));
       const minusLbl = p(this.add.text(0, 0, "−", t(13, "#ff6666")).setOrigin(0.5, 0.5).setDepth(32));
-      const plusBg = p(this.add.rectangle(0, 0, 22, 20, 0x1a0a2e).setDepth(31).setInteractive({ useHandCursor: true }));
+      const plusBg = p(this.add.rectangle(0, 0, 22, 20, 0x1a0a2e).setDepth(31).setInteractive({ useHandCursor: false }));
       const plusLbl = p(this.add.text(0, 0, "+", t(13, "#66ff88")).setOrigin(0.5, 0.5).setDepth(32));
       minusBg.on("pointerover", () => minusBg.setFillStyle(0x330022));
       minusBg.on("pointerout", () => minusBg.setFillStyle(0x1a0a2e));
@@ -538,24 +543,7 @@ export default class GameScene extends Phaser.Scene {
       return { bg, lbl, minusBg, minusLbl, plusBg, plusLbl };
     });
 
-    this._showOverlapZone = false;
-    const ovBg = p(
-      this.add
-        .rectangle(0, 0, PW - 12, BTN_H, 0x1a0a2e)
-        .setDepth(30)
-        .setInteractive({ useHandCursor: true }),
-    );
-    const ovLbl = p(this.add.text(0, 0, "[ ] Overlap zone", t(11, "#888888")).setOrigin(0.5, 0.5).setDepth(31));
-    ovBg.on("pointerover", () => ovBg.setFillStyle(0x330066));
-    ovBg.on("pointerout", () => ovBg.setFillStyle(0x1a0a2e));
-    ovBg.on("pointerdown", (_p: any, _x: any, _y: any, ev: any) => {
-      ev.stopPropagation();
-      this._showOverlapZone = !this._showOverlapZone;
-      ovLbl.setText(this._showOverlapZone ? "[x] Overlap zone" : "[ ] Overlap zone");
-      ovLbl.setStyle({ fill: this._showOverlapZone ? "#ffff44" : "#888888" });
-    });
-
-    const repositionUtil = () => {
+    const statsUtil = () => {
       const spawnH = spawnOpen ? spawnEntries.length * (BTN_H + GAP) : 0;
       let uy = HEADER_Y + BTN_H + GAP + spawnH + 8;
       utilEntries.forEach((_, i) => {
@@ -575,13 +563,10 @@ export default class GameScene extends Phaser.Scene {
         row.plusLbl.setPosition(PX + PW - 14, cy);
         uy += ROW_H + GAP;
       });
-      if (this._debugCountText) this._debugCountText.setPosition(PX + PW / 2, uy + 2);
       uy += 16;
-      ovBg.setPosition(PX + PW / 2, uy + BTN_H / 2);
-      ovLbl.setPosition(PX + PW / 2, uy + BTN_H / 2);
     };
 
-    repositionUtil();
+    statsUtil();
 
     headerBg.on("pointerdown", (_ptr: any, _lx: any, _ly: any, event: any) => {
       event.stopPropagation();
@@ -592,14 +577,14 @@ export default class GameScene extends Phaser.Scene {
         bg.setVisible(show);
         lbl.setVisible(show);
       });
-      repositionUtil();
+      statsUtil();
     });
 
     const backBg = p(
       this.add
         .rectangle(PX + PW / 2, 510, PW - 12, 24, 0x1a0a2e)
         .setDepth(30)
-        .setInteractive({ useHandCursor: true }),
+        .setInteractive({ useHandCursor: false }),
     );
     p(
       this.add
@@ -631,11 +616,9 @@ export default class GameScene extends Phaser.Scene {
     this.input.mouse.disableContextMenu();
     this.input.on("pointerdown", (ptr: any) => {
       if (ptr.rightButtonDown() && this.clone?.active && this.player.active) {
-
         const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, this.input.activePointer.worldX, this.input.activePointer.worldY);
         this.player.anchorOffset = getAnchorOctoOffset(angle, CLONE_CONFIG.ANCHOR_OFFSET);
         this.clone.startReposition();
-        
       }
     });
   }
@@ -752,7 +735,7 @@ export default class GameScene extends Phaser.Scene {
       .text(x + jitter, y, `${amount}`, {
         fontSize: `${size}px`,
         color: color,
-        fontFamily: '"Courier New", Courier, monospace',
+        fontFamily: UI_CONFIG.BODY_FONT,
         stroke: "#000000",
         strokeThickness: 3,
       })
@@ -773,7 +756,7 @@ export default class GameScene extends Phaser.Scene {
       .text(x, y, `+${amount}`, {
         fontSize: "20px",
         color: color,
-        fontFamily: '"Courier New", Courier, monospace',
+        fontFamily: UI_CONFIG.BODY_FONT,
         stroke: "#000000",
         strokeThickness: 3,
       })
@@ -801,7 +784,7 @@ export default class GameScene extends Phaser.Scene {
 
     const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, this.input.activePointer.worldX, this.input.activePointer.worldY);
     this.player.anchorOffset = getAnchorOctoOffset(angle, CLONE_CONFIG.ANCHOR_OFFSET);
-    
+
     this.cloneEnemyCollider = this.physics.add.collider(this.clone, this.enemies);
 
     // this.clone.dash.execute();
@@ -831,7 +814,7 @@ export default class GameScene extends Phaser.Scene {
           this.add.text(i * GAP, 0, filled ? "♥" : "♡", {
             fontSize: "27px",
             color: filled ? "#ff99ff" : "#884488",
-            fontFamily: '"Courier New", Courier, monospace',
+            fontFamily: UI_CONFIG.BODY_FONT,
             stroke: "#000000",
             strokeThickness: 2,
           }),
@@ -1054,24 +1037,8 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  _rebuildHearts(): void {
-    this.hpContainer.removeAll(true);
-    for (let i = 0; i < this.player.maxHp; i++) {
-      const filled = i < this.player.hp;
-      this.hpContainer.add(
-        this.add.text(i * 29, 0, filled ? "♥" : "♡", {
-          fontSize: "27px",
-          color: filled ? "#ff4466" : "#aa3355",
-          fontFamily: '"Courier New", Courier, monospace',
-          stroke: "#000000",
-          strokeThickness: 2,
-        }),
-      );
-    }
-  }
-
   _updateHPBar(): void {
-    this._rebuildHearts();
+    this.ui.rebuildHearts();
     this.atkText.setText(`ATK: ${this.player.attackDamage}`);
 
     const CARD_W = 150;
@@ -1094,4 +1061,4 @@ export default class GameScene extends Phaser.Scene {
   }
 }
 
-(window as any).GameScene = GameScene;
+window.GameScene = GameScene;
