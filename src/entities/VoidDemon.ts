@@ -178,7 +178,7 @@ class VoidDemon extends Phaser.Physics.Arcade.Sprite implements IEnemy {
         const r   = Math.random() * this.breathRange;
         const spr = this.scene.add.sprite(ox + Math.cos(a) * r, oy + Math.sin(a) * r, 'demon-breath')
           .setScale(0.48).setAlpha(0.85)
-          .setBlendMode(Phaser.BlendModes.ADD).setDepth(6);
+          .setBlendMode("ADD").setDepth(6);
         spr.play('demon-breath');
         spr.once('animationcomplete', () => {
           if (!(this.scene as any)?.tweens) { spr.destroy(); return; }

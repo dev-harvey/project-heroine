@@ -1,0 +1,3 @@
+She was being experimented on by the orcs and her essense split into two, which allows her to form a solid projection of herself that mirrors her actions. Her other powers come from her gear and that can be how you unlock new powers. Magical or enchanted gear, forged by the gods, we'll see.
+
+Could use the anchor dot system to have some orcs control other orcs - they could set them as the front three angles and attack the player, then when the orcs get within a certain distance they lock onto the player instead of the anchor. Gives the impression of advancing in formation. For ranged enemies it could also be scary as it would form a sort of deadly barrage from them.

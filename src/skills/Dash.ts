@@ -35,7 +35,6 @@ export class Dash {
   public execute() {
     if (!this._isReady || this.cooldownTimer) return;
     this._isReady = false;
-    // TODO: the clone insteance shouldn't also get the mouse direction, it could just use the players if we save it somewhere or something
     const mouseDir = (this._target === this._player) ? getMouseDirectionFromTarget(this._target) : getMouseDirectionFromTarget(this._player);
     const moveDir = {
       x: 0,

@@ -7,7 +7,7 @@ import PlagueCrow from "../entities/PlagueCrow";
 import VoidDemon from "../entities/VoidDemon";
 import WaveManager from "../systems/WaveManager";
 
-import { CLONE_CONFIG, DIAGONAL_VECTOR, GAME_CONFIG, PLAYER_CONFIG, UI_CONFIG } from "../utils/constants";
+import { CLONE_CONFIG, DIAGONAL_VECTOR, GAME_ASSETS, GAME_COLORS, GAME_CONFIG, PLAYER_CONFIG, UI_CONFIG } from "../utils/constants";
 import { checkIfBBehindA, getAnchorOctoOffset, getMouseDirectionFromTarget } from "../utils/utils";
 import GameUI from "../systems/GameUI";
 
@@ -27,10 +27,6 @@ export default class GameScene extends Phaser.Scene {
   cloneEnemyCollider: Phaser.Physics.Arcade.Collider | null = null;
 
   // UI
-  cloneHpContainer!: Phaser.GameObjects.Container;
-  atkText!: Phaser.GameObjects.Text;
-  cloneAtkText!: Phaser.GameObjects.Text;
-  cloneKillsText!: Phaser.GameObjects.Text;
   waveText!: Phaser.GameObjects.Text;
   killText!: Phaser.GameObjects.Text;
   announceText!: Phaser.GameObjects.Text;
@@ -57,7 +53,7 @@ export default class GameScene extends Phaser.Scene {
   // Debug
   _debugMode: boolean = false;
   _hitboxGfx!: Phaser.GameObjects.Graphics;
-  _debugLabels: Phaser.GameObjects.Text[] = []
+  _debugLabels: Phaser.GameObjects.Text[] = [];
 
   constructor() {
     super({ key: "GameScene" });
@@ -96,8 +92,8 @@ export default class GameScene extends Phaser.Scene {
     this.cursorSprite.setPosition(ptr.x, ptr.y);
 
     this.player.update(time, delta);
-    this._updateHPBar();
-    this._updateAttackVisuals();
+    
+    this.ui.updateAbilityCooldown("dash", 1 - this.player.dash.cooldownTimer / this.player.dash.cooldown);
 
     this.player.anchorIndicator.update();
     this.player.attackIndicator.update();
@@ -111,42 +107,39 @@ export default class GameScene extends Phaser.Scene {
     this.enemies.getChildren().forEach((e: any) => {
       if (e.active) e.update(time, delta, this.player, this.clone);
     });
+
+    this.ui.updateHUD();
   }
 
   // ─── Setup ─────────────────────────────────────────────────────────────────
 
   _buildWorld(): void {
-    const W = GAME_CONFIG.GAME_WIDTH,
-      H = GAME_CONFIG.GAME_HEIGHT,
-      WALL = GAME_CONFIG.GAME_WALL,
-      TILE = GAME_CONFIG.GAME_TILE;
+    const gameWidth = GAME_CONFIG.GAME_WIDTH,
+      gameHeight = GAME_CONFIG.GAME_HEIGHT,
+      wallX = GAME_CONFIG.GAME_WALL_X,
+      wallY = GAME_CONFIG.GAME_WALL_Y;
 
-    this.add.rectangle(W / 2, H / 2, W, H, 0x0d0618).setDepth(0);
+    this.add.rectangle(gameWidth / 2, gameHeight / 2, gameWidth, gameHeight, GAME_COLORS.MIDNIGHT).setDepth(0);
 
     const gFloor = this.add.graphics().setDepth(1);
     gFloor.fillStyle(0x888888, 1);
-    gFloor.fillRect(WALL, WALL, W - WALL * 2, H - WALL * 2);
+    gFloor.fillRect(wallX, wallY, gameWidth - wallX * 2, gameHeight - wallY * 2);
 
-    for (let col = 0; col * TILE < W - WALL * 2; col++) {
-      for (let row = 0; row * TILE < H - WALL * 2; row++) {
-        let textureFrame = 62; // edit this to change the texture. 62 = plain grass
-        this.add
-          .image(WALL + col * TILE, WALL + row * TILE, "top-down-forest-tileset", textureFrame)
-          .setOrigin(0, 0)
-          .setDepth(1);
-      }
-    }
+    this.add
+      .tileSprite(0, wallY, gameWidth, gameHeight - wallY * 2, GAME_ASSETS.FLOOR_TILE, GAME_ASSETS.FLOOR_TILE_FRAME)
+      .setOrigin(0, 0)
+      .setDepth(1);
 
     const gWall = this.add.graphics().setDepth(2);
-    gWall.fillStyle(0x1a0a2e, 1);
-    gWall.fillRect(0, 0, 960, WALL);
-    gWall.fillRect(0, H - WALL, 960, WALL);
-    gWall.fillRect(0, 0, WALL, H);
-    gWall.fillRect(W - WALL, 0, WALL, H);
-    gWall.lineStyle(2, 0x8855cc, 1);
-    gWall.strokeRect(WALL, WALL, W - WALL * 2, H - WALL * 2);
+    gWall.fillStyle(GAME_COLORS.ICE, 1);
+    gWall.fillRect(0, 0, gameWidth, wallY);
+    gWall.fillRect(0, gameHeight - wallY, gameWidth, wallY);
+    gWall.fillRect(0, 0, wallX, gameHeight);
+    gWall.fillRect(gameWidth - wallX, 0, wallX, gameHeight);
+    gWall.lineStyle(2, GAME_COLORS.SKY, 1);
+    gWall.strokeRect(wallX, wallY, gameWidth - wallX * 2, gameHeight - wallY * 2);
 
-    this.physics.world.setBounds(WALL, WALL, W - WALL * 2, H - WALL * 2);
+    this.physics.world.setBounds(wallX, wallY, gameWidth - wallX * 2, gameHeight - wallY * 2);
   }
 
   _buildPlayer(): void {
@@ -186,92 +179,20 @@ export default class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.enemies, this.enemies);
     this.physics.add.overlap(this.player.attackDetectionZone, this.enemies, this._onAttackHit, undefined, this);
 
-    this.physics.add.overlap(this.player.attackDetectionZone, this.enemies, (_zone, enemy) => this._onAttackHit(this.player, enemy as any));
+    this.physics.add.overlap(this.player.attackDetectionZone, this.enemies, (_zone, enemy) => this._onAttackHit(this.player, enemy));
   }
 
   _buildUI(): void {
     // TODO: UI UPDATE
-    this.ui = new GameUI(this, this.player, this.clone);
+    this.ui = new GameUI(this, this.player);
 
     const mono = UI_CONFIG.BODY_FONT;
 
     // Helper to avoid repeating font/size/color boilerplate for every text object
     const textStyle = (sz: number, col: string) => ({ fontSize: `${sz}px`, fill: col, fontFamily: mono });
 
-    // Player attack stat display, top-left below hearts
-    this.atkText = this.add
-      .text(36, 46, "ATK: 1", {
-        ...textStyle(20, "#ffcc44"),
-        stroke: "#000000",
-        strokeThickness: 2,
-      })
-      .setOrigin(0, 0)
-      .setDepth(20);
-
-    // Clone HP hearts — same pattern as player HP, positioned below player stats
-    this.cloneHpContainer = this.add.container(36, 72).setDepth(20);
-
-    // Clone ATK and kill count — hidden until a clone is active
-    this.cloneAtkText = this.add
-      .text(36, 96, "", {
-        ...textStyle(19, "#dd88ff"),
-        stroke: "#000000",
-        strokeThickness: 2,
-      })
-      .setOrigin(0, 0)
-      .setDepth(20)
-      .setVisible(false);
-
-    this.cloneKillsText = this.add
-      .text(36, 120, "", {
-        ...textStyle(18, "#ffee55"),
-        stroke: "#000000",
-        strokeThickness: 2,
-      })
-      .setOrigin(0, 0)
-      .setDepth(20)
-      .setVisible(false);
-
     // Dash cooldown card — bottom-left HUD element with icon, label, keybind, and a fill bar
-    const CARD_X = 14,
-      CARD_Y = 510,
-      CARD_W = 154,
-      CARD_H = 51;
-    this.dashCardBg = this.add.rectangle(CARD_X, CARD_Y, CARD_W, CARD_H, 0x0a0616, 0.88).setStrokeStyle(1, 0x44ccff, 0.6).setOrigin(0, 0.5).setDepth(19);
-    this.dashIcon = this.add
-      .sprite(CARD_X + 25, CARD_Y - 1, "player-run", 7)
-      .setScale(0.8)
-      .setTint(0x44ccff)
-      .setDepth(21);
-    this.dashLabel = this.add
-      .text(CARD_X + 46, CARD_Y - 10, "DASH", {
-        fontSize: "22px",
-        color: "#44ccff",
-        fontFamily: mono,
-        stroke: "#000000",
-        strokeThickness: 2,
-      })
-      .setOrigin(0, 0.5)
-      .setDepth(21);
-    // Keybind hint below the DASH label
-    this.add
-      .text(CARD_X + 46, CARD_Y + 10, "SHIFT", {
-        fontSize: "14px",
-        color: "#336688",
-        fontFamily: mono,
-      })
-      .setOrigin(0, 0.5)
-      .setDepth(21);
-    // Dash cooldown bar — dark track with a blue fill that shrinks/grows as cooldown progresses
-    const BAR_Y = CARD_Y + CARD_H / 2 - 4;
-    this.add
-      .rectangle(CARD_X + 2, BAR_Y, CARD_W - 4, 4, 0x112233, 1)
-      .setOrigin(0, 0.5)
-      .setDepth(21);
-    this.dashBarFill = this.add
-      .rectangle(CARD_X + 2, BAR_Y, CARD_W - 4, 4, 0x44ccff, 1)
-      .setOrigin(0, 0.5)
-      .setDepth(22);
+    
 
     // Gold display — gem icon + running total, top-left below clone stats
     this.goldIcon = this.add.sprite(28, 147, "gems", 134).setOrigin(0, 0.5).setDepth(20).setScale(1.6);
@@ -341,12 +262,11 @@ export default class GameScene extends Phaser.Scene {
   // ─── Debug spawn panel ─────────────────────────────────────────────────────
 
   _buildDebugPanel(): void {
-    /* TODO: This section is baffling and needs a rewrite, but fine for now */
     const mono = UI_CONFIG.BODY_FONT;
     const t = (sz: number, col: string) => ({ fontSize: `${sz}px`, fill: col, fontFamily: mono });
 
     const PW = 160,
-      PX = 960 - PW;
+      PX = GAME_CONFIG.GAME_WIDTH - PW;
     const BTN_H = 34,
       GAP = 4;
 
@@ -623,110 +543,6 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  // ─── Visuals ───────────────────────────────────────────────────────────────
-
-  _updateAttackVisuals(): void {
-    const playerMouseDir = getMouseDirectionFromTarget(this.player);
-
-    if (!this.player.active) {
-      this.playerAttackIndicator.clear();
-    } else {
-      const playerDir = this.player.isAttacking ? this.player.attackDir : playerMouseDir;
-      // this._drawAttackZonePreview(this.playerAttackIndicator, this.player, playerDir, PLAYER_CONFIG.ATTACK_INDICATOR.COLOR);
-    }
-
-    if (this.clone?.active) {
-      const cloneMouseDir = getMouseDirectionFromTarget(this.clone);
-      const cloneDir = this.clone.isAttacking ? this.clone.attackDir : cloneMouseDir;
-      // this._drawAttackZonePreview(this.cloneAttackIndicator, this.clone, cloneDir, CLONE_CONFIG.ATTACK_INDICATOR.COLOR);
-    } else {
-      this.cloneAttackIndicator.clear();
-    }
-  }
-
-  /**
-   * Draws a shovel-shaped debug preview of the attack range.
-   * Shape: A trapezoid with a curved outer edge.
-   */
-  _drawAttackZonePreview(g: Phaser.GameObjects.Graphics, player: Player | Clone, dir: string, color: number): void {
-    g.clear();
-
-    // 1. Safety Check: Don't draw if the entity is dead or has no physics body
-    if (!player.active || !player.body) return;
-
-    const body = player.body as Phaser.Physics.Arcade.Body;
-    const centerX = body.x + body.width / 2;
-    const centerY = body.y + body.height / 2;
-
-    // TODO: Extract to contstants
-    // 2. Shape Dimensions (Abstracted Constants)
-    const NEAR_HALF_WIDTH = 15; // Width at the player's hands
-    const FAR_HALF_WIDTH = 30; // Width at the tip of the shovel
-    const ATTACK_DISTANCE = 50; // How far forward the shovel reaches
-    const CURVE_CONTROL = 70; // How "puffed out" the curve is
-    const CURVE_SAMPLES = 16; // Smoothness of the curve
-
-    // 3. Direction Mapping
-    // fx/fy = Forward direction | ox/oy = Starting point (edge of player)
-    const DIR_MAP: Record<string, any> = {
-      right: { fx: 1, fy: 0, ox: body.right, oy: centerY },
-      left: { fx: -1, fy: 0, ox: body.left, oy: centerY },
-      up: { fx: 0, fy: -1, ox: centerX, oy: body.top },
-      down: { fx: 0, fy: 1, ox: centerX, oy: body.bottom },
-      "up-right": { fx: DIAGONAL_VECTOR, fy: -DIAGONAL_VECTOR, ox: body.right, oy: body.top },
-      "up-left": { fx: -DIAGONAL_VECTOR, fy: -DIAGONAL_VECTOR, ox: body.left, oy: body.top },
-      "down-right": { fx: DIAGONAL_VECTOR, fy: DIAGONAL_VECTOR, ox: body.right, oy: body.bottom },
-      "down-left": { fx: -DIAGONAL_VECTOR, fy: DIAGONAL_VECTOR, ox: body.left, oy: body.bottom },
-    };
-
-    const config = DIR_MAP[dir] ?? DIR_MAP["right"];
-
-    // px/py = Perpendicular direction (used to spread the width of the shovel)
-    const px = -config.fy;
-    const py = config.fx;
-
-    // 4. Calculate the 4 Corners of the hitbox Shape
-    const handleA = { x: config.ox + px * NEAR_HALF_WIDTH, y: config.oy + py * NEAR_HALF_WIDTH };
-    const handleB = { x: config.ox - px * NEAR_HALF_WIDTH, y: config.oy - py * NEAR_HALF_WIDTH };
-    const tipA = { x: config.ox + config.fx * ATTACK_DISTANCE + px * FAR_HALF_WIDTH, y: config.oy + config.fy * ATTACK_DISTANCE + py * FAR_HALF_WIDTH };
-    const tipB = { x: config.ox + config.fx * ATTACK_DISTANCE - px * FAR_HALF_WIDTH, y: config.oy + config.fy * ATTACK_DISTANCE - py * FAR_HALF_WIDTH };
-
-    // The "Control Point" for the curve at the end of the shovel
-    const ctrlPoint = { x: config.ox + config.fx * CURVE_CONTROL, y: config.oy + config.fy * CURVE_CONTROL };
-
-    // 5. Drawing Logic
-    const isActuallyHitting = player.isAttacking && player.attackDetectionZone?.body?.enable;
-
-    // Set line and fill styles based on attack state
-    if (isActuallyHitting) {
-      g.fillStyle(color, 0.35); // Solid-ish fill when attacking
-      g.lineStyle(2, color, 1);
-    } else {
-      g.lineStyle(1, color, 0.5); // Faint outline when idle
-    }
-
-    // Trace the path
-    g.beginPath();
-    g.moveTo(handleA.x, handleA.y); // Start at handle corner A
-    g.lineTo(tipA.x, tipA.y); // Draw line to tip corner A
-
-    // Draw the curved shovel head using a Bezier curve
-    for (let i = 1; i <= CURVE_SAMPLES; i++) {
-      const t = i / CURVE_SAMPLES;
-      const mt = 1 - t;
-      const x = mt * mt * tipA.x + 2 * mt * t * ctrlPoint.x + t * t * tipB.x;
-      const y = mt * mt * tipA.y + 2 * mt * t * ctrlPoint.y + t * t * tipB.y;
-      g.lineTo(x, y);
-    }
-
-    g.lineTo(handleB.x, handleB.y); // Draw line back to handle corner B
-    g.closePath();
-
-    // Finalize the drawing
-    if (isActuallyHitting) g.fillPath();
-    g.strokePath();
-  }
-
   // ─── Floating numbers ──────────────────────────────────────────────────────
 
   spawnDamageNumber(x: number, y: number, amount: number, color = "#ffffff", size = 19): void {
@@ -790,10 +606,12 @@ export default class GameScene extends Phaser.Scene {
     // this.clone.dash.execute();
     this.clone.startReposition();
 
-    this.physics.add.overlap(this.clone.attackDetectionZone, this.enemies, (_zone, enemy) => this._onAttackHit(this.player, enemy as any));
+    this.physics.add.overlap(this.clone.attackDetectionZone, this.enemies, (_zone, enemy) => this._onAttackHit(this.player, enemy));
 
     this._updateCloneHUD();
     this.showAnnouncement("Clone Summoned!", "#cc88ff");
+
+    this.events.emit('clone_summoned', this.clone);
   }
 
   _dismissClone(): void {
@@ -801,31 +619,12 @@ export default class GameScene extends Phaser.Scene {
     const kills = this.clone.killCount;
     this.clone.dismiss();
     this.onCloneDeath(kills, true);
+
+    this.events.emit('clone_dismissed');
   }
 
   _updateCloneHUD(): void {
-    this.cloneHpContainer.removeAll(true);
-
-    if (this.clone?.active) {
-      const GAP = 29;
-      for (let i = 0; i < this.clone.maxHp; i++) {
-        const filled = i < this.clone.hp;
-        this.cloneHpContainer.add(
-          this.add.text(i * GAP, 0, filled ? "♥" : "♡", {
-            fontSize: "27px",
-            color: filled ? "#ff99ff" : "#884488",
-            fontFamily: UI_CONFIG.BODY_FONT,
-            stroke: "#000000",
-            strokeThickness: 2,
-          }),
-        );
-      }
-      this.cloneAtkText.setText(`ATK: ${this.clone.attackDamage}`).setVisible(true);
-      this.cloneKillsText.setText(`Kills: ${this.clone.killCount}`).setVisible(true);
-    } else {
-      this.cloneAtkText.setVisible(false);
-      this.cloneKillsText.setVisible(false);
-    }
+    this.ui.updateHUD(this.clone);
   }
 
   // ─── Public API ────────────────────────────────────────────────────────────
@@ -930,8 +729,8 @@ export default class GameScene extends Phaser.Scene {
   }
 
   _cloneBurst(cx: number, cy: number, dmg: number): void {
-    const W = 960,
-      H = 540;
+    const W = GAME_CONFIG.GAME_WIDTH,
+      H = GAME_CONFIG.GAME_HEIGHT;
     const MAX_R = Math.sqrt(W * W + H * H) / 2 + 100;
 
     const flash = this.add.rectangle(W / 2, H / 2, W, H, 0xcc88ff, 0).setDepth(14);
@@ -1034,25 +833,6 @@ export default class GameScene extends Phaser.Scene {
         return [48, mx(50, 492)];
       default:
         return [912, mx(50, 492)];
-    }
-  }
-
-  _updateHPBar(): void {
-    this.ui.rebuildHearts();
-    this.atkText.setText(`ATK: ${this.player.attackDamage}`);
-
-    const CARD_W = 150;
-    if (this.player.dash.cooldownTimer > 0) {
-      const pct = this.player.dash.cooldown / this.player.dash.cooldownTimer;
-      this.dashBarFill.setDisplaySize(Math.max(0, CARD_W * (1 - pct)), 3);
-      this.dashLabel.setStyle({ fill: "#1a5566" });
-      this.dashIcon.setTint(0x1a5566);
-      this.dashCardBg.setFillStyle(0x060410, 0.88);
-    } else {
-      this.dashBarFill.setDisplaySize(CARD_W, 3);
-      this.dashLabel.setStyle({ fill: "#44ccff" });
-      this.dashIcon.setTint(0x44ccff);
-      this.dashCardBg.setFillStyle(0x0a0616, 0.88);
     }
   }
 

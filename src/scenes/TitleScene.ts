@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { GAME_CONFIG } from '../utils/constants';
 
 export default class TitleScene extends Phaser.Scene {
   constructor() { super({ key: 'TitleScene' }); }
@@ -6,7 +7,7 @@ export default class TitleScene extends Phaser.Scene {
   create(): void {
     this.input.setDefaultCursor('default');
 
-    const W = 960, H = 540;
+    const W = GAME_CONFIG.GAME_WIDTH, H = GAME_CONFIG.GAME_HEIGHT;
     const mono = '"Courier New", Courier, monospace';
     const t = (sz: number, col: string, stroke = false) => ({
       fontSize: `${sz}px`, fill: col, fontFamily: mono,

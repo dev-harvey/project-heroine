@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { GAME_CONFIG } from '../utils/constants';
 
 export default class GameOverScene extends Phaser.Scene {
   constructor() { super({ key: 'GameOverScene' }); }
@@ -16,7 +17,7 @@ export default class GameOverScene extends Phaser.Scene {
     const permAtkGained = data.permAtkGained ?? 0;
     const runGold       = data.runGold       ?? 0;
 
-    const W = 960, H = 540;
+    const W = GAME_CONFIG.GAME_WIDTH, H = GAME_CONFIG.GAME_HEIGHT;
     const mono = '"Courier New", Courier, monospace';
     const t = (sz: number, col: string, stroke = false) => ({ fontSize: `${sz}px`, fill: col, fontFamily: mono, ...(stroke ? { stroke: '#000000', strokeThickness: 3 } : {}) });
 

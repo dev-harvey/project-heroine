@@ -1,5 +1,5 @@
 import * as Phaser from "phaser";
-import { CLONE_CONFIG, GAME_CONFIG } from "./constants";
+import { CLONE_CONFIG, GAME_COLORS, GAME_CONFIG, UI_CONFIG } from "./constants";
 import Player from "../entities/Player";
 import Clone from "../entities/Clone";
 
@@ -35,8 +35,8 @@ export function getAnchorOctoOffset(angle: number, dist: number): XYPosition {
 export function getAnchorPosition(a: XYPosition, b: XYPosition, offset?: XYPosition): XYPosition {
   const calculatedOffset = offset || getAnchorOctoOffset(Phaser.Math.Angle.Between(a.x, a.y, b.x, b.y), CLONE_CONFIG.ANCHOR_OFFSET);
   return {
-    x: Phaser.Math.Clamp(a.x + calculatedOffset.x, GAME_CONFIG.GAME_WALL, GAME_CONFIG.GAME_WIDTH - GAME_CONFIG.GAME_WALL),
-    y: Phaser.Math.Clamp(a.y + calculatedOffset.y, GAME_CONFIG.GAME_WALL, GAME_CONFIG.GAME_HEIGHT - GAME_CONFIG.GAME_WALL),
+    x: Phaser.Math.Clamp(a.x + calculatedOffset.x, GAME_CONFIG.GAME_WALL_X, GAME_CONFIG.GAME_WIDTH - GAME_CONFIG.GAME_WALL_X),
+    y: Phaser.Math.Clamp(a.y + calculatedOffset.y, GAME_CONFIG.GAME_WALL_Y, GAME_CONFIG.GAME_HEIGHT - GAME_CONFIG.GAME_WALL_Y),
   };
 }
 
@@ -58,4 +58,23 @@ export function checkIfBBehindA(a: Player | Clone | any, b: Player | Clone | any
   const fwd = FORWARD[a.attackDir];
   if ((b.x - a.x) * fwd.fx + (b.y - a.y) * fwd.fy < 0) return true;
   return false;
+}
+
+type GameTextVariant = "heading" | "body";
+
+export function getTextStyle(variant: GameTextVariant, size: number, style?: Phaser.Types.GameObjects.Text.TextStyle) {
+  let fontFamily = "Oswald, sans-serif";
+  if (variant == "heading") {
+    fontFamily = "Cinzel Decorative, serif";
+  }
+
+  return {
+    fontFamily: fontFamily,
+    fontSize: `${size}px`,
+    ...style,
+  };
+}
+
+export function colorToHex(color: number): string {
+  return `#${color.toString(16).padStart(6, '0')}`;
 }

@@ -52,10 +52,12 @@ export default class BootScene extends Phaser.Scene {
 
     /* UI Assets */
 
-    this.load.image("cursor-sword", base + "ui/cursor-sword.png");
+    this.load.image("cursor", base + "ui/cursor-01.png");
 
     this.load.image("heart", base + "ui/heart.png");
     this.load.image("heart-empty", base + "ui/heart-empty.png");
+
+    this.load.image("attack-icon", base + "ui/sword-01.png");
 
     /* Environment Assets */
 
@@ -132,4 +134,4 @@ export default class BootScene extends Phaser.Scene {
 }
 
 // expose for legacy runtime
-(window as any).BootScene = BootScene;
+window.BootScene = BootScene;
