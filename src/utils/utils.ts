@@ -3,33 +3,53 @@ import { CLONE_CONFIG, GAME_COLORS, GAME_CONFIG, UI_CONFIG } from "./constants";
 import Player from "../entities/Player";
 import Clone from "../entities/Clone";
 
-export function getMouseDirectionFromTarget(target: Phaser.Physics.Arcade.Sprite, mode: "cardinal" | "octo" = "octo"): AttackDir {
-  const ptr = target.scene.input.activePointer;
-  const angle = Phaser.Math.Angle.Between(target.x, target.y, ptr.worldX, ptr.worldY);
-  const deg = Phaser.Math.RadToDeg(angle);
+const OCTO_DIRS: OctoDir[] = ["right", "down-right", "down", "down-left", "left", "up-left", "up", "up-right"];
+const CARDINAL_DIRS: CardinalDir[] = ["right", "down", "left", "up"];
 
-  if (deg >= -22.5 && deg < 22.5) return "right";
-  if (deg >= 22.5 && deg < 67.5) return mode === "octo" ? "down-right" : "down";
-  if (deg >= 67.5 && deg < 112.5) return "down";
-  if (deg >= 112.5 && deg < 157.5) return mode === "octo" ? "down-left" : "down";
-  if (deg >= -67.5 && deg < -22.5) return mode === "octo" ? "up-right" : "up";
-  if (deg >= -112.5 && deg < -67.5) return "up";
-  if (deg >= -157.5 && deg < -112.5) return mode === "octo" ? "up-left" : "up";
-  return "left";
+const DIR_OCTO = "octo";
+const DIR_CARDINAL = "cardinal";
+type DirTypeCardinal = "cardinal";
+type DirTypeOcto = "octo";
+type DirType = DirTypeOcto | DirTypeCardinal;
+
+export function angleToDir(angle: number): CardinalDir;
+export function angleToDir(angle: number, mode: DirTypeOcto): OctoDir;
+export function angleToDir(angle: number, mode: DirTypeCardinal): CardinalDir;
+export function angleToDir(angle: number, mode: DirType = DIR_CARDINAL): OctoDir | CardinalDir {
+  if (mode === DIR_OCTO) {
+    return OCTO_DIRS[((Math.round(angle / (Math.PI / 4)) % 8) + 8) % 8];
+  }
+  return CARDINAL_DIRS[((Math.round(angle / (Math.PI / 2)) % 4) + 4) % 4];
 }
 
+export function snapAngle(angle: number, mode: DirType = DIR_OCTO): number {
+  const step = mode === DIR_OCTO ? Math.PI / 4 : Math.PI / 2;
+  return Math.round(angle / step) * step;
+}
+
+export function getMouseDirFromTarget(target: Phaser.Physics.Arcade.Sprite, mode: DirType = DIR_CARDINAL): OctoDir | CardinalDir {
+  const ptr = target.scene.input.activePointer;
+  const angle = Phaser.Math.Angle.Between(target.x, target.y, ptr.worldX, ptr.worldY);
+  if (mode === DIR_CARDINAL) return angleToDir(angle, DIR_CARDINAL);
+  return angleToDir(angle, DIR_OCTO);
+}
+
+const OCTO_UNIT: Record<OctoDir, XYPosition> = {
+  right: { x: 1, y: 0 },
+  "down-right": { x: 1, y: 1 },
+  down: { x: 0, y: 1 },
+  "down-left": { x: -1, y: 1 },
+  left: { x: -1, y: 0 },
+  "up-left": { x: -1, y: -1 },
+  up: { x: 0, y: -1 },
+  "up-right": { x: 1, y: -1 },
+};
+
 export function getAnchorOctoOffset(angle: number, dist: number): XYPosition {
-  const deg = ((Phaser.Math.RadToDeg(angle) % 360) + 360) % 360;
-  const d = dist / Math.SQRT2;
-  if (deg < 22.5 || deg >= 337.5) return { x: dist, y: 0 }; // right
-  if (deg < 67.5) return { x: d, y: d }; // down-right
-  if (deg < 112.5) return { x: 0, y: dist }; // down
-  if (deg < 157.5) return { x: -d, y: d }; // down-left
-  if (deg < 202.5) return { x: -dist, y: 0 }; // left
-  if (deg < 247.5) return { x: -d, y: -d }; // up-left
-  if (deg < 292.5) return { x: 0, y: -dist }; // up
-  if (deg < 337.5) return { x: d, y: -d }; // up-right
-  return { x: 0, y: dist }; // down (default)
+  const dir = angleToDir(angle, DIR_OCTO);
+  const { x, y } = OCTO_UNIT[dir];
+  const scale = x !== 0 && y !== 0 ? dist / Math.SQRT2 : dist;
+  return { x: x * scale, y: y * scale };
 }
 
 export function getAnchorPosition(a: XYPosition, b: XYPosition, offset?: XYPosition): XYPosition {

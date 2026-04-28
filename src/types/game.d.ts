@@ -1,8 +1,5 @@
 // Project-level ambient module augmentations.
-// ProgressionStore, GoldStore, SessionStore etc. are declared in ambient.d.ts.
-
 declare global {
-  // Zone created by `scene.add.zone()` with an Arcade physics body attached.
   interface ZoneWithBody extends Phaser.GameObjects.Zone {
     body: Phaser.Physics.Arcade.Body & {
       enable: boolean;
@@ -15,19 +12,6 @@ declare global {
     Progression:  ProgressionStore;
     Gold:         GoldStore;
     Session:      SessionStore;
-    // Legacy runtime exports (removed once TS migration is complete)
-    WaveManager?: unknown;
-    Clone?:       unknown;
-    HellHound?:   unknown;
-    MutantToad?:  unknown;
-    PlagueCrow?:  unknown;
-    StoneKnight?: unknown;
-    VoidDemon?:   unknown;
-    GameScene?:   unknown;
-    BootScene?:   unknown;
-    TitleScene?:  unknown;
-    GameOverScene?: unknown;
-    Player?:      unknown;
   }
 }
 

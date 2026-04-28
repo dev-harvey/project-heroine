@@ -51,5 +51,3 @@ export default class WaveManager {
     }
   }
 }
-
-window.WaveManager = WaveManager;

@@ -1,10 +1,6 @@
 import * as Phaser from "phaser";
 import { GAME_CONFIG } from "../utils/constants";
-
-const DIRS: AttackDir[] = [
-  "right", "down-right", "down", "down-left",
-  "left", "up-left", "up", "up-right",
-];
+import { angleToDir } from "../utils/utils";
 
 interface IGameScene extends Phaser.Scene {
   onEnemyKilled: (enemy: Enemy) => void;
@@ -12,6 +8,7 @@ interface IGameScene extends Phaser.Scene {
 
 abstract class Enemy extends Phaser.Physics.Arcade.Sprite implements IEnemy {
   private gameScene: IGameScene;
+  animKey: string;
   dead: boolean;
   maxHp: number;
   hp: number;
@@ -20,8 +17,9 @@ abstract class Enemy extends Phaser.Physics.Arcade.Sprite implements IEnemy {
   attackRange: number;
   attackCooldown: number;
   protected isAttacking: boolean;
-  attackDir: AttackDir;
-  lastAttacker?: string;
+  attackDir: CardinalDir;
+  facingDir: CardinalDir;
+  lastAttacker?: "player" | "clone";
 
   constructor(scene: Phaser.Scene, x: number, y: number, textureKey: string) {
     super(scene, x, y, textureKey);
@@ -41,7 +39,8 @@ abstract class Enemy extends Phaser.Physics.Arcade.Sprite implements IEnemy {
     this.attackRange = 50;
     this.attackCooldown = 0;
     this.isAttacking = false;
-    this.attackDir = "right";
+    this.attackDir = "left";
+    this.facingDir = "left";
   }
 
   // ── Shared methods ────────────────────────────────────────────────────
@@ -49,7 +48,14 @@ abstract class Enemy extends Phaser.Physics.Arcade.Sprite implements IEnemy {
   takeDamage(amount: number): void {
     if (this.dead) return;
     this.hp -= amount;
-    this.setTint(0xff5555);
+
+    this.play(`${this.animKey}-hurt-${this.facingDir}`);
+    this.on("animationcomplete", (anim: Phaser.Animations.Animation) => {
+      if (anim.key.startsWith(`${this.animKey}-hurt`)) {
+        
+      }
+    });
+
     this.scene.time.delayedCall(120, () => {
       if (this.active) this.clearTint();
     });
@@ -69,7 +75,10 @@ abstract class Enemy extends Phaser.Physics.Arcade.Sprite implements IEnemy {
     if (!clone?.active || clone.dead) return player;
     const dp = Phaser.Math.Distance.Between(this.x, this.y, player.x, player.y);
     const dc = Phaser.Math.Distance.Between(this.x, this.y, clone.x, clone.y);
-    return dc < dp ? clone : player;
+
+    const target = dc < dp ? clone : player;
+    this.updateFacingDir(target);
+    return target;
   }
 
   // Clamps position to the playable arena area
@@ -79,13 +88,21 @@ abstract class Enemy extends Phaser.Physics.Arcade.Sprite implements IEnemy {
     this.y = Phaser.Math.Clamp(this.y, GAME_WALL_Y, GAME_HEIGHT - GAME_WALL_Y);
   }
 
-  // Converts a radian angle into one of 8 direction strings
-  protected angleToDir(angle: number): AttackDir {
-    return DIRS[((Math.round(angle / (Math.PI / 4)) % 8) + 8) % 8];
+  protected updateFacingDir(target: ITarget): void {
+    const angle = Phaser.Math.Angle.Between(this.x, this.y, target.x, target.y);
+    this.facingDir = angleToDir(angle);
   }
 
-  // Every subclass must implement its own update loop
-  abstract update(time: number, delta: number, player: ITarget, clone?: ITarget | null): void;
+  update(time: number, delta: number, player: ITarget, clone?: ITarget | null): void {
+    if (this.dead) return;
+    if (this.isAttacking) return;
+
+    if (this.body.velocity.x !== 0 || this.body.velocity.y !== 0) {
+      this.play(`${this.animKey}-run-${this.facingDir}`, true);
+    } else {
+      this.play(`${this.animKey}-idle`, true);
+    }
+  };
 }
 
 export default Enemy;

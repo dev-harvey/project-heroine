@@ -3,23 +3,10 @@
  * Everything declared here is available in all project files without an import.
  */
 
-// ─── Primitive aliases ─────────────────────────────────────────────────────
-
-/** Four-directional attack / movement animation direction literal. */
-type FacingDir = "right" | "down" | "left" | "up";
-
-/** Eight-directional attack / movement direction literal. */
-type AttackDir = "right" | "up-right" | "down-right" | "down" | "down-left" | "left" | "up-left" | "up";
+type CardinalDir = "right" | "down" | "left" | "up";
+type OctoDir = "right" | "up-right" | "down-right" | "down" | "down-left" | "left" | "up-left" | "up";
 
 // ─── Shared geometry ───────────────────────────────────────────────────────
-
-/** Per-direction forward/perpendicular unit vector + origin used in shovel math. */
-interface DirConfig {
-  fx: number;
-  fy: number;
-  ox: number;
-  oy: number;
-}
 
 type XYPosition = { x: number; y: number };
 
@@ -132,9 +119,10 @@ interface ITarget {
  * Common interface implemented by all enemy classes.
  * Extends ITarget so enemies can also be passed as targets (e.g. for burst damage).
  */
+// TODO: Review this
 interface IEnemy extends ITarget {
   maxHp: number;
-  attackDir: AttackDir;
+  attackDir: CardinalDir;
   lastAttacker?: string;
   update(time: number, delta: number, player: ITarget, clone?: ITarget | null): void;
   die?(): void;

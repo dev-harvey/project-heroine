@@ -4,7 +4,7 @@ import Player from "./Player";
 import { CLONE_CONFIG, PLAYER_CONFIG } from "../utils/constants";
 import { Dash } from "../skills/Dash";
 import AttackIndicator from "./AttackIndicator";
-import { syncAttackZone } from "../utils/utils";
+import { angleToDir, syncAttackZone } from "../utils/utils";
 
 class Clone extends Phaser.Physics.Arcade.Sprite {
   // Stats
@@ -18,11 +18,10 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
 
   targetPlayer: Player;
   private repositioning: boolean;
-  facingDir: FacingDir;
 
   isAttacking: boolean;
   attackCooldown: number;
-  attackDir: AttackDir;
+  attackDir: OctoDir;
   attackIndicator: AttackIndicator;
   attackDetectionZone: Phaser.Physics.Arcade.Image;
   attackRange: number;
@@ -118,25 +117,13 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
     if (this.hp < this.maxHp) this.hp = Math.min(this.hp + 1, this.maxHp);
   }
 
-  private mouseToDir(): AttackDir {
-    const ptr = this.scene.input.activePointer;
-    const angle = Phaser.Math.Angle.Between(this.x, this.y, ptr.worldX, ptr.worldY);
-    const deg = Phaser.Math.RadToDeg(angle);
-    if (deg >= -22.5 && deg < 22.5) return "right";
-    if (deg >= 22.5 && deg < 67.5) return "down-right";
-    if (deg >= 67.5 && deg < 112.5) return "down";
-    if (deg >= 112.5 && deg < 157.5) return "down-left";
-    if (deg >= -67.5 && deg < -22.5) return "up-right";
-    if (deg >= -112.5 && deg < -67.5) return "up";
-    if (deg >= -157.5 && deg < -112.5) return "up-left";
-    return "left";
-  }
-
   doAttack(): void {
     if (this.dead || this.isAttacking || this.attackCooldown > 0) return;
 
+    const ptr = this.scene.input.activePointer;
+
     this.repositioning = false;
-    this.attackDir = this.mouseToDir();
+    this.attackDir = angleToDir(Phaser.Math.Angle.Between(this.x, this.y, ptr.worldX, ptr.worldY), "octo");
     this.isAttacking = true;
     this.attackCooldown = CLONE_CONFIG.ATTACK_COOLDOWN;
     this.hitEnemies.clear();

@@ -1,7 +1,7 @@
 import * as Phaser from "phaser";
 
 import { CLONE_CONFIG, DIAGONAL_VECTOR, GAME_CONFIG, PLAYER_CONFIG, PLAYER_CONFIG as playerConfig } from "../utils/constants";
-import { getAnchorPosition, getMouseDirectionFromTarget, getAnchorOctoOffset, syncAttackZone } from "../utils/utils";
+import { getAnchorPosition, getMouseDirFromTarget, getAnchorOctoOffset, syncAttackZone } from "../utils/utils";
 import { Dash } from "../skills/Dash";
 import AnchorIndicator from "./AnchorIndicator";
 import AttackIndicator from "./AttackIndicator";
@@ -30,7 +30,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   attackCooldown: number;
   attackCooldownMax: number;
   isInvincible: boolean;
-  attackDir: AttackDir;
+  attackDir: OctoDir;
   attackRange: number;
   attackDetectionZone: Phaser.Physics.Arcade.Image;
   attackIndicator: AttackIndicator;
@@ -135,7 +135,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   doAttack(): void {
     if (this.isAttacking || this.attackCooldown > 0) return;
 
-    this.attackDir = getMouseDirectionFromTarget(this);
+    this.attackDir = getMouseDirFromTarget(this);
     this.isAttacking = true;
     this.attackCooldown = playerConfig.ATTACK_COOLDOWN;
     this.hitEnemies.clear();
@@ -250,5 +250,3 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     syncAttackZone(this);
   }
 }
-
-window.Player = Player;

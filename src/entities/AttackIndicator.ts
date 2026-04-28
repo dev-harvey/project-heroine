@@ -3,7 +3,7 @@ import * as Phaser from "phaser";
 import { CLONE_CONFIG, GAME_COLORS, PLAYER_CONFIG } from "../utils/constants";
 import Player from "./Player";
 import Clone from "./Clone";
-import { getMouseDirectionFromTarget } from "../utils/utils";
+import { getMouseDirFromTarget } from "../utils/utils";
 
 const DIRECTION_CONFIG: Record<string, { angle: number; offsetX: number; offsetY: number }> = {
   right: { angle: 0, offsetX: PLAYER_CONFIG.ATTACK_INDICATOR.OFFSET_X, offsetY: 0 },
@@ -19,7 +19,6 @@ const DIRECTION_CONFIG: Record<string, { angle: number; offsetX: number; offsetY
 export default class AttackIndicator extends Phaser.Physics.Arcade.Sprite {
   public attacker: Player | Clone;
 
-  // TODO: This should be typed to Entity eventually
   constructor(scene: Phaser.Scene, attacker: Player | Clone, tint?: number) {
     super(scene, attacker.x, attacker.y, PLAYER_CONFIG.ATTACK_INDICATOR.ANIM);
     scene.add.existing(this);
@@ -54,7 +53,7 @@ export default class AttackIndicator extends Phaser.Physics.Arcade.Sprite {
 
   update() {
     // TODO: Nice to have - Make the attack indicator bulge outwards when you move towards it, then reduce the x offset (was 20 before). This would look nice and make it sit tighter to the entity.
-    const direction = getMouseDirectionFromTarget(this.attacker);
+    const direction = getMouseDirFromTarget(this.attacker);
     // TODO: move this to constants so that it doesn't make a new record every frame
 
     this.setPosition(this.attacker.x + DIRECTION_CONFIG[direction].offsetX, this.attacker.y + DIRECTION_CONFIG[direction].offsetY);

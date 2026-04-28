@@ -1,5 +1,5 @@
 import Clone from "../entities/Clone";
-import { getMouseDirectionFromTarget } from "../utils/utils";
+import { getMouseDirFromTarget } from "../utils/utils";
 
 export class Dash {
   private player: Phaser.Physics.Arcade.Sprite;
@@ -35,7 +35,7 @@ export class Dash {
   public execute() {
     if (!this.isReady || this.cooldownTimer) return;
     this.isReady = false;
-    const mouseDir = (this.target === this.player) ? getMouseDirectionFromTarget(this.target) : getMouseDirectionFromTarget(this.player);
+    const mouseDir = (this.target === this.player) ? getMouseDirFromTarget(this.target) : getMouseDirFromTarget(this.player);
     const moveDir = {
       x: 0,
       y: 0,

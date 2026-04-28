@@ -1,14 +1,10 @@
 import * as Phaser from "phaser";
 import Player from "../entities/Player";
 import Clone from "../entities/Clone";
-import MutantToad from "../entities/MutantToad";
-import HellHound from "../entities/HellHound";
-import PlagueCrow from "../entities/PlagueCrow";
-import VoidDemon from "../entities/VoidDemon";
 import WaveManager from "../systems/WaveManager";
 
 import { CLONE_CONFIG, DIAGONAL_VECTOR, GAME_ASSETS, GAME_COLORS, GAME_CONFIG, PLAYER_CONFIG, UI_CONFIG } from "../utils/constants";
-import { checkIfBBehindA, getAnchorOctoOffset, getMouseDirectionFromTarget } from "../utils/utils";
+import { checkIfBBehindA, getAnchorOctoOffset, getMouseDirFromTarget } from "../utils/utils";
 import GameUI from "../systems/GameUI";
 import Enemy from "../entities/Enemy";
 
@@ -42,8 +38,8 @@ export default class GameScene extends Phaser.Scene {
   cloneAttackIndicator!: Phaser.GameObjects.Graphics;
 
   // Stats
-  // killCount: number = 0;
-  // _totalCloneKills: number = 0;
+  // private killCount: number = 0;
+  // private totalCloneKills: number = 0;
   private totalHealGiven: number = 0;
   private totalPermHp: number = 0;
   private totalPermAtk: number = 0;
@@ -51,8 +47,6 @@ export default class GameScene extends Phaser.Scene {
 
   // Debug
   private debugMode: boolean = false;
-  private hitboxGfx!: Phaser.GameObjects.Graphics;
-  private debugLabels: Phaser.GameObjects.Text[] = [];
 
   constructor() {
     super({ key: "GameScene" });
@@ -578,23 +572,11 @@ export default class GameScene extends Phaser.Scene {
 
     const arenaZone = this.createSpawnZone(GAME_WIDTH - GAME_WALL_X - 200, GAME_WALL_Y, 200, GAME_HEIGHT - GAME_WALL_Y * 2, false);
 
-    for (let i = 0; i < toadCount; i++) {
-      const [x, y] = this.spawnPoint(arenaZone);
-      const toad = new MutantToad(this, x, y);
-      this.enemies.add(toad, true);
-    }
-    for (let i = 0; i < houndCount; i++) {
-      const [x, y] = this.spawnPoint(arenaZone);
-      this.enemies.add(new HellHound(this, x, y), true);
-    }
-    for (let i = 0; i < crowCount; i++) {
-      const [x, y] = this.spawnPoint(arenaZone);
-      this.enemies.add(new PlagueCrow(this, x, y), true);
-    }
-    for (let i = 0; i < demonCount; i++) {
-      const [x, y] = this.spawnPoint(arenaZone);
-      this.enemies.add(new VoidDemon(this, x, y), true);
-    }
+    // for (let i = 0; i < toadCount; i++) {
+    //   const [x, y] = this.spawnPoint(arenaZone);
+    //   const toad = new MutantToad(this, x, y);
+    //   this.enemies.add(toad, true);
+    // }
   }
 
   onEnemyKilled(enemy: Enemy): void {
@@ -772,5 +754,3 @@ export default class GameScene extends Phaser.Scene {
     return [point.x, point.y];
   }
 }
-
-window.GameScene = GameScene;
