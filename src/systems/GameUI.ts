@@ -10,6 +10,10 @@ interface IGameScene extends Phaser.Scene {
   cursorSprite: Phaser.GameObjects.Image;
 }
 
+// x: left | center | right
+// y: up | center | down
+type TextOrigin = 0 | 0.5 | 1;
+
 export default class GameUI {
   private _scene: IGameScene;
   private _player: Player;
@@ -19,21 +23,36 @@ export default class GameUI {
     player: {
       attack: number;
       hearts: number;
+      kills: number;
     };
     clone?: {
       attack: number;
       hearts: number;
+      kills: number;
     };
   };
 
-  private _cooldownBars: Record<string, Phaser.GameObjects.Rectangle> = {};
+  // TODO: eventually the Record types should be more defined as to what is within them rather than accepting anything
 
-  private _hudStats: {
+  private _cooldownBars: Record<string, Phaser.GameObjects.Rectangle> = {};
+  private _killsTexts: Record<string, Phaser.GameObjects.Text> = {};
+
+  private _hudAttrs: {
     container: Phaser.GameObjects.Container;
     children: Record<string, Phaser.GameObjects.Container>;
   };
 
   private _hudAbilities: {
+    container: Phaser.GameObjects.Container;
+    children: Record<string, Phaser.GameObjects.Container>;
+  };
+
+  private _hudPhase: {
+    container: Phaser.GameObjects.Container;
+    text?: string;
+  };
+
+  private _hudStats: {
     container: Phaser.GameObjects.Container;
     children: Record<string, Phaser.GameObjects.Container>;
   };
@@ -46,20 +65,23 @@ export default class GameUI {
       player: {
         attack: player?.attackDamage || 0,
         hearts: player?.hp || 0,
+        kills: 0
       },
     };
 
     this._scene.events.on("clone_summoned", (clone: Clone) => {
       this._clone = clone;
-      this._localCache.clone = { attack: clone.attackDamage, hearts: clone.hp };
+      this._localCache.clone = { attack: clone.attackDamage, hearts: clone.hp, kills: 0 };
       this._buildAttack(clone);
       this._buildHearts(clone);
+      this._buildKills(clone);
     });
 
     this._scene.events.on("clone_dismissed", () => {
       this._clone = null;
-      this._hudStats.children.cloneAttackContainer.removeAll(true);
-      this._hudStats.children.cloneHeartsContainer.removeAll(true);
+      this._hudAttrs.children.cloneAttackContainer.removeAll(true);
+      this._hudAttrs.children.cloneHeartsContainer.removeAll(true);
+      this._hudStats.children.cloneKillsContainer.removeAll(true);
     });
 
     this._build();
@@ -67,8 +89,10 @@ export default class GameUI {
 
   private _build(): void {
     this._buildCursor();
-    this._buildPlayerHud();
-    this._buildAbilitiesHUD();
+    this._buildHudPhase("GET READY");
+    this._buildHudAttrs();
+    this._buildHudStats();
+    this._buildHudAbilities();
   }
 
   private _buildCursor(): void {
@@ -76,8 +100,54 @@ export default class GameUI {
     this._scene.cursorSprite = this._scene.add.image(0, 0, GAME_ASSETS.CURSOR).setScale(0.8).setOrigin(0).setDepth(DEPTH_CONFIG.CURSOR).setScrollFactor(0);
   }
 
-  private _buildPlayerHud() {
+  private _buildHudPhase(text: string) {
+    const { GAME_WIDTH } = GAME_CONFIG;
+    this._hudPhase = {
+      container: this._scene.add.container(GAME_WIDTH / 2, 10).setDepth(DEPTH_CONFIG.HUD),
+      text: text,
+    };
+    this._hudPhase.container.add(this.addUIText(0, 0, text, getTextStyle("body", 64)).setOrigin(0.5, 0));
+  }
+
+  private _buildHudStats() {
     this._hudStats = {
+      container: this._scene.add.container(GAME_CONFIG.GAME_WIDTH - 10, 10).setDepth(DEPTH_CONFIG.HUD),
+      children: {
+        playerKillsContainer: this._scene.add.container(0, 0),
+        cloneKillsContainer: this._scene.add.container(0, 40),
+      },
+    };
+    for (const child in this._hudStats.children) {
+      if (!Object.hasOwn(this._hudStats.children, child)) continue;
+      this._hudStats.container.add(this._hudStats.children[child]);
+    }
+
+    this._buildKills(this._player);
+  }
+
+  private _buildKills(target: Player | Clone): void {
+    let container: Phaser.GameObjects.Container;
+    let key: string;
+    const label = (target === this._player) ?  "KILLS" : "CLONE KILLS";
+    if (target === this._player) {
+      container = this._hudStats.children.playerKillsContainer;
+      key = "player";
+    } else if (target === this._clone) {
+      container = this._hudStats.children.cloneKillsContainer;
+      key = "clone";
+    } else {
+      console.error("Couldn't update HUD Stats - problem with local cache");
+      return;
+    }
+
+    container.removeAll(true);
+    const text = this.addUIText(0, 0, `${label}: ${target.killCount}`, getTextStyle("body", 32, { color: colorToHex(GAME_COLORS.COBALT) }), { x: 1, y: 0 });
+    this._killsTexts[key] = text;
+    container.add(text);
+  }
+
+  private _buildHudAttrs() {
+    this._hudAttrs = {
       container: this._scene.add.container(10, 10).setDepth(DEPTH_CONFIG.HUD),
       children: {
         playerAttackContainer: this._scene.add.container(0, 0),
@@ -86,9 +156,9 @@ export default class GameUI {
         cloneHeartsContainer: this._scene.add.container(70, 40),
       },
     };
-    for (const child in this._hudStats.children) {
-      if (!Object.hasOwn(this._hudStats.children, child)) continue;
-      this._hudStats.container.add(this._hudStats.children[child]);
+    for (const child in this._hudAttrs.children) {
+      if (!Object.hasOwn(this._hudAttrs.children, child)) continue;
+      this._hudAttrs.container.add(this._hudAttrs.children[child]);
     }
 
     this._buildHearts(this._player);
@@ -99,10 +169,10 @@ export default class GameUI {
     let container;
     let targetType;
     if (target === this._player) {
-      container = this._hudStats.children.playerAttackContainer;
+      container = this._hudAttrs.children.playerAttackContainer;
       targetType = "player";
-    } else if (target === this._clone) {
-      container = this._hudStats.children.cloneAttackContainer;
+    } else if (target !== undefined && target === this._clone) {
+      container = this._hudAttrs.children.cloneAttackContainer;
       targetType = "clone";
     } else {
       console.error("Couldn't update HUD - problem with local cache");
@@ -124,10 +194,10 @@ export default class GameUI {
     let container;
     let targetType;
     if (target === this._player) {
-      container = this._hudStats.children.playerHeartsContainer;
+      container = this._hudAttrs.children.playerHeartsContainer;
       targetType = "player";
-    } else if (target === this._clone) {
-      container = this._hudStats.children.cloneHeartsContainer;
+    } else if (target !== undefined && target === this._clone) {
+      container = this._hudAttrs.children.cloneHeartsContainer;
       targetType = "clone";
     } else {
       console.error("Couldn't update HUD - problem with local cache");
@@ -158,7 +228,7 @@ export default class GameUI {
     }
   }
 
-  private _buildAbilitiesHUD(): void {
+  private _buildHudAbilities(): void {
     this._hudAbilities = {
       container: this._scene.add.container(10, 0).setDepth(DEPTH_CONFIG.HUD),
       children: {
@@ -176,11 +246,6 @@ export default class GameUI {
     this._hudAbilities.container.setY(GAME_CONFIG.GAME_HEIGHT - 10 - containerHeight);
   }
 
-  public updateAbilityCooldown(ability: "dash" | string, percent: number): void {
-    const bounds = this._hudAbilities.children[ability].getBounds();
-    this._cooldownBars[ability].setDisplaySize(Math.max(0, bounds.width * percent - 10), bounds.height);
-  }
-
   private _buildDashCard(): void {
     const container = this._hudAbilities.children.dash;
     const cardWidth = 150;
@@ -194,33 +259,19 @@ export default class GameUI {
     container.add(icon);
   }
 
-  // TODO: pass in optional params for stroke and font. Potentially actually pass a config object that I can type as an interface.
-  private addUIText(x: number, y: number, content: string, style: Phaser.Types.GameObjects.Text.TextStyle = {}, origin: { x: TextOrigin; y: TextOrigin } = { x: 0, y: 0 }, depth: number = DEPTH_CONFIG.UI_TEXT_DEFAULT): Phaser.GameObjects.Text {
-    return this._scene.add.text(x, y, content, style).setOrigin(origin.x, origin.y).setDepth(depth).setScrollFactor(0);
-  }
+  /* Public Methods */
 
-  private drawDebugLines(container) {
-    const debug = this._scene.add.graphics().setDepth(1000);
-    const containerBounds = container.getBounds();
-    debug.lineStyle(1, 0xff0000, 1);
-    debug.strokeRect(container.x - container.width / 2, container.y - container.height / 2, containerBounds.width, containerBounds.height);
-  }
-
-  // public rebuildHearts(): void {
-  //   this._buildHearts(this._player);
-  // }
-
-  public updateHUD(target?: Player | Clone): void {
+  public updateHudAttrs(target?: Player | Clone): void {
     if (target === undefined) {
-      this.updateHUD(this._player);
-      if (this._clone) this.updateHUD(this._clone);
+      this.updateHudAttrs(this._player);
+      if (this._clone?.active) this.updateHudAttrs(this._clone);
       return;
     }
 
     let cache;
     if (target === this._player) {
       cache = this._localCache.player;
-    } else if (target === this._clone) {
+    } else if (target !== undefined && target === this._clone) {
       cache = this._localCache.clone;
     } else {
       console.error("Couldn't update HUD - problem with local cache");
@@ -236,9 +287,37 @@ export default class GameUI {
       cache.hearts = target.hp;
     }
   }
-}
 
-// TODO: make TextOrigin this a proper type
-// left | center | right
-// up | center | down
-type TextOrigin = 0 | 0.5 | 1;
+  public updateHudStats(target?: Player | Clone): void {
+    this.updateHudKills(target);
+  }
+
+  public updateHudPhase(text: string) {
+    this._hudPhase.container.removeAll(true);
+    this._buildHudPhase(text);
+  }
+
+  public updateHudKills(target: Player | Clone): void {
+    const key = target === this._player ? "player" : "clone";
+    const label = (target === this._player) ?  "KILLS" : "CLONE KILLS";
+    
+    this._killsTexts[key]?.setText(`${label}: ${target.killCount}`);
+  }
+
+  public updateAbilityCooldown(ability: "dash" | string, percent: number): void {
+    const bounds = this._hudAbilities.children[ability].getBounds();
+    this._cooldownBars[ability].setDisplaySize(Math.max(0, bounds.width * percent - 10), bounds.height);
+  }
+
+  public drawDebugLines(container) {
+    const debug = this._scene.add.graphics().setDepth(1000);
+    const containerBounds = container.getBounds();
+    debug.lineStyle(1, 0xff0000, 1);
+    debug.strokeRect(container.x - container.width / 2, container.y - container.height / 2, containerBounds.width, containerBounds.height);
+  }
+
+  // TODO: pass in optional params for stroke and font. Potentially actually pass a config object that I can type as an interface.
+  public addUIText(x: number, y: number, content: string, style: Phaser.Types.GameObjects.Text.TextStyle = {}, origin: { x: TextOrigin; y: TextOrigin } = { x: 0, y: 0 }, depth: number = DEPTH_CONFIG.UI_TEXT_DEFAULT): Phaser.GameObjects.Text {
+    return this._scene.add.text(x, y, content, style).setOrigin(origin.x, origin.y).setDepth(depth).setScrollFactor(0);
+  }
+}

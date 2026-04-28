@@ -1,27 +1,28 @@
-import * as Phaser from 'phaser';
+import * as Phaser from "phaser";
+import { GAME_CONFIG } from "../utils/constants";
 
 class VoidDemon extends Phaser.Physics.Arcade.Sprite implements IEnemy {
   _dead: boolean;
 
-  maxHp:        number;
-  hp:           number;
-  speed:        number;
+  maxHp: number;
+  hp: number;
+  speed: number;
   breathDamage: number;
-  breathRange:  number;
-  attackDir:    AttackDir;
+  breathRange: number;
+  attackDir: AttackDir;
 
-  private _facingAngle:   number;
-  private _isWindingUp:   boolean;
-  private _isFiring:      boolean;
+  private _facingAngle: number;
+  private _isWindingUp: boolean;
+  private _isFiring: boolean;
   private _breathCooldown: number;
 
   private _previewGfx: Phaser.GameObjects.Graphics;
-  private _coneGfx:    Phaser.GameObjects.Graphics;
+  private _coneGfx: Phaser.GameObjects.Graphics;
 
   lastAttacker?: string;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
-    super(scene as any, x, y, 'demon-idle');
+    super(scene as any, x, y, "demon-idle");
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
@@ -35,22 +36,22 @@ class VoidDemon extends Phaser.Physics.Arcade.Sprite implements IEnemy {
 
     this._dead = false;
 
-    this.maxHp        = 10;
-    this.hp           = this.maxHp;
-    this.speed        = 45;
+    this.maxHp = 10;
+    this.hp = this.maxHp;
+    this.speed = 45;
     this.breathDamage = 3;
-    this.breathRange  = 170;
-    this.attackDir    = 'right';
+    this.breathRange = 170;
+    this.attackDir = "right";
 
-    this._facingAngle    = 0;
-    this._isWindingUp    = false;
-    this._isFiring       = false;
+    this._facingAngle = 0;
+    this._isWindingUp = false;
+    this._isFiring = false;
     this._breathCooldown = Phaser.Math.Between(2000, 4000);
 
     this._previewGfx = scene.add.graphics().setDepth(5);
-    this._coneGfx    = scene.add.graphics().setDepth(5);
+    this._coneGfx = scene.add.graphics().setDepth(5);
 
-    this.play('demon-idle');
+    this.play("demon-idle");
   }
 
   // IEnemy.takeDamage
@@ -58,7 +59,9 @@ class VoidDemon extends Phaser.Physics.Arcade.Sprite implements IEnemy {
     if (this._dead) return;
     this.hp -= amount;
     this.setTint(0xff5555);
-    this.scene.time.delayedCall(120, () => { if (this.active) this.clearTint(); });
+    this.scene.time.delayedCall(120, () => {
+      if (this.active) this.clearTint();
+    });
     if (this.hp <= 0) this._die();
   }
 
@@ -73,59 +76,77 @@ class VoidDemon extends Phaser.Physics.Arcade.Sprite implements IEnemy {
   }
 
   private _breathOrigin(angle: number): { x: number; y: number } {
-    const b       = this.body as Phaser.Physics.Arcade.Body;
-    const bcx     = b.x + b.width  / 2;
-    const bcy     = b.y + b.height / 2;
-    const hw      = b.width  / 2;
-    const hh      = b.height / 2;
-    const c       = Math.cos(angle), s = Math.sin(angle);
+    const b = this.body as Phaser.Physics.Arcade.Body;
+    const bcx = b.x + b.width / 2;
+    const bcy = b.y + b.height / 2;
+    const hw = b.width / 2;
+    const hh = b.height / 2;
+    const c = Math.cos(angle),
+      s = Math.sin(angle);
     const edgeDist = (hw * hh) / Math.sqrt((hw * s) ** 2 + (hh * c) ** 2);
     return { x: bcx + c * (edgeDist - 10), y: bcy + s * (edgeDist - 10) };
   }
 
-  private _drawShovel(
-    gfx: Phaser.GameObjects.Graphics,
-    angle: number,
-    fillColor: number, fillAlpha: number,
-    lineColor: number, lineAlpha: number,
-  ): void {
-    const NH = 20, FH = 75, FD = 130, CTRL = 210, N = 16;
+  private _drawShovel(gfx: Phaser.GameObjects.Graphics, angle: number, fillColor: number, fillAlpha: number, lineColor: number, lineAlpha: number): void {
+    const NH = 20,
+      FH = 75,
+      FD = 130,
+      CTRL = 210,
+      N = 16;
     const perp = angle + Math.PI / 2;
     const { x: ox, y: oy } = this._breathOrigin(angle);
-    const fwdX = Math.cos(angle), fwdY = Math.sin(angle);
-    const latX = Math.cos(perp),  latY = Math.sin(perp);
+    const fwdX = Math.cos(angle),
+      fwdY = Math.sin(angle);
+    const latX = Math.cos(perp),
+      latY = Math.sin(perp);
 
-    const hAx = ox + latX * NH,              hAy = oy + latY * NH;
-    const hBx = ox - latX * NH,              hBy = oy - latY * NH;
-    const fAx = ox + fwdX * FD + latX * FH, fAy = oy + fwdY * FD + latY * FH;
-    const fBx = ox + fwdX * FD - latX * FH, fBy = oy + fwdY * FD - latY * FH;
-    const cpx = ox + fwdX * CTRL,            cpy = oy + fwdY * CTRL;
+    const hAx = ox + latX * NH,
+      hAy = oy + latY * NH;
+    const hBx = ox - latX * NH,
+      hBy = oy - latY * NH;
+    const fAx = ox + fwdX * FD + latX * FH,
+      fAy = oy + fwdY * FD + latY * FH;
+    const fBx = ox + fwdX * FD - latX * FH,
+      fBy = oy + fwdY * FD - latY * FH;
+    const cpx = ox + fwdX * CTRL,
+      cpy = oy + fwdY * CTRL;
 
     const buildPath = () => {
       gfx.beginPath();
       gfx.moveTo(hAx, hAy);
       gfx.lineTo(fAx, fAy);
       for (let i = 1; i <= N; i++) {
-        const t = i / N, mt = 1 - t;
-        gfx.lineTo(
-          mt * mt * fAx + 2 * mt * t * cpx + t * t * fBx,
-          mt * mt * fAy + 2 * mt * t * cpy + t * t * fBy,
-        );
+        const t = i / N,
+          mt = 1 - t;
+        gfx.lineTo(mt * mt * fAx + 2 * mt * t * cpx + t * t * fBx, mt * mt * fAy + 2 * mt * t * cpy + t * t * fBy);
       }
       gfx.lineTo(hBx, hBy);
       gfx.closePath();
     };
 
     gfx.clear();
-    if (fillAlpha > 0) { gfx.fillStyle(fillColor, fillAlpha); buildPath(); gfx.fillPath(); }
-    if (lineAlpha > 0) { gfx.lineStyle(2, lineColor, lineAlpha); buildPath(); gfx.strokePath(); }
+    if (fillAlpha > 0) {
+      gfx.fillStyle(fillColor, fillAlpha);
+      buildPath();
+      gfx.fillPath();
+    }
+    if (lineAlpha > 0) {
+      gfx.lineStyle(2, lineColor, lineAlpha);
+      buildPath();
+      gfx.strokePath();
+    }
   }
 
   private _inShovel(tx: number, ty: number): boolean {
-    const NH = 20, FH = 75, FD = 130, CTRL = 210;
+    const NH = 20,
+      FH = 75,
+      FD = 130,
+      CTRL = 210;
     const { x: ox, y: oy } = this._breathOrigin(this._facingAngle);
-    const c  = Math.cos(this._facingAngle), s = Math.sin(this._facingAngle);
-    const dx = tx - ox, dy = ty - oy;
+    const c = Math.cos(this._facingAngle),
+      s = Math.sin(this._facingAngle);
+    const dx = tx - ox,
+      dy = ty - oy;
     const lx = dx * c + dy * s;
     const ly = -dx * s + dy * c;
     if (lx < 0) return false;
@@ -138,14 +159,14 @@ class VoidDemon extends Phaser.Physics.Arcade.Sprite implements IEnemy {
 
   private _startBreath(): void {
     this._isWindingUp = true;
-    this.play('demon-attack-no-breath', true);
+    this.play("demon-attack-no-breath", true);
     this.setTint(0xff8800);
     this._drawShovel(this._previewGfx, this._facingAngle, 0xffcc88, 0.4, 0, 0);
 
     this.scene.time.delayedCall(500, () => {
       if (!this.active || this._dead) return;
       this._isWindingUp = false;
-      this._isFiring    = true;
+      this._isFiring = true;
       this.clearTint();
       this._previewGfx.clear();
       this._fireBreath();
@@ -153,12 +174,14 @@ class VoidDemon extends Phaser.Physics.Arcade.Sprite implements IEnemy {
   }
 
   private _fireBreath(): void {
-    const angle    = this._facingAngle;
+    const angle = this._facingAngle;
     const DURATION = 700;
 
     const progress = { t: 0 };
     this.scene.tweens.add({
-      targets: progress, t: 1, duration: DURATION,
+      targets: progress,
+      t: 1,
+      duration: DURATION,
       onUpdate: () => {
         const a = 1 - progress.t;
         this._drawShovel(this._coneGfx, angle, 0xff4400, 0.18 * a, 0xff8800, a);
@@ -166,7 +189,7 @@ class VoidDemon extends Phaser.Physics.Arcade.Sprite implements IEnemy {
       onComplete: () => {
         this._coneGfx.clear();
         this._isFiring = false;
-        if (this.active && !this._dead) this.play('demon-idle', true);
+        if (this.active && !this._dead) this.play("demon-idle", true);
       },
     });
 
@@ -174,14 +197,20 @@ class VoidDemon extends Phaser.Physics.Arcade.Sprite implements IEnemy {
     for (let i = 0; i < 9; i++) {
       this.scene.time.delayedCall(i * 55, () => {
         if (!(this.scene as any)?.tweens || !this.active) return;
-        const a   = angle + (Math.random() - 0.5) * (Math.PI / 3);
-        const r   = Math.random() * this.breathRange;
-        const spr = this.scene.add.sprite(ox + Math.cos(a) * r, oy + Math.sin(a) * r, 'demon-breath')
-          .setScale(0.48).setAlpha(0.85)
-          .setBlendMode("ADD").setDepth(6);
-        spr.play('demon-breath');
-        spr.once('animationcomplete', () => {
-          if (!(this.scene as any)?.tweens) { spr.destroy(); return; }
+        const a = angle + (Math.random() - 0.5) * (Math.PI / 3);
+        const r = Math.random() * this.breathRange;
+        const spr = this.scene.add
+          .sprite(ox + Math.cos(a) * r, oy + Math.sin(a) * r, "demon-breath")
+          .setScale(0.48)
+          .setAlpha(0.85)
+          .setBlendMode("ADD")
+          .setDepth(6);
+        spr.play("demon-breath");
+        spr.once("animationcomplete", () => {
+          if (!(this.scene as any)?.tweens) {
+            spr.destroy();
+            return;
+          }
           this.scene.tweens.add({ targets: spr, alpha: 0, duration: 150, onComplete: () => spr.destroy() });
         });
       });
@@ -199,8 +228,9 @@ class VoidDemon extends Phaser.Physics.Arcade.Sprite implements IEnemy {
   update(_time: number, delta: number, player: ITarget, clone?: ITarget | null): void {
     if (!this.active || this._dead || !player || player.hp <= 0) return;
 
-    this.x = Phaser.Math.Clamp(this.x, 38, 922);
-    this.y = Phaser.Math.Clamp(this.y, 38, 502);
+    const { GAME_WIDTH, GAME_HEIGHT, GAME_WALL_X, GAME_WALL_Y } = GAME_CONFIG;
+    this.x = Phaser.Math.Clamp(this.x, GAME_WALL_X, GAME_WIDTH - GAME_WALL_X);
+    this.y = Phaser.Math.Clamp(this.y, GAME_WALL_Y, GAME_HEIGHT - GAME_WALL_Y);
 
     this._breathCooldown = Math.max(0, this._breathCooldown - delta);
 
@@ -236,13 +266,13 @@ class VoidDemon extends Phaser.Physics.Arcade.Sprite implements IEnemy {
     }
 
     if (dist > this.breathRange) {
-      const a     = Phaser.Math.Angle.Between(this.x, this.y, target.x, target.y);
+      const a = Phaser.Math.Angle.Between(this.x, this.y, target.x, target.y);
       const snap8 = Math.round(a / (Math.PI / 4)) * (Math.PI / 4);
       this.setVelocity(Math.cos(snap8) * this.speed, Math.sin(snap8) * this.speed);
     } else {
       this.setVelocity(0, 0);
     }
-    this.play('demon-idle', true);
+    this.play("demon-idle", true);
   }
 }
 

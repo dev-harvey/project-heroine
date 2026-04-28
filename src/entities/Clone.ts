@@ -9,7 +9,6 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
   // Stats
   _baseHp: number;
   _baseAtk: number;
-  _killCount: number;
   hp: number;
 
   // State
@@ -25,6 +24,8 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
   attackIndicator: AttackIndicator;
   attackDetectionZone: Phaser.Physics.Arcade.Image;
   hitEnemies: Set<Phaser.GameObjects.GameObject>;
+
+  killCount: number;
 
   dash: Dash;
 
@@ -49,7 +50,7 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
     this._baseHp = CLONE_CONFIG.MAXHP;
     this.hp = this._baseHp;
 
-    this._killCount = 0;
+    this.killCount = 0;
 
     this._baseAtk = CLONE_CONFIG.ATTACK_DAMAGE;
 
@@ -96,14 +97,11 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
   
 
   // ─── Dynamic stats ──────────────────────────────────────────────────────────
-  get killCount(): number {
-    return this._killCount;
-  }
   get maxHp(): number {
-    return this._baseHp + Math.floor(this._killCount / 3);
+    return this._baseHp + Math.floor(this.killCount / 3);
   }
   get attackDamage(): number {
-    return this._baseAtk + this._killCount;
+    return this._baseAtk + Math.floor(this.killCount / 3);
   }
   get speed(): number {
     return 200;
@@ -114,9 +112,8 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
   }
 
   onKill(): void {
-    const oldMax = this.maxHp;
-    this._killCount++;
-    if (this.maxHp > oldMax) this.hp = Math.min(this.hp + 1, this.maxHp);
+    this.killCount++;
+    if (this.maxHp > this.maxHp) this.hp = Math.min(this.hp + 1, this.maxHp);
   }
 
   _mouseToDir(): AttackDir {
@@ -188,7 +185,7 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
   private _onDeath(): void {
     if (!this.active) return;
 
-    (this.scene as any).onCloneDeath?.(this._killCount);
+    (this.scene as any).onCloneDeath?.(this.killCount);
 
     const b = this.body as Phaser.Physics.Arcade.Body;
     const bcx = this.x - this.displayWidth / 2 + b.offset.x * this.scaleX + b.halfWidth;

@@ -27,24 +27,20 @@ export default class GameScene extends Phaser.Scene {
   cloneEnemyCollider: Phaser.Physics.Arcade.Collider | null = null;
 
   // UI
-  waveText!: Phaser.GameObjects.Text;
-  killText!: Phaser.GameObjects.Text;
   announceText!: Phaser.GameObjects.Text;
   hintsText!: Phaser.GameObjects.Text;
   dashCardBg!: Phaser.GameObjects.Rectangle;
   dashBarFill!: Phaser.GameObjects.Rectangle;
   dashLabel!: Phaser.GameObjects.Text;
   dashIcon!: Phaser.GameObjects.Sprite;
-  goldIcon!: Phaser.GameObjects.Sprite;
-  goldText!: Phaser.GameObjects.Text;
 
   // Arrows & preview graphics
   playerAttackIndicator!: Phaser.GameObjects.Graphics;
   cloneAttackIndicator!: Phaser.GameObjects.Graphics;
 
   // Stats
-  killCount: number = 0;
-  _totalCloneKills: number = 0;
+  // killCount: number = 0;
+  // _totalCloneKills: number = 0;
   _totalHealGiven: number = 0;
   _totalPermHp: number = 0;
   _totalPermAtk: number = 0;
@@ -64,20 +60,15 @@ export default class GameScene extends Phaser.Scene {
   create(data: GameSceneData = {}): void {
     this._debugMode = !!data.debug;
 
-    this.killCount = 0;
     this.clone = null;
-    this._totalCloneKills = 0;
-    this._totalHealGiven = 0;
-    this._totalPermHp = 0;
-    this._totalPermAtk = 0;
-    this._runGold = 0;
 
     this._buildWorld();
     this._buildPlayer();
     this._buildGroups();
     this._buildPhysics();
-    this._buildUI();
     this._buildIndicators();
+
+    this.ui = new GameUI(this, this.player);
 
     if (this._debugMode) this._buildDebugPanel();
     else this._buildWaveManager();
@@ -92,7 +83,7 @@ export default class GameScene extends Phaser.Scene {
     this.cursorSprite.setPosition(ptr.x, ptr.y);
 
     this.player.update(time, delta);
-    
+
     this.ui.updateAbilityCooldown("dash", 1 - this.player.dash.cooldownTimer / this.player.dash.cooldown);
 
     this.player.anchorIndicator.update();
@@ -100,7 +91,7 @@ export default class GameScene extends Phaser.Scene {
 
     if (this.clone?.active) {
       this.clone.update(time, delta);
-      this._updateCloneHUD();
+      this.ui.updateHudAttrs(this.clone);
       this.clone.attackIndicator.update();
     }
 
@@ -108,7 +99,7 @@ export default class GameScene extends Phaser.Scene {
       if (e.active) e.update(time, delta, this.player, this.clone);
     });
 
-    this.ui.updateHUD();
+    this.ui.updateHudAttrs();
   }
 
   // ─── Setup ─────────────────────────────────────────────────────────────────
@@ -143,7 +134,8 @@ export default class GameScene extends Phaser.Scene {
   }
 
   _buildPlayer(): void {
-    this.player = new Player(this, GAME_CONFIG.GAME_WIDTH / 2, GAME_CONFIG.GAME_HEIGHT / 2);
+    const { GAME_HEIGHT, GAME_WALL_X } = GAME_CONFIG;
+    this.player = new Player(this, GAME_WALL_X + 50, GAME_HEIGHT / 2);
     this.player.on("attack", () => {
       if (this.clone?.active) this.clone.doAttack();
     });
@@ -177,76 +169,8 @@ export default class GameScene extends Phaser.Scene {
   _buildPhysics(): void {
     this.playerEnemyCollider = this.physics.add.collider(this.player, this.enemies);
     this.physics.add.collider(this.enemies, this.enemies);
-    this.physics.add.overlap(this.player.attackDetectionZone, this.enemies, this._onAttackHit, undefined, this);
 
     this.physics.add.overlap(this.player.attackDetectionZone, this.enemies, (_zone, enemy) => this._onAttackHit(this.player, enemy));
-  }
-
-  _buildUI(): void {
-    // TODO: UI UPDATE
-    this.ui = new GameUI(this, this.player);
-
-    const mono = UI_CONFIG.BODY_FONT;
-
-    // Helper to avoid repeating font/size/color boilerplate for every text object
-    const textStyle = (sz: number, col: string) => ({ fontSize: `${sz}px`, fill: col, fontFamily: mono });
-
-    // Dash cooldown card — bottom-left HUD element with icon, label, keybind, and a fill bar
-    
-
-    // Gold display — gem icon + running total, top-left below clone stats
-    this.goldIcon = this.add.sprite(28, 147, "gems", 134).setOrigin(0, 0.5).setDepth(20).setScale(1.6);
-    this.goldText = this.add
-      .text(50, 147, `${window.Gold?.total ?? 0}g`, {
-        ...textStyle(19, "#ffd700"),
-        stroke: "#000000",
-        strokeThickness: 2,
-      })
-      .setOrigin(0, 0.5)
-      .setDepth(20);
-
-    // Wave counter — centered at the top of the screen
-    this.waveText = this.add
-      .text(480, 12, "Wave 1", {
-        ...textStyle(27, "#ffd700"),
-        stroke: "#000000",
-        strokeThickness: 3,
-      })
-      .setOrigin(0.5, 0)
-      .setDepth(20);
-    // Kill counter — top-right corner
-    this.killText = this.add
-      .text(928, 12, "Kills: 0", {
-        ...textStyle(22, "#aaffaa"),
-        stroke: "#000000",
-        strokeThickness: 2,
-      })
-      .setOrigin(1, 0)
-      .setDepth(20);
-
-    // In debug mode these are redundant with other tooling, so hide them
-    if (this._debugMode) {
-      this.waveText.setVisible(false);
-      this.killText.setVisible(false);
-    }
-
-    // Large center-screen announcement text (e.g. "Wave 2!") — starts invisible,
-    // tweened in/out by the wave manager when needed
-    this.announceText = this.add
-      .text(480, 200, "", {
-        ...textStyle(52, "#ffd700"),
-        stroke: "#000000",
-        strokeThickness: 1,
-      })
-      .setOrigin(0.5)
-      .setDepth(25)
-      .setAlpha(0);
-
-    // Control hints shown at the bottom of the screen, fade out after 8 seconds
-    this.hintsText = this.add.text(480, 528, "WASD — Move    LClick — Attack    Shift — Dash    Space — Summon/Dismiss Clone    RClick — Reposition Clone", textStyle(11, "#666666")).setOrigin(0.5, 1).setDepth(20);
-    this.time.delayedCall(8000, () => {
-      this.tweens.add({ targets: this.hintsText, alpha: 0, duration: 1000 });
-    });
   }
 
   _buildIndicators(): void {
@@ -259,99 +183,118 @@ export default class GameScene extends Phaser.Scene {
     this.waveManager.start();
   }
 
-  // ─── Debug spawn panel ─────────────────────────────────────────────────────
+  // ─── Debug panel ─────────────────────────────────────────────────────
 
   _buildDebugPanel(): void {
-    const mono = UI_CONFIG.BODY_FONT;
-    const t = (sz: number, col: string) => ({ fontSize: `${sz}px`, fill: col, fontFamily: mono });
+    const textStyle = (size: number, color: string) => ({ fontSize: `${size}px`, fill: color, fontFamily: UI_CONFIG.BODY_FONT });
 
-    const PW = 160,
-      PX = GAME_CONFIG.GAME_WIDTH - PW;
-    const BTN_H = 34,
-      GAP = 4;
+    const { GAME_WIDTH, GAME_HEIGHT, GAME_WALL_X, GAME_WALL_Y } = GAME_CONFIG;
 
+    // ── Layout constants ──────────────────────────────────────────────────────
+    const panelWidth = 160;
+    const panelLeft = GAME_WIDTH - GAME_WALL_X - panelWidth;
+    const panelCenterX = panelLeft + panelWidth / 2;
+    const buttonHeight = 34;
+    const buttonGap = 4;
+    const spawnSectionStartY = 38;
+
+    // ── Colors ────────────────────────────────────────────────────────────────
+    const COLOR_PANEL_BG      = 0x0a0016;
+    const COLOR_BUTTON_DEFAULT = 0x1a0a2e;
+    const COLOR_BUTTON_HOVER   = 0x330066;
+    const COLOR_SPAWN_DEFAULT  = 0x120820;
+    const COLOR_SPAWN_HOVER    = 0x280050;
+
+    // ── Toggle button (always visible, opens/closes the panel) ────────────────
     let panelVisible = false;
-    const toggleBg = this.add
-      .rectangle(PX + PW / 2, 14, PW - 12, 22, 0x1a0a2e)
+
+    const toggleButton = this.add
+      .rectangle(panelCenterX - 10, GAME_WALL_Y + 20, panelWidth, 22, COLOR_BUTTON_DEFAULT)
       .setDepth(32)
       .setInteractive({ useHandCursor: false });
-    const toggleLbl = this.add
-      .text(PX + PW / 2, 14, "DEBUG ▶", t(13, "#aa44cc"))
+    const toggleLabel = this.add
+      .text(panelCenterX - 10, GAME_WALL_Y + 20, "DEBUG ▶", textStyle(13, "#aa44cc"))
       .setOrigin(0.5, 0.5)
       .setDepth(33);
-    toggleBg.on("pointerover", () => toggleBg.setFillStyle(0x330066));
-    toggleBg.on("pointerout", () => toggleBg.setFillStyle(0x1a0a2e));
-    toggleBg.on("pointerdown", (_p: any, _lx: any, _ly: any, event: any) => {
+
+    toggleButton.on("pointerover", () => toggleButton.setFillStyle(COLOR_BUTTON_HOVER));
+    toggleButton.on("pointerout",  () => toggleButton.setFillStyle(COLOR_BUTTON_DEFAULT));
+    toggleButton.on("pointerdown", (_p: any, _lx: any, _ly: any, event: any) => {
       event.stopPropagation();
       panelVisible = !panelVisible;
-      toggleLbl.setText(panelVisible ? "DEBUG ▼" : "DEBUG ▶");
-      panelItems.forEach((o: any) => o.setVisible(panelVisible));
+      toggleLabel.setText(panelVisible ? "DEBUG ▼" : "DEBUG ▶");
+      panelItems.forEach((item: any) => item.setVisible(panelVisible));
       if (panelVisible) {
-        spawnOpen = false;
-        headerLbl.setText("▶ Spawn");
-        spawnBtns.forEach(({ bg, lbl }: any) => {
+        // Collapse spawn list whenever panel is reopened
+        spawnSectionOpen = false;
+        spawnSectionLabel.setText("▶ Spawn");
+        spawnButtons.forEach(({ bg, lbl }: any) => {
           bg.setVisible(false);
           lbl.setVisible(false);
         });
-        statsUtil();
+        repositionUtilAndStatRows();
       }
     });
 
+    // Helper — registers an object as part of the panel (hidden by default)
     const panelItems: any[] = [];
-    const p = (obj: any) => {
+    const registerPanelItem = (obj: any) => {
       obj.setVisible(false);
       panelItems.push(obj);
       return obj;
     };
 
-    p(
+    // ── Panel background ──────────────────────────────────────────────────────
+    registerPanelItem(
       this.add
-        .rectangle(PX + PW / 2, 270, PW, 520, 0x0a0016, 0.85)
+        .rectangle(panelCenterX, 270, panelWidth, 520, COLOR_PANEL_BG, 0.85)
         .setDepth(30)
         .setOrigin(0.5, 0.5),
     );
 
-    let spawnOpen = false;
-    const HEADER_Y = 38;
+    // ── Spawn section header (collapses/expands the spawn buttons) ────────────
+    let spawnSectionOpen = false;
 
-    const headerBg = p(
+    const spawnSectionHeader = registerPanelItem(
       this.add
-        .rectangle(PX + PW / 2, HEADER_Y + BTN_H / 2, PW - 12, BTN_H, 0x1a0a2e)
+        .rectangle(panelCenterX, spawnSectionStartY + buttonHeight / 2, panelWidth - 12, buttonHeight, COLOR_BUTTON_DEFAULT)
         .setDepth(30)
         .setInteractive({ useHandCursor: false }),
     );
-    const headerLbl = p(
+    const spawnSectionLabel = registerPanelItem(
       this.add
-        .text(PX + PW / 2, HEADER_Y + BTN_H / 2, "▶ Spawn", t(12, "#aa66dd"))
+        .text(panelCenterX, spawnSectionStartY + buttonHeight / 2, "▶ Spawn", textStyle(12, "#aa66dd"))
         .setOrigin(0.5, 0.5)
         .setDepth(31),
     );
-    headerBg.on("pointerover", () => headerBg.setFillStyle(0x330066));
-    headerBg.on("pointerout", () => headerBg.setFillStyle(0x1a0a2e));
 
+    spawnSectionHeader.on("pointerover", () => spawnSectionHeader.setFillStyle(COLOR_BUTTON_HOVER));
+    spawnSectionHeader.on("pointerout",  () => spawnSectionHeader.setFillStyle(COLOR_BUTTON_DEFAULT));
+
+    // ── Spawn buttons (one per enemy type) ───────────────────────────────────
     const spawnEntries = [
-      { label: "Mutant Toad", col: "#88ff88", fn: () => this.spawnWave(1, 0, 0, 0) },
-      { label: "Hell Hound", col: "#ff8844", fn: () => this.spawnWave(0, 1, 0, 0) },
-      { label: "Plague Crow", col: "#88ccff", fn: () => this.spawnWave(0, 0, 1, 0) },
-      { label: "Void Demon", col: "#ff88ff", fn: () => this.spawnWave(0, 0, 0, 1) },
+      { label: "Mutant Toad", color: "#88ff88", fn: () => this.spawnWave(1, 0, 0, 0) },
+      { label: "Hell Hound",  color: "#ff8844", fn: () => this.spawnWave(0, 1, 0, 0) },
+      { label: "Plague Crow", color: "#88ccff", fn: () => this.spawnWave(0, 0, 1, 0) },
+      { label: "Void Demon",  color: "#ff88ff", fn: () => this.spawnWave(0, 0, 0, 1) },
     ];
 
-    const spawnBtns = spawnEntries.map((entry, i) => {
-      const by = HEADER_Y + BTN_H + GAP + i * (BTN_H + GAP);
-      const bg = p(
+    const spawnButtons = spawnEntries.map((entry, i) => {
+      const buttonY = spawnSectionStartY + buttonHeight + buttonGap + i * (buttonHeight + buttonGap);
+      const bg = registerPanelItem(
         this.add
-          .rectangle(PX + PW / 2, by + BTN_H / 2, PW - 12, BTN_H, 0x120820)
+          .rectangle(panelCenterX, buttonY + buttonHeight / 2, panelWidth - 12, buttonHeight, COLOR_SPAWN_DEFAULT)
           .setDepth(30)
           .setInteractive({ useHandCursor: false }),
       );
-      const lbl = p(
+      const lbl = registerPanelItem(
         this.add
-          .text(PX + PW / 2, by + BTN_H / 2, entry.label, t(12, entry.col))
+          .text(panelCenterX, buttonY + buttonHeight / 2, entry.label, textStyle(12, entry.color))
           .setOrigin(0.5, 0.5)
           .setDepth(31),
       );
-      bg.on("pointerover", () => bg.setFillStyle(0x280050));
-      bg.on("pointerout", () => bg.setFillStyle(0x120820));
+      bg.on("pointerover", () => bg.setFillStyle(COLOR_SPAWN_HOVER));
+      bg.on("pointerout",  () => bg.setFillStyle(COLOR_SPAWN_DEFAULT));
       bg.on("pointerdown", (_p: any, _lx: any, _ly: any, event: any) => {
         event.stopPropagation();
         entry.fn();
@@ -359,59 +302,55 @@ export default class GameScene extends Phaser.Scene {
       return { bg, lbl };
     });
 
+    // ── Utility buttons (damage / clear) ─────────────────────────────────────
     const utilEntries = [
-      { label: "Dmg Player", col: "#ff4444", fn: () => this.player.takeDamage(1) },
+      { label: "Dmg Player", color: "#ff4444", fn: () => this.player.takeDamage(1) },
       {
         label: "Dmg Clone",
-        col: "#cc44ff",
+        color: "#cc44ff",
         fn: () => {
           if (this.clone?.active && !(this.clone as any)._dead) this.clone.takeDamage(1);
         },
       },
-      { label: "Clear All", col: "#ff4455", fn: () => this._debugClearEnemies() },
+      { label: "Clear All", color: "#ff4455", fn: () => this._debugClearEnemies() },
     ];
 
-    const utilBgs: any[] = [];
-    const utilLbls: any[] = [];
+    // Positions are set dynamically by repositionUtilAndStatRows(), so start at 0,0
+    const utilButtonBgs: any[] = [];
+    const utilButtonLabels: any[] = [];
 
     utilEntries.forEach((entry) => {
-      const bg = p(
+      const bg = registerPanelItem(
         this.add
-          .rectangle(0, 0, PW - 12, BTN_H, 0x1a0a2e)
+          .rectangle(0, 0, panelWidth - 12, buttonHeight, COLOR_BUTTON_DEFAULT)
           .setDepth(30)
           .setInteractive({ useHandCursor: false }),
       );
-      const lbl = p(this.add.text(0, 0, entry.label, t(12, entry.col)).setOrigin(0.5, 0.5).setDepth(31));
-      bg.on("pointerover", () => bg.setFillStyle(0x330066));
-      bg.on("pointerout", () => bg.setFillStyle(0x1a0a2e));
+      const lbl = registerPanelItem(
+        this.add.text(0, 0, entry.label, textStyle(12, entry.color)).setOrigin(0.5, 0.5).setDepth(31),
+      );
+      bg.on("pointerover", () => bg.setFillStyle(COLOR_BUTTON_HOVER));
+      bg.on("pointerout",  () => bg.setFillStyle(COLOR_BUTTON_DEFAULT));
       bg.on("pointerdown", (_ptr: any, _lx: any, _ly: any, event: any) => {
         event.stopPropagation();
         entry.fn();
       });
-      utilBgs.push(bg);
-      utilLbls.push(lbl);
+      utilButtonBgs.push(bg);
+      utilButtonLabels.push(lbl);
     });
 
-    const ROW_H = 26;
+    // ── Stat rows (HP / ATK tweakers with − and + buttons) ───────────────────
+    const statRowHeight = 26;
     const statDefs = [
       {
         label: () => `Plr HP  ${this.player.hp}/${this.player.maxHp}`,
-        minus: () => {
-          this.player.hp = Math.max(1, this.player.hp - 1);
-        },
-        plus: () => {
-          this.player.maxHp++;
-          this.player.hp = Math.min(this.player.hp + 1, this.player.maxHp);
-        },
+        minus: () => { this.player.hp = Math.max(1, this.player.hp - 1); },
+        plus:  () => { this.player.maxHp++; this.player.hp = Math.min(this.player.hp + 1, this.player.maxHp); },
       },
       {
         label: () => `Plr ATK  ${this.player.attackDamage}`,
-        minus: () => {
-          this.player.attackDamage = Math.max(1, this.player.attackDamage - 1);
-        },
-        plus: () => {
-          this.player.attackDamage++;
-        },
+        minus: () => { this.player.attackDamage = Math.max(1, this.player.attackDamage - 1); },
+        plus:  () => { this.player.attackDamage++; },
       },
       {
         label: () => (this.clone?.active ? `Cln HP  ${this.clone.hp}/${this.clone.maxHp}` : "Cln HP  --"),
@@ -430,91 +369,95 @@ export default class GameScene extends Phaser.Scene {
       },
       {
         label: () => (this.clone?.active ? `Cln ATK  ${this.clone.attackDamage}` : "Cln ATK  --"),
-        minus: () => {
-          if (this.clone?.active) (this.clone as any)._baseAtk = Math.max(1, (this.clone as any)._baseAtk - 1);
-        },
-        plus: () => {
-          if (this.clone?.active) (this.clone as any)._baseAtk++;
-        },
+        minus: () => { if (this.clone?.active) (this.clone as any)._baseAtk = Math.max(1, (this.clone as any)._baseAtk - 1); },
+        plus:  () => { if (this.clone?.active) (this.clone as any)._baseAtk++; },
       },
     ];
 
     const statRows = statDefs.map((def) => {
-      const bg = p(this.add.rectangle(0, 0, PW - 12, ROW_H, 0x0a0616).setDepth(30));
-      const lbl = p(this.add.text(0, 0, def.label(), t(10, "#ccaaff")).setOrigin(0.5, 0.5).setDepth(32));
-      const minusBg = p(this.add.rectangle(0, 0, 22, 20, 0x1a0a2e).setDepth(31).setInteractive({ useHandCursor: false }));
-      const minusLbl = p(this.add.text(0, 0, "−", t(13, "#ff6666")).setOrigin(0.5, 0.5).setDepth(32));
-      const plusBg = p(this.add.rectangle(0, 0, 22, 20, 0x1a0a2e).setDepth(31).setInteractive({ useHandCursor: false }));
-      const plusLbl = p(this.add.text(0, 0, "+", t(13, "#66ff88")).setOrigin(0.5, 0.5).setDepth(32));
+      const bg       = registerPanelItem(this.add.rectangle(0, 0, panelWidth - 12, statRowHeight, 0x0a0616).setDepth(30));
+      const lbl      = registerPanelItem(this.add.text(0, 0, def.label(), textStyle(10, "#ccaaff")).setOrigin(0.5, 0.5).setDepth(32));
+      const minusBg  = registerPanelItem(this.add.rectangle(0, 0, 22, 20, COLOR_BUTTON_DEFAULT).setDepth(31).setInteractive({ useHandCursor: false }));
+      const minusLbl = registerPanelItem(this.add.text(0, 0, "−", textStyle(13, "#ff6666")).setOrigin(0.5, 0.5).setDepth(32));
+      const plusBg   = registerPanelItem(this.add.rectangle(0, 0, 22, 20, COLOR_BUTTON_DEFAULT).setDepth(31).setInteractive({ useHandCursor: false }));
+      const plusLbl  = registerPanelItem(this.add.text(0, 0, "+", textStyle(13, "#66ff88")).setOrigin(0.5, 0.5).setDepth(32));
+
       minusBg.on("pointerover", () => minusBg.setFillStyle(0x330022));
-      minusBg.on("pointerout", () => minusBg.setFillStyle(0x1a0a2e));
-      minusBg.on("pointerdown", (_p: any, _x: any, _y: any, ev: any) => {
-        ev.stopPropagation();
+      minusBg.on("pointerout",  () => minusBg.setFillStyle(COLOR_BUTTON_DEFAULT));
+      minusBg.on("pointerdown", (_p: any, _x: any, _y: any, event: any) => {
+        event.stopPropagation();
         def.minus();
         lbl.setText(def.label());
       });
+
       plusBg.on("pointerover", () => plusBg.setFillStyle(0x003322));
-      plusBg.on("pointerout", () => plusBg.setFillStyle(0x1a0a2e));
-      plusBg.on("pointerdown", (_p: any, _x: any, _y: any, ev: any) => {
-        ev.stopPropagation();
+      plusBg.on("pointerout",  () => plusBg.setFillStyle(COLOR_BUTTON_DEFAULT));
+      plusBg.on("pointerdown", (_p: any, _x: any, _y: any, event: any) => {
+        event.stopPropagation();
         def.plus();
         lbl.setText(def.label());
       });
+
       return { bg, lbl, minusBg, minusLbl, plusBg, plusLbl };
     });
 
-    const statsUtil = () => {
-      const spawnH = spawnOpen ? spawnEntries.length * (BTN_H + GAP) : 0;
-      let uy = HEADER_Y + BTN_H + GAP + spawnH + 8;
+    // Recalculates Y positions for util buttons and stat rows.
+    // Called whenever the spawn section is toggled, since it shifts everything below it.
+    const repositionUtilAndStatRows = () => {
+      const spawnSectionHeight = spawnSectionOpen ? spawnEntries.length * (buttonHeight + buttonGap) : 0;
+      let currentY = spawnSectionStartY + buttonHeight + buttonGap + spawnSectionHeight + 8;
+
       utilEntries.forEach((_, i) => {
-        const cy = uy + BTN_H / 2;
-        utilBgs[i].setPosition(PX + PW / 2, cy);
-        utilLbls[i].setPosition(PX + PW / 2, cy);
-        uy += BTN_H + GAP;
+        const centerY = currentY + buttonHeight / 2;
+        utilButtonBgs[i].setPosition(panelCenterX, centerY);
+        utilButtonLabels[i].setPosition(panelCenterX, centerY);
+        currentY += buttonHeight + buttonGap;
       });
-      uy += 4;
+
+      currentY += 4;
+
       statRows.forEach((row) => {
-        const cy = uy + ROW_H / 2;
-        row.bg.setPosition(PX + PW / 2, cy);
-        row.lbl.setPosition(PX + PW / 2, cy);
-        row.minusBg.setPosition(PX + 14, cy);
-        row.minusLbl.setPosition(PX + 14, cy);
-        row.plusBg.setPosition(PX + PW - 14, cy);
-        row.plusLbl.setPosition(PX + PW - 14, cy);
-        uy += ROW_H + GAP;
+        const centerY = currentY + statRowHeight / 2;
+        row.bg.setPosition(panelCenterX, centerY);
+        row.lbl.setPosition(panelCenterX, centerY);
+        row.minusBg.setPosition(panelLeft + 14, centerY);
+        row.minusLbl.setPosition(panelLeft + 14, centerY);
+        row.plusBg.setPosition(panelLeft + panelWidth - 14, centerY);
+        row.plusLbl.setPosition(panelLeft + panelWidth - 14, centerY);
+        currentY += statRowHeight + buttonGap;
       });
-      uy += 16;
     };
 
-    statsUtil();
+    repositionUtilAndStatRows();
 
-    headerBg.on("pointerdown", (_ptr: any, _lx: any, _ly: any, event: any) => {
+    spawnSectionHeader.on("pointerdown", (_ptr: any, _lx: any, _ly: any, event: any) => {
       event.stopPropagation();
-      spawnOpen = !spawnOpen;
-      headerLbl.setText(spawnOpen ? "▼ Spawn" : "▶ Spawn");
-      spawnBtns.forEach(({ bg, lbl }: any) => {
-        const show = panelVisible && spawnOpen;
-        bg.setVisible(show);
-        lbl.setVisible(show);
+      spawnSectionOpen = !spawnSectionOpen;
+      spawnSectionLabel.setText(spawnSectionOpen ? "▼ Spawn" : "▶ Spawn");
+      spawnButtons.forEach(({ bg, lbl }: any) => {
+        const visible = panelVisible && spawnSectionOpen;
+        bg.setVisible(visible);
+        lbl.setVisible(visible);
       });
-      statsUtil();
+      repositionUtilAndStatRows();
     });
 
-    const backBg = p(
+    // ── Back to title button ──────────────────────────────────────────────────
+    const backButton = registerPanelItem(
       this.add
-        .rectangle(PX + PW / 2, 510, PW - 12, 24, 0x1a0a2e)
+        .rectangle(panelCenterX, 510, panelWidth - 12, 24, COLOR_BUTTON_DEFAULT)
         .setDepth(30)
         .setInteractive({ useHandCursor: false }),
     );
-    p(
+    registerPanelItem(
       this.add
-        .text(PX + PW / 2, 510, "← Title", t(11, "#666666"))
+        .text(panelCenterX, 510, "← Title", textStyle(11, "#666666"))
         .setOrigin(0.5, 0.5)
         .setDepth(31),
     );
-    backBg.on("pointerover", () => backBg.setFillStyle(0x220033));
-    backBg.on("pointerout", () => backBg.setFillStyle(0x1a0a2e));
-    backBg.on("pointerdown", (_ptr: any, _lx: any, _ly: any, event: any) => {
+    backButton.on("pointerover", () => backButton.setFillStyle(0x220033));
+    backButton.on("pointerout",  () => backButton.setFillStyle(COLOR_BUTTON_DEFAULT));
+    backButton.on("pointerdown", (_ptr: any, _lx: any, _ly: any, event: any) => {
       event.stopPropagation();
       this.scene.start("TitleScene");
     });
@@ -606,12 +549,10 @@ export default class GameScene extends Phaser.Scene {
     // this.clone.dash.execute();
     this.clone.startReposition();
 
-    this.physics.add.overlap(this.clone.attackDetectionZone, this.enemies, (_zone, enemy) => this._onAttackHit(this.player, enemy));
+    this.physics.add.overlap(this.clone.attackDetectionZone, this.enemies, (_zone, enemy) => this._onAttackHit(this.clone, enemy));
 
-    this._updateCloneHUD();
-    this.showAnnouncement("Clone Summoned!", "#cc88ff");
-
-    this.events.emit('clone_summoned', this.clone);
+    this.events.emit("clone_summoned", this.clone);
+    this.ui.updateHudAttrs(this.clone);
   }
 
   _dismissClone(): void {
@@ -620,49 +561,45 @@ export default class GameScene extends Phaser.Scene {
     this.clone.dismiss();
     this.onCloneDeath(kills, true);
 
-    this.events.emit('clone_dismissed');
-  }
-
-  _updateCloneHUD(): void {
-    this.ui.updateHUD(this.clone);
+    this.events.emit("clone_dismissed");
   }
 
   // ─── Public API ────────────────────────────────────────────────────────────
 
   spawnWave(toadCount: number, houndCount: number, crowCount = 0, demonCount = 0): void {
+    const { GAME_WIDTH, GAME_HEIGHT, GAME_WALL_X, GAME_WALL_Y } = GAME_CONFIG;
+
+    const arenaZone = this._createSpawnZone(GAME_WIDTH - GAME_WALL_X - 200, GAME_WALL_Y, 200, GAME_HEIGHT - GAME_WALL_Y * 2, false);
+
     for (let i = 0; i < toadCount; i++) {
-      const [x, y] = this._spawnPoint();
-      this.enemies.add(new MutantToad(this, x, y), true);
+      const [x, y] = this._spawnPoint(arenaZone);      
+      const toad = new MutantToad(this, x, y);
+      this.enemies.add(toad, true);
+
     }
     for (let i = 0; i < houndCount; i++) {
-      const [x, y] = this._spawnPoint();
+      const [x, y] = this._spawnPoint(arenaZone);      
       this.enemies.add(new HellHound(this, x, y), true);
     }
     for (let i = 0; i < crowCount; i++) {
-      const [x, y] = this._spawnPoint();
+      const [x, y] = this._spawnPoint(arenaZone);      
       this.enemies.add(new PlagueCrow(this, x, y), true);
     }
     for (let i = 0; i < demonCount; i++) {
-      const [x, y] = this._spawnPoint();
+      const [x, y] = this._spawnPoint(arenaZone);      
       this.enemies.add(new VoidDemon(this, x, y), true);
     }
   }
 
   onEnemyKilled(enemy: any): void {
-    this.killCount++;
-    this.killText.setText(`Kills: ${this.killCount}`);
-
     if (enemy.lastAttacker === "clone" && this.clone?.active) {
       this.clone.onKill();
-      this._updateCloneHUD();
-    } else if (enemy.lastAttacker === "player" && this.clone?.active) {
-      if (this.clone.hp < this.clone.maxHp) {
-        this.clone.hp = Math.min(this.clone.hp + 1, this.clone.maxHp);
-        this.spawnHealNumber(this.clone.x, this.clone.y - 16, 1, "#cc88ff");
-        this._updateCloneHUD();
-      }
+      this.ui.updateHudAttrs(this.clone);
+      this.ui.updateHudKills(this.clone);
+    } else if (enemy.lastAttacker === "player") {
+      this.player.killCount++;
+      this.ui.updateHudKills(this.player);
     }
-
     this.waveManager?.onEnemyKilled();
   }
 
@@ -673,7 +610,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   onCloneDeath(kills: number, dismissed = false): void {
-    this._totalCloneKills += kills;
+    // this._totalCloneKills += kills;    
 
     const burstDmg = this.clone ? this.clone.attackDamage : kills + 1;
     const tier = this._cloneKillTier(kills);
@@ -698,14 +635,6 @@ export default class GameScene extends Phaser.Scene {
 
     this._totalHealGiven += actualHeals;
 
-    const goldMultiplier = prog.goldBoost || 1;
-    const goldEarned = Math.floor(kills * goldMultiplier);
-    if (goldEarned > 0) {
-      window.Gold.total += goldEarned;
-      this._runGold += goldEarned;
-      this._updateGoldHUD();
-    }
-
     const verb = dismissed ? "dismissed" : "fell";
     let msg: string;
     if (kills === 0) {
@@ -713,11 +642,10 @@ export default class GameScene extends Phaser.Scene {
     } else {
       const parts: string[] = [];
       if (tier > 0) parts.push(`+${tier} max HP`, `+${tier} ATK`);
-      if (goldEarned > 0) parts.push(`+${goldEarned}g`);
       const bonus = parts.length > 0 ? `  ${parts.join("  ")}` : `  (need ${3 - kills} more for tier 2)`;
       msg = `Clone ${verb} — ${kills} kills${bonus}`;
     }
-    this.showAnnouncement(msg, "#cc88ff");
+    // this.showAnnouncement(msg, "#cc88ff");
 
     if (kills >= 5 && this.clone) {
       this._cloneBurst(this.clone.x, this.clone.y, burstDmg);
@@ -725,7 +653,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.clone = null;
     this.cloneEnemyCollider = null;
-    this._updateCloneHUD();
+    this.events.emit("clone_dismissed");
   }
 
   _cloneBurst(cx: number, cy: number, dmg: number): void {
@@ -780,7 +708,7 @@ export default class GameScene extends Phaser.Scene {
   onPlayerDeath(): void {
     const sess = window.Session;
     sess.runs++;
-    sess.totalKills += this.killCount;
+    sess.totalKills += this.player.killCount;
     const currentWave = this.waveManager?.currentWave ?? 0;
     if (currentWave > sess.highestWave) sess.highestWave = currentWave;
 
@@ -795,8 +723,8 @@ export default class GameScene extends Phaser.Scene {
 
     this.scene.start("GameOverScene", {
       wave: currentWave,
-      kills: this.killCount,
-      cloneKills: this._totalCloneKills,
+      kills: this.player.killCount,
+      cloneKills: 0,
       playerAtk: this.player.attackDamage,
       playerMaxHp: this.player.maxHp,
       healGiven: this._totalHealGiven,
@@ -816,28 +744,26 @@ export default class GameScene extends Phaser.Scene {
     if (checkIfBBehindA(attacker, enemy)) return;
 
     attacker.hitEnemies.add(enemy);
-    enemy.lastAttacker = this.player ? "player" : "clone";
+    enemy.lastAttacker = attacker === this.player ? "player" : "clone";
     this.spawnDamageNumber(enemy.x, enemy.y - 10, attacker.attackDamage, "#ffff00", 26);
     enemy.takeDamage(attacker.attackDamage);
   }
 
-  _spawnPoint(): [number, number] {
-    const side = Phaser.Math.Between(0, 3);
-    const mx = Phaser.Math.Between;
-    switch (side) {
-      case 0:
-        return [mx(50, 910), 48];
-      case 1:
-        return [mx(50, 910), 492];
-      case 2:
-        return [48, mx(50, 492)];
-      default:
-        return [912, mx(50, 492)];
+  _createSpawnZone(x: number, y: number, width: number, height: number, debug = false): Phaser.Geom.Rectangle {
+    const zone = new Phaser.Geom.Rectangle(x, y, width, height);
+
+    if (debug) {
+      const gfx = this.add.graphics().setDepth(100);
+      gfx.lineStyle(2, 0xff0000, 1);
+      gfx.strokeRect(zone.x, zone.y, zone.width, zone.height);
     }
+    
+    return zone;
   }
 
-  _updateGoldHUD(): void {
-    this.goldText.setText(`${window.Gold.total}g`);
+  _spawnPoint(zone: Phaser.Geom.Rectangle): [number, number] {
+    const point = zone.getRandomPoint();    
+    return [point.x, point.y];
   }
 }
 

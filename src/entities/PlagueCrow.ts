@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { GAME_CONFIG } from '../utils/constants';
 
 class PlagueCrow extends Phaser.Physics.Arcade.Sprite implements IEnemy {
   _dead: boolean;
@@ -100,8 +101,9 @@ class PlagueCrow extends Phaser.Physics.Arcade.Sprite implements IEnemy {
   update(_time: number, delta: number, player: ITarget, clone?: ITarget | null): void {
     if (!this.active || !player || player.hp <= 0) return;
 
-    this.x = Phaser.Math.Clamp(this.x, 38, 922);
-    this.y = Phaser.Math.Clamp(this.y, 38, 502);
+    const { GAME_WIDTH, GAME_HEIGHT, GAME_WALL_X, GAME_WALL_Y } = GAME_CONFIG;
+    this.x = Phaser.Math.Clamp(this.x, GAME_WALL_X, GAME_WIDTH - GAME_WALL_X);
+    this.y = Phaser.Math.Clamp(this.y, GAME_WALL_Y, GAME_HEIGHT - GAME_WALL_Y);
 
     const cloneAlive = clone?.active && !clone._dead;
     let target: ITarget = player;

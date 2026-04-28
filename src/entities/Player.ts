@@ -28,6 +28,8 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
   dash: Dash;
 
+  killCount: number;
+
   cursors: Phaser.Types.Input.Keyboard.CursorKeys;
   wasd: WasdKeys;
   _shiftKey: Phaser.Input.Keyboard.Key;
@@ -44,6 +46,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
     this.body.setMass(playerConfig.MASS);
 
+    // this.maxHp = playerConfig.MAXHP;
     this.maxHp = playerConfig.MAXHP;
     this.hp = this.maxHp;
     this.speed = playerConfig.SPEED;
@@ -69,6 +72,8 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
     this.isInvincible = false;
     this.hitEnemies = new Set();
+
+    this.killCount = 0;
 
     this.cursors = scene.input.keyboard.createCursorKeys();
     this.wasd = scene.input.keyboard.addKeys({
