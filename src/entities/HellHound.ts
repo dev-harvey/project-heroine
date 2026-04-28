@@ -18,7 +18,7 @@ class HellHound extends Phaser.Physics.Arcade.Sprite implements IEnemy {
   lastAttacker?: string;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
-    super(scene as any, x, y, "hound-idle");
+    super(scene as any, x, y, "orc-01-idle");
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
@@ -42,7 +42,7 @@ class HellHound extends Phaser.Physics.Arcade.Sprite implements IEnemy {
     this.attackDir = "right";
     this._attackFlash = false;
 
-    this.play("hound-idle");
+    this.play("orc-01-idle");
   }
 
   takeDamage(amount: number): void {
@@ -99,7 +99,7 @@ class HellHound extends Phaser.Physics.Arcade.Sprite implements IEnemy {
         const cd = Phaser.Math.Between(1000, 1600);
         this.attackCooldown = cd;
         this._isAttacking = true;
-        this.play("hound-attack", true);
+        this.play("orc-01-attack", true);
 
         this._attackFlash = true;
         this.scene.time.delayedCall(120, () => {
@@ -108,13 +108,13 @@ class HellHound extends Phaser.Physics.Arcade.Sprite implements IEnemy {
         });
 
         this.once("animationcomplete", () => {
-          if (this.active && !this._dead) this.play("hound-idle", true);
+          if (this.active && !this._dead) this.play("orc-01-idle", true);
         });
         this.scene.time.delayedCall(cd, () => {
           if (this.active) this._isAttacking = false;
         });
       } else {
-        this.play("hound-idle", true);
+        this.play("orc-01-idle", true);
       }
       return;
     }
@@ -122,7 +122,7 @@ class HellHound extends Phaser.Physics.Arcade.Sprite implements IEnemy {
     const angle = Phaser.Math.Angle.Between(this.x, this.y, target.x, target.y);
     const snap8 = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
     this.setVelocity(Math.cos(snap8) * this.speed, Math.sin(snap8) * this.speed);
-    this.play("hound-run", true);
+    this.play("orc-01-walk", true);
   }
 }
 

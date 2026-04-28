@@ -10,6 +10,7 @@ import WaveManager from "../systems/WaveManager";
 import { CLONE_CONFIG, DIAGONAL_VECTOR, GAME_ASSETS, GAME_COLORS, GAME_CONFIG, PLAYER_CONFIG, UI_CONFIG } from "../utils/constants";
 import { checkIfBBehindA, getAnchorOctoOffset, getMouseDirectionFromTarget } from "../utils/utils";
 import GameUI from "../systems/GameUI";
+import Enemy from "../entities/Enemy";
 
 export default class GameScene extends Phaser.Scene {
   // Core objects
@@ -596,7 +597,7 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  onEnemyKilled(enemy: any): void {
+  onEnemyKilled(enemy: Enemy): void {
     if (enemy.lastAttacker === "clone" && this.clone?.active) {
       this.clone.onKill();
       this.ui.updateHudAttrs(this.clone);

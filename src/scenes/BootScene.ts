@@ -10,18 +10,24 @@ export default class BootScene extends Phaser.Scene {
 
     const base = "game-assets/";
 
-    // Player spritesheets (128px wide frames, 64px tall)
+    // Player spritesheets
     this.load.spritesheet("player-idle", base + "characters/player/idle.png", { frameWidth: 128, frameHeight: 128 });
     this.load.spritesheet("player-walk", base + "characters/player/walk.png", { frameWidth: 128, frameHeight: 128 });
     this.load.spritesheet("player-run", base + "characters/player/run.png", { frameWidth: 128, frameHeight: 128 });
     this.load.spritesheet("player-attack", base + "characters/player/attack.png", { frameWidth: 128, frameHeight: 128 });
 
-    // Mutant Toad spritesheets (80px wide frames, 64px tall)
+    // Orc spritesheets
+    this.load.spritesheet("orc-01-idle", base + "characters/enemies/  orc-01/idle.png", { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet("orc-01-walk", base + "characters/enemies/  orc-01/walk.png", { frameWidth: 64, frameHeight: 64 });
+    // this.load.spritesheet("orc-01-run", base + "characters/enemies/  orc-01/run.png", { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet("orc-01-attack", base + "characters/enemies/  orc-01/attack.png", { frameWidth: 64, frameHeight: 64 });
+
+    // Mutant Toad spritesheets
     this.load.spritesheet("toad-idle", base + "characters/enemies/mutant-toad/Spritesheets/mutant-toad-idle.png", { frameWidth: 80, frameHeight: 64 });
     this.load.spritesheet("toad-jump", base + "characters/enemies/mutant-toad/Spritesheets/mutant-toad-jump.png", { frameWidth: 80, frameHeight: 64 });
     this.load.spritesheet("toad-attack", base + "characters/enemies/mutant-toad/Spritesheets/mutant-toad-attack.png", { frameWidth: 80, frameHeight: 64 });
 
-    // Hell Hound spritesheets (64px wide frames, 48px tall)
+    // Hell Hound spritesheets
     this.load.spritesheet("hound-idle", base + "characters/enemies/Hell-Hound-Files/Spritesheets/hell-hound-idle.png", { frameWidth: 64, frameHeight: 48 });
     this.load.spritesheet("hound-run", base + "characters/enemies/Hell-Hound-Files/Spritesheets/hell-hound-run.png", { frameWidth: 64, frameHeight: 48 });
     this.load.spritesheet("hound-attack", base + "characters/enemies/Hell-Hound-Files/Spritesheets/hell-hound-attack.png", { frameWidth: 64, frameHeight: 48 });
@@ -67,7 +73,7 @@ export default class BootScene extends Phaser.Scene {
   create(): void {
     this.createAnimations();
     // this.scene.start('TitleScene');
-    this.scene.start("GameScene", { debug: false });
+    this.scene.start("GameScene", { debug: true });
   }
 
   createLoadingBar(): void {
@@ -114,6 +120,31 @@ export default class BootScene extends Phaser.Scene {
     /* Enemies */
 
     this.anims.create({ key: "enemy-death-anim", frames: this.anims.generateFrameNumbers("enemy-death", { start: 0, end: 7 }), frameRate: 14, repeat: 0 });
+
+
+
+
+
+
+    
+    this.anims.create({ key: "orc-01-idle", frames: this.anims.generateFrameNumbers("orc-01-idle", { start: 0, end: 3 }), frameRate: 12, repeat: -1 });
+    
+    this.anims.create({ key: "orc-01-walk-down", frames: this.anims.generateFrameNumbers("orc-01-walk", { start: 0, end: 7 }), frameRate: 16, repeat: 0 });
+    this.anims.create({ key: "orc-01-walk-left", frames: this.anims.generateFrameNumbers("orc-01-walk", { start: 8, end: 15 }), frameRate: 16, repeat: 0 });
+    this.anims.create({ key: "orc-01-walk-right", frames: this.anims.generateFrameNumbers("orc-01-walk", { start: 16, end: 23 }), frameRate: 16, repeat: 0 });
+    this.anims.create({ key: "orc-01-walk-up", frames: this.anims.generateFrameNumbers("orc-01-walk", { start: 24, end: 31 }), frameRate: 16, repeat: 0 });
+
+    this.anims.create({ key: "orc-01-attack-down", frames: this.anims.generateFrameNumbers("orc-01-attack", { start: 0, end: 7 }), frameRate: 16, repeat: 0 });
+    this.anims.create({ key: "orc-01-attack-left", frames: this.anims.generateFrameNumbers("orc-01-attack", { start: 8, end: 15 }), frameRate: 16, repeat: 0 });
+    this.anims.create({ key: "orc-01-attack-right", frames: this.anims.generateFrameNumbers("orc-01-attack", { start: 16, end: 23 }), frameRate: 16, repeat: 0 });
+    this.anims.create({ key: "orc-01-attack-up", frames: this.anims.generateFrameNumbers("orc-01-attack", { start: 24, end: 31 }), frameRate: 16, repeat: 0 });
+
+
+
+
+
+
+
 
     this.anims.create({ key: "toad-idle", frames: this.anims.generateFrameNumbers("toad-idle", { start: 0, end: 3 }), frameRate: 8, repeat: -1 });
     this.anims.create({ key: "toad-jump", frames: this.anims.generateFrameNumbers("toad-jump", { start: 0, end: 3 }), frameRate: 10, repeat: 0 });
