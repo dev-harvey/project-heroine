@@ -90,16 +90,17 @@ export class Dash {
 
     this._target.emit("dash", vx, vy);
 
+    this._cooldownTimer = this._cooldown;
+
     // Flicker the player character to indicate invincibility/dash
     this._target.scene.tweens.add({
-      targets: this,
+      targets: this._target,
       alpha: { from: 0, to: 1 },
       duration: this._duration,
       repeat: 0,
       ease: "easeOutQuad",
       onComplete: () => {
         this._target.setAlpha(1);
-        this._cooldownTimer = this._cooldown;
         this._isReady = true;
       },
     });

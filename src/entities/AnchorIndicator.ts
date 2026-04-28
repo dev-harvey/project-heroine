@@ -25,6 +25,8 @@ export default class AnchorIndicator extends Phaser.Physics.Arcade.Sprite {
   }
 
   update() {
-    this.scene.tweens.add({ targets: this, x: this.targetPlayer.anchorIndicatorPosition.x, y: this.targetPlayer.anchorIndicatorPosition.y, duration: 50, ease: "linear" });
+    const target = this.targetPlayer.anchorIndicatorPosition;
+    this.x = Phaser.Math.Linear(this.x, target.x, 0.3);
+    this.y = Phaser.Math.Linear(this.y, target.y, 0.3);
   }
 }

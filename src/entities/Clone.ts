@@ -1,15 +1,17 @@
 import * as Phaser from "phaser";
 import Player from "./Player";
 
-import { CLONE_CONFIG } from "../utils/constants";
+import { CLONE_CONFIG, PLAYER_CONFIG } from "../utils/constants";
 import { Dash } from "../skills/Dash";
 import AttackIndicator from "./AttackIndicator";
+import { syncAttackZone } from "../utils/utils";
 
 class Clone extends Phaser.Physics.Arcade.Sprite {
   // Stats
   _baseHp: number;
   _baseAtk: number;
   hp: number;
+  speed: number;
 
   // State
   _dead: boolean;
@@ -23,6 +25,7 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
   attackDir: AttackDir;
   attackIndicator: AttackIndicator;
   attackDetectionZone: Phaser.Physics.Arcade.Image;
+  attackRange: number;
   hitEnemies: Set<Phaser.GameObjects.GameObject>;
 
   killCount: number;
@@ -49,6 +52,7 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
     // ── Stats
     this._baseHp = CLONE_CONFIG.MAXHP;
     this.hp = this._baseHp;
+    this.speed = CLONE_CONFIG.SPEED.BASE;
 
     this.killCount = 0;
 
@@ -66,6 +70,7 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
     this._repositioning = false;
 
     // ── Attack zone
+    this.attackRange = CLONE_CONFIG.ATTACK_RANGE;
     this.attackDetectionZone = scene.physics.add.image(x, y, "");
     this.attackDetectionZone.body.enable = false;
 
@@ -73,11 +78,11 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
 
     this.on(Phaser.Animations.Events.ANIMATION_UPDATE, (anim, frame) => {
       if (anim.key.startsWith("player-attack")) {
-        if (frame.index === 3) {
-          this._syncAttackZone();
+        if (frame.index === CLONE_CONFIG.ATTACK_FRAMES.START) {
+          syncAttackZone(this);
           this.attackDetectionZone.body.enable = true;
         }
-        if (frame.index === 6) {
+        if (frame.index === CLONE_CONFIG.ATTACK_FRAMES.END) {
           this.attackDetectionZone.body.enable = false;
           this.hitEnemies.clear();
         }
@@ -98,13 +103,10 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
 
   // ─── Dynamic stats ──────────────────────────────────────────────────────────
   get maxHp(): number {
-    return this._baseHp + Math.floor(this.killCount / 3);
+    return Math.min(CLONE_CONFIG.MAXTOTAL_HP, this._baseHp + Math.floor(this.killCount / 3));
   }
   get attackDamage(): number {
-    return this._baseAtk + Math.floor(this.killCount / 3);
-  }
-  get speed(): number {
-    return 200;
+    return Math.min(CLONE_CONFIG.MAXTOTAL_ATTACK_DAMAGE, this._baseAtk + Math.floor(this.killCount / 3));
   }
 
   startReposition(): void {
@@ -113,7 +115,7 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
 
   onKill(): void {
     this.killCount++;
-    if (this.maxHp > this.maxHp) this.hp = Math.min(this.hp + 1, this.maxHp);
+    if (this.hp < this.maxHp) this.hp = Math.min(this.hp + 1, this.maxHp);
   }
 
   _mouseToDir(): AttackDir {
@@ -136,7 +138,7 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
     this._repositioning = false;
     this.attackDir = this._mouseToDir();
     this.isAttacking = true;
-    this.attackCooldown = 300;
+    this.attackCooldown = CLONE_CONFIG.ATTACK_COOLDOWN;
     this.hitEnemies.clear();
     this.setVelocity(0, 0);
 
@@ -199,30 +201,16 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
     this.dismiss();
   }
 
-  private _syncAttackZone(): void {
-    // TODO: This is duplicated from player
-    if (!this.attackDetectionZone) return;
-    const b = this.body as Phaser.Physics.Arcade.Body;
-    const bcx = b.x + b.width / 2;
-    const bcy = b.y + b.height / 2;
-    const radius = CLONE_CONFIG.ATTACK_RANGE;
-    this.attackDetectionZone.setPosition(bcx, bcy);
-    this.attackDetectionZone.setSize(radius * 2, radius * 2);
-    this.attackDetectionZone.body.setCircle(radius);
-  }
-
   dismiss(): void {
     if (!this.active) return;
-    this.setActive(false).setVisible(false);
+    
     if (this.attackDetectionZone) {
       this.attackDetectionZone.body.enable = false;
       this.attackDetectionZone.destroy();
-      this.attackDetectionZone = null;
     }
     if (this.attackIndicator) {
       this.attackIndicator.body.enable = false;
       this.attackIndicator.destroy();
-      this.attackIndicator = null;
     }
     this.destroy();
   }
@@ -253,9 +241,9 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
       speed = 0;
     } else if (distance < 10) {
       this._repositioning = false;
-      speed = CLONE_CONFIG.SPEED * 0.2;
+      speed = CLONE_CONFIG.SPEED.DEADZONE;
     } else if (this._repositioning) {
-      speed = CLONE_CONFIG.SPEED * 4;
+      speed = CLONE_CONFIG.SPEED.REPOSITIONING;
     }
 
     this.scene.physics.moveToObject(this, anchorPosition, speed);

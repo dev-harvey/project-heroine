@@ -5,6 +5,17 @@ import Player from "./Player";
 import Clone from "./Clone";
 import { getMouseDirectionFromTarget } from "../utils/utils";
 
+const DIRECTION_CONFIG: Record<string, { angle: number; offsetX: number; offsetY: number }> = {
+  right: { angle: 0, offsetX: PLAYER_CONFIG.ATTACK_INDICATOR.OFFSET_X, offsetY: 0 },
+  "down-right": { angle: 45, offsetX: PLAYER_CONFIG.ATTACK_INDICATOR.OFFSET_X, offsetY: PLAYER_CONFIG.ATTACK_INDICATOR.OFFSET_Y },
+  down: { angle: 90, offsetX: 0, offsetY: PLAYER_CONFIG.ATTACK_INDICATOR.OFFSET_Y },
+  "down-left": { angle: 135, offsetX: -PLAYER_CONFIG.ATTACK_INDICATOR.OFFSET_X, offsetY: PLAYER_CONFIG.ATTACK_INDICATOR.OFFSET_Y },
+  left: { angle: 180, offsetX: -PLAYER_CONFIG.ATTACK_INDICATOR.OFFSET_X, offsetY: 0 },
+  "up-left": { angle: 225, offsetX: -PLAYER_CONFIG.ATTACK_INDICATOR.OFFSET_X, offsetY: -PLAYER_CONFIG.ATTACK_INDICATOR.OFFSET_Y },
+  up: { angle: 270, offsetX: 0, offsetY: -PLAYER_CONFIG.ATTACK_INDICATOR.OFFSET_Y },
+  "up-right": { angle: 315, offsetX: PLAYER_CONFIG.ATTACK_INDICATOR.OFFSET_X, offsetY: -PLAYER_CONFIG.ATTACK_INDICATOR.OFFSET_Y },
+};
+
 export default class AttackIndicator extends Phaser.Physics.Arcade.Sprite {
   public attacker: Player | Clone;
 
@@ -42,23 +53,11 @@ export default class AttackIndicator extends Phaser.Physics.Arcade.Sprite {
   }
 
   update() {
-    // TODO: Have the attack indicator bulge outwards when you move towards it, then reduce the x offset (was 20 before)
-    const x = 30;
-    const y = 35;
+    // TODO: Nice to have - Make the attack indicator bulge outwards when you move towards it, then reduce the x offset (was 20 before). This would look nice and make it sit tighter to the entity.
     const direction = getMouseDirectionFromTarget(this.attacker);
     // TODO: move this to constants so that it doesn't make a new record every frame
-    const directionConfig: Record<string, { angle: number; offsetX: number; offsetY: number }> = {
-      right: { angle: 0, offsetX: x, offsetY: 0 },
-      "down-right": { angle: 45, offsetX: x, offsetY: y },
-      down: { angle: 90, offsetX: 0, offsetY: y },
-      "down-left": { angle: 135, offsetX: -x, offsetY: y },
-      left: { angle: 180, offsetX: -x, offsetY: 0 },
-      "up-left": { angle: 225, offsetX: -x, offsetY: -y },
-      up: { angle: 270, offsetX: 0, offsetY: -y },
-      "up-right": { angle: 315, offsetX: x, offsetY: -y },
-    };
 
-    this.setPosition(this.attacker.x + directionConfig[direction].offsetX, this.attacker.y + directionConfig[direction].offsetY);
-    this.setAngle(directionConfig[direction].angle);
+    this.setPosition(this.attacker.x + DIRECTION_CONFIG[direction].offsetX, this.attacker.y + DIRECTION_CONFIG[direction].offsetY);
+    this.setAngle(DIRECTION_CONFIG[direction].angle);
   }
 }

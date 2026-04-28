@@ -56,6 +56,7 @@ export function checkIfBBehindA(a: Player | Clone | any, b: Player | Clone | any
     "down-left": { fx: -0.7071, fy: 0.7071 },
   };
   const fwd = FORWARD[a.attackDir];
+  if (!fwd) return false;
   if ((b.x - a.x) * fwd.fx + (b.y - a.y) * fwd.fy < 0) return true;
   return false;
 }
@@ -76,5 +77,19 @@ export function getTextStyle(variant: GameTextVariant, size: number, style?: Pha
 }
 
 export function colorToHex(color: number): string {
-  return `#${color.toString(16).padStart(6, '0')}`;
+  return `#${color.toString(16).padStart(6, "0")}`;
+}
+
+export function syncAttackZone(target: Player | Clone): void {
+  if (!target.attackDetectionZone) return;
+
+  const b = target.body as Phaser.Physics.Arcade.Body;
+  const bcx = b.x + b.width / 2;
+  const bcy = b.y + b.height / 2;
+
+  const radius = target.attackRange;
+
+  target.attackDetectionZone.setPosition(bcx, bcy);
+  target.attackDetectionZone.setSize(radius * 2, radius * 2);
+  target.attackDetectionZone.body.setCircle(radius);
 }

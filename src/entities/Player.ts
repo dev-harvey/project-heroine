@@ -1,22 +1,37 @@
 import * as Phaser from "phaser";
 
 import { CLONE_CONFIG, DIAGONAL_VECTOR, GAME_CONFIG, PLAYER_CONFIG, PLAYER_CONFIG as playerConfig } from "../utils/constants";
-import { getAnchorPosition, getMouseDirectionFromTarget, getAnchorOctoOffset } from "../utils/utils";
+import { getAnchorPosition, getMouseDirectionFromTarget, getAnchorOctoOffset, syncAttackZone } from "../utils/utils";
 import { Dash } from "../skills/Dash";
 import AnchorIndicator from "./AnchorIndicator";
 import AttackIndicator from "./AttackIndicator";
 
 export default class Player extends Phaser.Physics.Arcade.Sprite {
-  maxHp: number;
+  private _maxHp: number = 0;
+  get maxHp(): number {
+    return this._maxHp;
+  }
+  set maxHp(value: number) {
+    this._maxHp = Math.min(PLAYER_CONFIG.MAXTOTAL_HP, value);
+  }
+
   hp: number;
   speed: number;
-  attackDamage: number;
+
+  private _attackDamage: number = 0;
+  get attackDamage(): number {
+    return this._attackDamage;
+  }
+  set attackDamage(value: number) {
+    this._attackDamage = Math.min(PLAYER_CONFIG.MAXTOTAL_ATTACK_DAMAGE, value);
+  }
 
   isAttacking: boolean;
   attackCooldown: number;
   attackCooldownMax: number;
   isInvincible: boolean;
   attackDir: AttackDir;
+  attackRange: number;
   attackDetectionZone: Phaser.Physics.Arcade.Image;
   attackIndicator: AttackIndicator;
   hitEnemies: Set<Phaser.GameObjects.GameObject>;
@@ -58,6 +73,8 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.isAttacking = false;
     this.attackDir = "right";
 
+    this.attackRange = PLAYER_CONFIG.ATTACK_RANGE;
+
     this.attackDetectionZone = scene.physics.add.image(x, y, "");
     this.attackDetectionZone.body.enable = false;
 
@@ -94,11 +111,11 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
     this.on(Phaser.Animations.Events.ANIMATION_UPDATE, (anim, frame) => {
       if (anim.key.startsWith("player-attack")) {
-        if (frame.index === 4) {
-          this._syncAttackZone();
+        if (frame.index === PLAYER_CONFIG.ATTACK_FRAMES.START) {
+          syncAttackZone(this);
           this.attackDetectionZone.body.enable = true;
         }
-        if (frame.index === 7) {
+        if (frame.index === PLAYER_CONFIG.ATTACK_FRAMES.END) {
           this.attackDetectionZone.body.enable = false;
           this.hitEnemies.clear();
         }
@@ -167,6 +184,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   _syncAttackZone(): void {
+
     const b = this.body as Phaser.Physics.Arcade.Body;
     const bcx = b.x + b.width / 2;
     const bcy = b.y + b.height / 2;
@@ -184,7 +202,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.attackCooldown = Math.max(0, this.attackCooldown - delta);
     this.dash.update(delta);
 
-    this._syncAttackZone();
+    syncAttackZone(this);
 
     if (this.isAttacking) {
       this.setVelocity(0, 0);
@@ -235,7 +253,6 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       this.play("player-idle", true);
     }
 
-
     const playerPosition = { x: this.x, y: this.y };
     // TODO: Shouldn't pass playerPosition twice, it's a get around. This could all maybe move to the anchor file like I do it for attack indicator
     this.anchorPosition = getAnchorPosition(playerPosition, playerPosition, this.anchorOffset);
@@ -243,7 +260,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     const ptr = this.scene.input.activePointer;
     this.anchorIndicatorPosition = getAnchorPosition(playerPosition, { x: ptr.x, y: ptr.y });
 
-    this._syncAttackZone();
+    syncAttackZone(this);
   }
 }
 

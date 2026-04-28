@@ -36,6 +36,10 @@ export default class GameUI {
 
   private _cooldownBars: Record<string, Phaser.GameObjects.Rectangle> = {};
   private _killsTexts: Record<string, Phaser.GameObjects.Text> = {};
+  private _attackTexts: Record<string, Phaser.GameObjects.Text> = {};
+
+  private _onCloneSummoned: (clone: Clone) => void;
+  private _onCloneDismissed: (clone: Clone) => void;
 
   private _hudAttrs: {
     container: Phaser.GameObjects.Container;
@@ -49,7 +53,7 @@ export default class GameUI {
 
   private _hudPhase: {
     container: Phaser.GameObjects.Container;
-    text?: string;
+    text: Phaser.GameObjects.Text;
   };
 
   private _hudStats: {
@@ -65,24 +69,27 @@ export default class GameUI {
       player: {
         attack: player?.attackDamage || 0,
         hearts: player?.hp || 0,
-        kills: 0
+        kills: 0,
       },
     };
 
-    this._scene.events.on("clone_summoned", (clone: Clone) => {
+    this._onCloneSummoned = (clone: Clone) => {
       this._clone = clone;
       this._localCache.clone = { attack: clone.attackDamage, hearts: clone.hp, kills: 0 };
       this._buildAttack(clone);
       this._buildHearts(clone);
       this._buildKills(clone);
-    });
+    };
 
-    this._scene.events.on("clone_dismissed", () => {
+    this._onCloneDismissed = (clone: Clone) => {
       this._clone = null;
       this._hudAttrs.children.cloneAttackContainer.removeAll(true);
       this._hudAttrs.children.cloneHeartsContainer.removeAll(true);
       this._hudStats.children.cloneKillsContainer.removeAll(true);
-    });
+    };
+
+    this._scene.events.on("clone_summoned", this._onCloneSummoned);
+    this._scene.events.on("clone_dismissed", this._onCloneDismissed);
 
     this._build();
   }
@@ -103,15 +110,21 @@ export default class GameUI {
   private _buildHudPhase(text: string) {
     const { GAME_WIDTH } = GAME_CONFIG;
     this._hudPhase = {
-      container: this._scene.add.container(GAME_WIDTH / 2, 10).setDepth(DEPTH_CONFIG.HUD),
-      text: text,
+      container: this._scene.add
+        .container(GAME_WIDTH / 2, 10)
+        .setDepth(DEPTH_CONFIG.HUD)
+        .setScrollFactor(0),
+      text: this.addUIText(0, 0, text, getTextStyle("body", 64)).setOrigin(0.5, 0),
     };
-    this._hudPhase.container.add(this.addUIText(0, 0, text, getTextStyle("body", 64)).setOrigin(0.5, 0));
+    this._hudPhase.container.add(this._hudPhase.text);
   }
 
   private _buildHudStats() {
     this._hudStats = {
-      container: this._scene.add.container(GAME_CONFIG.GAME_WIDTH - 10, 10).setDepth(DEPTH_CONFIG.HUD),
+      container: this._scene.add
+        .container(GAME_CONFIG.GAME_WIDTH - 10, 10)
+        .setDepth(DEPTH_CONFIG.HUD)
+        .setScrollFactor(0),
       children: {
         playerKillsContainer: this._scene.add.container(0, 0),
         cloneKillsContainer: this._scene.add.container(0, 40),
@@ -128,7 +141,7 @@ export default class GameUI {
   private _buildKills(target: Player | Clone): void {
     let container: Phaser.GameObjects.Container;
     let key: string;
-    const label = (target === this._player) ?  "KILLS" : "CLONE KILLS";
+    const label = target === this._player ? "KILLS" : "CLONE KILLS";
     if (target === this._player) {
       container = this._hudStats.children.playerKillsContainer;
       key = "player";
@@ -148,7 +161,7 @@ export default class GameUI {
 
   private _buildHudAttrs() {
     this._hudAttrs = {
-      container: this._scene.add.container(10, 10).setDepth(DEPTH_CONFIG.HUD),
+      container: this._scene.add.container(10, 10).setDepth(DEPTH_CONFIG.HUD).setScrollFactor(0),
       children: {
         playerAttackContainer: this._scene.add.container(0, 0),
         playerHeartsContainer: this._scene.add.container(70, 0),
@@ -166,27 +179,27 @@ export default class GameUI {
   }
 
   private _buildAttack(target: Player | Clone): void {
-    let container;
-    let targetType;
+    let container: Phaser.GameObjects.Container;
+    let key: string;
     if (target === this._player) {
       container = this._hudAttrs.children.playerAttackContainer;
-      targetType = "player";
-    } else if (target !== undefined && target === this._clone) {
+      key = "player";
+    } else if (target === this._clone) {
       container = this._hudAttrs.children.cloneAttackContainer;
-      targetType = "clone";
+      key = "clone";
     } else {
       console.error("Couldn't update HUD - problem with local cache");
       return;
     }
     container.removeAll(true);
     const icon = this._scene.add.image(0, 0, GAME_ASSETS.ATTACK_ICON).setDisplaySize(32, 32).setOrigin(0);
-    container.add(icon);
-    const text = this.addUIText(icon.width + 3, 0, target.attackDamage.toString(), getTextStyle("heading", 32))
+    const text = this.addUIText(icon.displayWidth + 10, 0, target.attackDamage.toString(), getTextStyle("heading", 32))
       .setColor(colorToHex(GAME_COLORS.COBALT))
       .setFontStyle("bold")
       .setOrigin(0, 0.04)
       .setFixedSize(0, 32);
-
+    this._attackTexts[key] = text;
+    container.add(icon);
     container.add(text);
   }
 
@@ -230,7 +243,7 @@ export default class GameUI {
 
   private _buildHudAbilities(): void {
     this._hudAbilities = {
-      container: this._scene.add.container(10, 0).setDepth(DEPTH_CONFIG.HUD),
+      container: this._scene.add.container(10, 0).setDepth(DEPTH_CONFIG.HUD).setScrollFactor(0),
       children: {
         dash: this._scene.add.container(0, 0),
       },
@@ -248,14 +261,15 @@ export default class GameUI {
 
   private _buildDashCard(): void {
     const container = this._hudAbilities.children.dash;
-    const cardWidth = 150;
-    const cardHeight = 80;
+    const cardWidth = UI_CONFIG.ABILITY_CARD.WIDTH;
+    const cardHeight = UI_CONFIG.ABILITY_CARD.HEIGHT;
     this._cooldownBars["dash"] = this._scene.add.rectangle(0, 0, cardWidth, cardHeight, GAME_COLORS.COBALT, 1).setOrigin(0);
     container.add(this._cooldownBars["dash"]);
     container.add(this._scene.add.rectangle(0, 0, cardWidth, cardHeight, 0x000, 0).setStrokeStyle(3, GAME_COLORS.NAVY).setOrigin(0));
     container.add(this._scene.add.text(10, 10, "DASH", getTextStyle("body", 32, { color: colorToHex(GAME_COLORS.ICE) })).setOrigin(0));
     container.add(this._scene.add.text(10, 45, "[ SHIFT ]", getTextStyle("body", 16, { color: colorToHex(GAME_COLORS.ICE) })).setOrigin(0));
-    const icon = this._scene.add.sprite(0, 0, "player-run", 11).setOrigin(0).setDisplaySize(80, 80).setPosition(0, 0).setOrigin(-1, 0).setTint(GAME_COLORS.ICE).setBlendMode("ADD");
+
+    const icon = this._scene.add.sprite(0, 0, "player-run", 11).setDisplaySize(80, 80).setOrigin(1, 0).setPosition(UI_CONFIG.ABILITY_CARD.WIDTH, 0).setTint(GAME_COLORS.ICE).setBlendMode("ADD");
     container.add(icon);
   }
 
@@ -289,27 +303,38 @@ export default class GameUI {
   }
 
   public updateHudStats(target?: Player | Clone): void {
+    if (target === undefined) {
+      this.updateHudKills(this._player);
+      if (this._clone?.active) this.updateHudKills(this._clone);
+      return;
+    }
     this.updateHudKills(target);
   }
 
-  public updateHudPhase(text: string) {
-    this._hudPhase.container.removeAll(true);
-    this._buildHudPhase(text);
+  public updateHudPhase(text) {
+    this._hudPhase.text.setText(text);
   }
 
   public updateHudKills(target: Player | Clone): void {
     const key = target === this._player ? "player" : "clone";
-    const label = (target === this._player) ?  "KILLS" : "CLONE KILLS";
-    
-    this._killsTexts[key]?.setText(`${label}: ${target.killCount}`);
+    const label = target === this._player ? "KILLS" : "CLONE KILLS";
+
+    if (this._localCache[key].kills !== target.killCount) {
+      this._killsTexts[key]?.setText(`${label}: ${target.killCount}`);
+      this._localCache[key].kills = target.killCount;
+    }
+  }
+
+  public updateHudAttack(target: Player | Clone): void {
+    const key = target === this._player ? "player" : "clone";
+    this._attackTexts[key]?.setText(target.attackDamage.toString());
   }
 
   public updateAbilityCooldown(ability: "dash" | string, percent: number): void {
-    const bounds = this._hudAbilities.children[ability].getBounds();
-    this._cooldownBars[ability].setDisplaySize(Math.max(0, bounds.width * percent - 10), bounds.height);
+    this._cooldownBars[ability].setDisplaySize(Math.max(0, UI_CONFIG.ABILITY_CARD.WIDTH * percent), UI_CONFIG.ABILITY_CARD.HEIGHT);
   }
 
-  public drawDebugLines(container) {
+  public drawDebugLines(container: Phaser.GameObjects.Container) {
     const debug = this._scene.add.graphics().setDepth(1000);
     const containerBounds = container.getBounds();
     debug.lineStyle(1, 0xff0000, 1);
@@ -319,5 +344,10 @@ export default class GameUI {
   // TODO: pass in optional params for stroke and font. Potentially actually pass a config object that I can type as an interface.
   public addUIText(x: number, y: number, content: string, style: Phaser.Types.GameObjects.Text.TextStyle = {}, origin: { x: TextOrigin; y: TextOrigin } = { x: 0, y: 0 }, depth: number = DEPTH_CONFIG.UI_TEXT_DEFAULT): Phaser.GameObjects.Text {
     return this._scene.add.text(x, y, content, style).setOrigin(origin.x, origin.y).setDepth(depth).setScrollFactor(0);
+  }
+
+  public destroyEvents() {
+    this._scene.events.off("clone_summoned", this._onCloneSummoned);
+    this._scene.events.off("clone_dismissed", this._onCloneDismissed);
   }
 }
