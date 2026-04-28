@@ -49,9 +49,9 @@ export default class GameOverScene extends Phaser.Scene {
     const respawnBtn = this.add.text(LC, ly, '[ RESPAWN ]', { ...t(26, '#ffd700', true) }).setOrigin(0.5, 0).setDepth(2).setInteractive({ useHandCursor: true });
     respawnBtn.on('pointerover',  () => respawnBtn.setStyle({ fill: '#ffffff' }));
     respawnBtn.on('pointerout',   () => respawnBtn.setStyle({ fill: '#ffd700' }));
-    respawnBtn.on('pointerdown',  () => this._respawn());
-    this.input.keyboard.once('keydown-ENTER', () => this._respawn());
-    this.input.keyboard.once('keydown-SPACE', () => this._respawn());
+    respawnBtn.on('pointerdown',  () => this.respawn());
+    this.input.keyboard.once('keydown-ENTER', () => this.respawn());
+    this.input.keyboard.once('keydown-SPACE', () => this.respawn());
     ly += 38;
 
     hr(LX, ly, LR - LX); ly += 14;
@@ -99,7 +99,7 @@ export default class GameOverScene extends Phaser.Scene {
     // (The scene remains functional; full UI code can be migrated incrementally.)
   }
 
-  _respawn(): void { this.scene.start('TitleScene'); }
+  private respawn(): void { this.scene.start('TitleScene'); }
 }
 
 (window as any).GameOverScene = GameOverScene;

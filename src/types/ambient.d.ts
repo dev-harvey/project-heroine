@@ -104,7 +104,7 @@ interface ITarget {
   hp: number;
   active: boolean;
   /** True while the object is in its death sequence (clone-specific). */
-  _dead?: boolean;
+  dead?: boolean;
   body: {
     x: number;
     y: number;
@@ -137,5 +137,5 @@ interface IEnemy extends ITarget {
   attackDir: AttackDir;
   lastAttacker?: string;
   update(time: number, delta: number, player: ITarget, clone?: ITarget | null): void;
-  _die?(): void;
+  die?(): void;
 }

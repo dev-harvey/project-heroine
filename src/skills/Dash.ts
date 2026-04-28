@@ -2,40 +2,40 @@ import Clone from "../entities/Clone";
 import { getMouseDirectionFromTarget } from "../utils/utils";
 
 export class Dash {
-  private _player: Phaser.Physics.Arcade.Sprite;
-  private _target: Phaser.Physics.Arcade.Sprite;
-  private _isReady: boolean = true;
+  private player: Phaser.Physics.Arcade.Sprite;
+  private target: Phaser.Physics.Arcade.Sprite;
+  private isReady: boolean = true;
 
-  private _duration: number;
-  private _distance: number;
+  private duration: number;
+  private distance: number;
   private _cooldown: number;
   private _cooldownTimer: number;
 
   public get isActive() : boolean {
-    return !this._isReady;
+    return !this.isReady;
   }
-  
+
   public get cooldown() : number {
     return this._cooldown;
   }
-  
+
   public get cooldownTimer() : number {
     return this._cooldownTimer;
   }
 
   constructor(player: Phaser.Physics.Arcade.Sprite, target: Phaser.Physics.Arcade.Sprite, duration: number, distance: number, cooldown: number) {
-    this._player = player
-    this._target = target;
-    this._duration = duration;
-    this._distance = distance;
+    this.player = player
+    this.target = target;
+    this.duration = duration;
+    this.distance = distance;
     this._cooldown = cooldown;
     this._cooldownTimer = 0;
   }
 
   public execute() {
-    if (!this._isReady || this.cooldownTimer) return;
-    this._isReady = false;
-    const mouseDir = (this._target === this._player) ? getMouseDirectionFromTarget(this._target) : getMouseDirectionFromTarget(this._player);
+    if (!this.isReady || this.cooldownTimer) return;
+    this.isReady = false;
+    const mouseDir = (this.target === this.player) ? getMouseDirectionFromTarget(this.target) : getMouseDirectionFromTarget(this.player);
     const moveDir = {
       x: 0,
       y: 0,
@@ -83,25 +83,25 @@ export class Dash {
       Calculate the length of the vector and divide by it to get a "Unit Vector".
     */
     const vectorLength = Math.sqrt(moveDir.x * moveDir.x + moveDir.y * moveDir.y) || 1;
-    const dashSpeed = this._distance / (this._duration / 1000);
+    const dashSpeed = this.distance / (this.duration / 1000);
     const vx = (moveDir.x / vectorLength) * dashSpeed;
     const vy = (moveDir.y / vectorLength) * dashSpeed;
-    this._target.setVelocity(vx, vy);
+    this.target.setVelocity(vx, vy);
 
-    this._target.emit("dash", vx, vy);
+    this.target.emit("dash", vx, vy);
 
     this._cooldownTimer = this._cooldown;
 
     // Flicker the player character to indicate invincibility/dash
-    this._target.scene.tweens.add({
-      targets: this._target,
+    this.target.scene.tweens.add({
+      targets: this.target,
       alpha: { from: 0, to: 1 },
-      duration: this._duration,
+      duration: this.duration,
       repeat: 0,
       ease: "easeOutQuad",
       onComplete: () => {
-        this._target.setAlpha(1);
-        this._isReady = true;
+        this.target.setAlpha(1);
+        this.isReady = true;
       },
     });
   }

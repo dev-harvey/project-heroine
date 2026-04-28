@@ -11,15 +11,15 @@ interface IGameScene extends Phaser.Scene {
 }
 
 abstract class Enemy extends Phaser.Physics.Arcade.Sprite implements IEnemy {
-  _scene: IGameScene;
-  _dead: boolean;
+  private gameScene: IGameScene;
+  dead: boolean;
   maxHp: number;
   hp: number;
   speed: number;
   attackDamage: number;
   attackRange: number;
   attackCooldown: number;
-  _isAttacking: boolean;
+  protected isAttacking: boolean;
   attackDir: AttackDir;
   lastAttacker?: string;
 
@@ -28,45 +28,45 @@ abstract class Enemy extends Phaser.Physics.Arcade.Sprite implements IEnemy {
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
-    this._scene = scene as IGameScene;
+    this.gameScene = scene as IGameScene;
 
     this.setCollideWorldBounds(true);
     this.setDepth(4);
 
-    this._dead = false;
+    this.dead = false;
     this.maxHp = 1;
     this.hp = 1;
     this.speed = 100;
     this.attackDamage = 1;
     this.attackRange = 50;
     this.attackCooldown = 0;
-    this._isAttacking = false;
+    this.isAttacking = false;
     this.attackDir = "right";
   }
 
   // ── Shared methods ────────────────────────────────────────────────────
 
   takeDamage(amount: number): void {
-    if (this._dead) return;
+    if (this.dead) return;
     this.hp -= amount;
     this.setTint(0xff5555);
     this.scene.time.delayedCall(120, () => {
       if (this.active) this.clearTint();
     });
-    if (this.hp <= 0) this._die();
+    if (this.hp <= 0) this.die();
   }
 
-  _die(): void {
-    if (this._dead) return;
-    this._dead = true;
+  die(): void {
+    if (this.dead) return;
+    this.dead = true;
     // TODO: Add death animation
-    this._scene.onEnemyKilled(this);
+    this.gameScene.onEnemyKilled(this);
     this.destroy();
   }
 
   // Returns the closer of player/clone (clone must be alive to be considered)
   protected selectTarget(player: ITarget, clone?: ITarget | null): ITarget {
-    if (!clone?.active || clone._dead) return player;
+    if (!clone?.active || clone.dead) return player;
     const dp = Phaser.Math.Distance.Between(this.x, this.y, player.x, player.y);
     const dc = Phaser.Math.Distance.Between(this.x, this.y, clone.x, clone.y);
     return dc < dp ? clone : player;

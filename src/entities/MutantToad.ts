@@ -2,7 +2,7 @@ import * as Phaser from "phaser";
 import { GAME_CONFIG } from "../utils/constants";
 
 class MutantToad extends Phaser.Physics.Arcade.Sprite implements IEnemy {
-  _dead: boolean;
+  dead: boolean;
 
   maxHp: number;
   hp: number;
@@ -11,12 +11,12 @@ class MutantToad extends Phaser.Physics.Arcade.Sprite implements IEnemy {
   attackRange: number;
 
   attackCooldown: number;
-  _isAttacking: boolean;
+  private isAttacking: boolean;
   attackDir: AttackDir;
 
-  _isLeaping: boolean;
-  _isPausing: boolean;
-  _attackFlash: boolean;
+  private isLeaping: boolean;
+  private isPausing: boolean;
+  private attackFlash: boolean;
 
   lastAttacker?: string;
 
@@ -32,7 +32,7 @@ class MutantToad extends Phaser.Physics.Arcade.Sprite implements IEnemy {
     this.setOffset(15, 28);
     (this.body as Phaser.Physics.Arcade.Body).setMass(3);
 
-    this._dead = false;
+    this.dead = false;
 
     this.maxHp = 2;
     this.hp = this.maxHp;
@@ -41,27 +41,27 @@ class MutantToad extends Phaser.Physics.Arcade.Sprite implements IEnemy {
     this.attackRange = 75;
 
     this.attackCooldown = Phaser.Math.Between(1000, 1500);
-    this._isAttacking = false;
+    this.isAttacking = false;
     this.attackDir = "right";
 
-    this._isLeaping = false;
-    this._isPausing = false;
-    this._attackFlash = false;
+    this.isLeaping = false;
+    this.isPausing = false;
+    this.attackFlash = false;
 
     this.play("toad-idle");
   }
 
   takeDamage(amount: number): void {
-    if (this._dead) return;
+    if (this.dead) return;
     this.hp -= amount;
     this.setTint(0xff5555);
     this.scene.time.delayedCall(120, () => {
       if (this.active) this.clearTint();
     });
-    if (this.hp <= 0) this._die();
+    if (this.hp <= 0) this.die();
   }
 
-  private _inShovel(tx: number, ty: number): boolean {
+  private inShovel(tx: number, ty: number): boolean {
     if (!this.body) return false;
     const NH = 15,
       FH = 30,
@@ -98,7 +98,7 @@ class MutantToad extends Phaser.Physics.Arcade.Sprite implements IEnemy {
     return lx <= lxCurve;
   }
 
-  private _targetInShovel(target: ITarget): boolean {
+  private targetInShovel(target: ITarget): boolean {
     const b = target.body;
     if (!b) return false;
     const cx = b.x + b.width / 2;
@@ -113,12 +113,12 @@ class MutantToad extends Phaser.Physics.Arcade.Sprite implements IEnemy {
       [cx, b.bottom],
       [b.x, cy],
       [b.right, cy],
-    ].some(([tx, ty]) => this._inShovel(tx, ty));
+    ].some(([tx, ty]) => this.inShovel(tx, ty));
   }
 
-  _die(): void {
-    if (this._dead) return;
-    this._dead = true;
+  die(): void {
+    if (this.dead) return;
+    this.dead = true;
     (this.scene as any).spawnDeathEffect?.(this.x, this.y);
     (this.scene as any).onEnemyKilled?.(this);
     this.destroy();
@@ -131,7 +131,7 @@ class MutantToad extends Phaser.Physics.Arcade.Sprite implements IEnemy {
     this.x = Phaser.Math.Clamp(this.x, GAME_WALL_X, GAME_WIDTH - GAME_WALL_X);
     this.y = Phaser.Math.Clamp(this.y, GAME_WALL_Y, GAME_HEIGHT - GAME_WALL_Y);
 
-    const cloneAlive = clone?.active && !clone._dead;
+    const cloneAlive = clone?.active && !clone.dead;
     let target: ITarget = player;
     if (cloneAlive) {
       const dp = Phaser.Math.Distance.Between(this.x, this.y, player.x, player.y);
@@ -145,7 +145,7 @@ class MutantToad extends Phaser.Physics.Arcade.Sprite implements IEnemy {
     const angleToTarget = Phaser.Math.Angle.Between(this.x, this.y, target.x, target.y);
     const DIRS: AttackDir[] = ["right", "down-right", "down", "down-left", "left", "up-left", "up", "up-right"];
 
-    if (this._isAttacking) {
+    if (this.isAttacking) {
       this.setVelocity(0, 0);
       (this.body as Phaser.Physics.Arcade.Body).setImmovable(true);
       return;
@@ -158,27 +158,27 @@ class MutantToad extends Phaser.Physics.Arcade.Sprite implements IEnemy {
     if (dist <= this.attackRange) {
       this.setVelocity(0, 0);
 
-      if (this._isLeaping) return;
-      this._isPausing = false;
+      if (this.isLeaping) return;
+      this.isPausing = false;
 
       if (this.attackCooldown <= 0) {
         this.attackCooldown = Phaser.Math.Between(1000, 1500);
-        this._isAttacking = true;
+        this.isAttacking = true;
         this.play("toad-attack", true);
 
         this.scene.time.delayedCall(300, () => {
-          if (!this.active || this._dead) return;
-          this._attackFlash = true;
+          if (!this.active || this.dead) return;
+          this.attackFlash = true;
           this.scene.time.delayedCall(120, () => {
-            if (this.active) this._attackFlash = false;
+            if (this.active) this.attackFlash = false;
           });
-          if (this._targetInShovel(target)) target.takeDamage(this.attackDamage);
+          if (this.targetInShovel(target)) target.takeDamage(this.attackDamage);
         });
 
         this.scene.time.delayedCall(800, () => {
           if (this.active) {
             this.play("toad-idle", true);
-            this._isAttacking = false;
+            this.isAttacking = false;
           }
         });
       } else {
@@ -187,21 +187,21 @@ class MutantToad extends Phaser.Physics.Arcade.Sprite implements IEnemy {
       return;
     }
 
-    if (this._isLeaping || this._isPausing) return;
+    if (this.isLeaping || this.isPausing) return;
 
     const snap8 = Math.round(angleToTarget / (Math.PI / 4)) * (Math.PI / 4);
-    this._isLeaping = true;
+    this.isLeaping = true;
     this.setVelocity(Math.cos(snap8) * this.speed, Math.sin(snap8) * this.speed);
     this.play("toad-jump", true);
 
     this.scene.time.delayedCall(500, () => {
-      if (!this.active || this._isAttacking) return;
-      this._isLeaping = false;
-      this._isPausing = true;
+      if (!this.active || this.isAttacking) return;
+      this.isLeaping = false;
+      this.isPausing = true;
       this.setVelocity(0, 0);
       this.play("toad-idle", true);
       this.scene.time.delayedCall(300, () => {
-        if (this.active) this._isPausing = false;
+        if (this.active) this.isPausing = false;
       });
     });
   }

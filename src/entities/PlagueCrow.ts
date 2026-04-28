@@ -2,7 +2,7 @@ import * as Phaser from 'phaser';
 import { GAME_CONFIG } from '../utils/constants';
 
 class PlagueCrow extends Phaser.Physics.Arcade.Sprite implements IEnemy {
-  _dead: boolean;
+  dead: boolean;
 
   maxHp:        number;
   hp:           number;
@@ -11,7 +11,7 @@ class PlagueCrow extends Phaser.Physics.Arcade.Sprite implements IEnemy {
   attackDir:    AttackDir;
 
   shootCooldown: number;
-  private _projectiles: Phaser.GameObjects.Arc[];
+  private projectiles: Phaser.GameObjects.Arc[];
 
   lastAttacker?: string;
 
@@ -27,7 +27,7 @@ class PlagueCrow extends Phaser.Physics.Arcade.Sprite implements IEnemy {
     this.setOffset(12, 1);
     (this.body as Phaser.Physics.Arcade.Body).setMass(1);
 
-    this._dead = false;
+    this.dead = false;
 
     this.maxHp        = 2;
     this.hp           = this.maxHp;
@@ -36,34 +36,34 @@ class PlagueCrow extends Phaser.Physics.Arcade.Sprite implements IEnemy {
     this.attackDir    = 'right';
 
     this.shootCooldown = Phaser.Math.Between(1500, 3000);
-    this._projectiles  = [];
+    this.projectiles  = [];
 
     this.play('crow-idle');
   }
 
   takeDamage(amount: number): void {
-    if (this._dead) return;
+    if (this.dead) return;
     this.hp -= amount;
     this.setTint(0xff5555);
     this.scene.time.delayedCall(120, () => { if (this.active) this.clearTint(); });
-    if (this.hp <= 0) this._die();
+    if (this.hp <= 0) this.die();
   }
 
-  _die(): void {
-    if (this._dead) return;
-    this._dead = true;
-    this._destroyProjectiles();
+  die(): void {
+    if (this.dead) return;
+    this.dead = true;
+    this.destroyProjectiles();
     (this.scene as any).spawnDeathEffect?.(this.x, this.y);
     (this.scene as any).onEnemyKilled?.(this);
     this.destroy();
   }
 
-  private _destroyProjectiles(): void {
-    this._projectiles.forEach(p => { if (p.active) p.destroy(); });
-    this._projectiles = [];
+  private destroyProjectiles(): void {
+    this.projectiles.forEach(p => { if (p.active) p.destroy(); });
+    this.projectiles = [];
   }
 
-  private _shoot(target: ITarget): void {
+  private shoot(target: ITarget): void {
     const angle = Phaser.Math.Angle.Between(this.x, this.y, target.x, target.y);
     const speed = 200;
 
@@ -75,7 +75,7 @@ class PlagueCrow extends Phaser.Physics.Arcade.Sprite implements IEnemy {
     projBody.setCollideWorldBounds(true);
     (projBody as any).onWorldBounds = true;
 
-    this._projectiles.push(proj);
+    this.projectiles.push(proj);
 
     (projBody as any).world.on('worldbounds', (body: Phaser.Physics.Arcade.Body) => {
       if (body.gameObject === proj && proj.active) proj.destroy();
@@ -105,7 +105,7 @@ class PlagueCrow extends Phaser.Physics.Arcade.Sprite implements IEnemy {
     this.x = Phaser.Math.Clamp(this.x, GAME_WALL_X, GAME_WIDTH - GAME_WALL_X);
     this.y = Phaser.Math.Clamp(this.y, GAME_WALL_Y, GAME_HEIGHT - GAME_WALL_Y);
 
-    const cloneAlive = clone?.active && !clone._dead;
+    const cloneAlive = clone?.active && !clone.dead;
     let target: ITarget = player;
     if (cloneAlive) {
       const dp = Phaser.Math.Distance.Between(this.x, this.y, player.x, player.y);
@@ -128,7 +128,7 @@ class PlagueCrow extends Phaser.Physics.Arcade.Sprite implements IEnemy {
 
     if (this.shootCooldown <= 0) {
       this.shootCooldown = Phaser.Math.Between(2000, 3000);
-      this._shoot(target);
+      this.shoot(target);
     }
 
     if (dist < 200) {

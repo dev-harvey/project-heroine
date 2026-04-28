@@ -28,7 +28,7 @@ const config: Phaser.Types.Core.GameConfig = {
   physics: {
     default: 'arcade',
     arcade: {
-      debug: false, // TODO: can I make this automatically true in the debug mode?
+      debug: false, // TODO: can I make this an option in the debug mode?
     },
   },
   scene: [BootScene, TitleScene, GameScene, GameOverScene],

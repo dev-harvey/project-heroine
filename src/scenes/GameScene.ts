@@ -44,15 +44,15 @@ export default class GameScene extends Phaser.Scene {
   // Stats
   // killCount: number = 0;
   // _totalCloneKills: number = 0;
-  _totalHealGiven: number = 0;
-  _totalPermHp: number = 0;
-  _totalPermAtk: number = 0;
-  _runGold: number = 0;
+  private totalHealGiven: number = 0;
+  private totalPermHp: number = 0;
+  private totalPermAtk: number = 0;
+  private runGold: number = 0;
 
   // Debug
-  _debugMode: boolean = false;
-  _hitboxGfx!: Phaser.GameObjects.Graphics;
-  _debugLabels: Phaser.GameObjects.Text[] = [];
+  private debugMode: boolean = false;
+  private hitboxGfx!: Phaser.GameObjects.Graphics;
+  private debugLabels: Phaser.GameObjects.Text[] = [];
 
   constructor() {
     super({ key: "GameScene" });
@@ -61,15 +61,15 @@ export default class GameScene extends Phaser.Scene {
   // ─── Lifecycle ─────────────────────────────────────────────────────────────
 
   create(data: GameSceneData = {}): void {
-    this._debugMode = !!data.debug;
+    this.debugMode = !!data.debug;
 
     this.clone = null;
 
-    this._buildWorld();
-    this._buildPlayer();
-    this._buildGroups();
-    this._buildPhysics();
-    this._buildIndicators();
+    this.buildWorld();
+    this.buildPlayer();
+    this.buildGroups();
+    this.buildPhysics();
+    this.buildIndicators();
 
     this.ui = new GameUI(this, this.player);
 
@@ -77,10 +77,10 @@ export default class GameScene extends Phaser.Scene {
       this.ui.destroyEvents();
     });
 
-    if (this._debugMode) this._buildDebugPanel();
-    else this._buildWaveManager();
+    if (this.debugMode) this.buildDebugPanel();
+    else this.buildWaveManager();
 
-    this._buildCloneControls();
+    this.buildCloneControls();
   }
 
   update(time: number, delta: number): void {
@@ -111,7 +111,7 @@ export default class GameScene extends Phaser.Scene {
 
   // ─── Setup ─────────────────────────────────────────────────────────────────
 
-  _buildWorld(): void {
+  private buildWorld(): void {
     const gameWidth = GAME_CONFIG.GAME_WIDTH,
       gameHeight = GAME_CONFIG.GAME_HEIGHT,
       wallX = GAME_CONFIG.GAME_WALL_X,
@@ -140,7 +140,7 @@ export default class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(wallX, wallY, gameWidth - wallX * 2, gameHeight - wallY * 2);
   }
 
-  _buildPlayer(): void {
+  private buildPlayer(): void {
     const { GAME_HEIGHT, GAME_WALL_X } = GAME_CONFIG;
     this.player = new Player(this, GAME_WALL_X + 50, GAME_HEIGHT / 2);
     this.player.on("attack", () => {
@@ -169,29 +169,29 @@ export default class GameScene extends Phaser.Scene {
     // }
   }
 
-  _buildGroups(): void {
+  private buildGroups(): void {
     this.enemies = this.physics.add.group();
   }
 
-  _buildPhysics(): void {
+  private buildPhysics(): void {
     this.playerEnemyCollider = this.physics.add.collider(this.player, this.enemies);
     this.enemyEnemyCollider = this.physics.add.collider(this.enemies, this.enemies);
-    this.playerAttackOverlap = this.physics.add.overlap(this.player.attackDetectionZone, this.enemies, (_zone, enemy) => this._onAttackHit(this.player, enemy));
+    this.playerAttackOverlap = this.physics.add.overlap(this.player.attackDetectionZone, this.enemies, (_zone, enemy) => this.onAttackHit(this.player, enemy));
   }
 
-  _buildIndicators(): void {
+  private buildIndicators(): void {
     this.playerAttackIndicator = this.add.graphics().setDepth(8);
     this.cloneAttackIndicator = this.add.graphics().setDepth(7);
   }
 
-  _buildWaveManager(): void {
+  private buildWaveManager(): void {
     this.waveManager = new WaveManager(this as any);
     this.waveManager.start();
   }
 
   // ─── Debug panel ─────────────────────────────────────────────────────
 
-  _buildDebugPanel(): void {
+  private buildDebugPanel(): void {
     const textStyle = (size: number, color: string) => ({ fontSize: `${size}px`, fill: color, fontFamily: UI_CONFIG.BODY_FONT });
 
     const { GAME_WIDTH, GAME_HEIGHT, GAME_WALL_X, GAME_WALL_Y } = GAME_CONFIG;
@@ -310,10 +310,10 @@ export default class GameScene extends Phaser.Scene {
         label: "Dmg Clone",
         color: "#cc44ff",
         fn: () => {
-          if (this.clone?.active && !(this.clone as any)._dead) this.clone.takeDamage(1);
+          if (this.clone?.active && !(this.clone as any).dead) this.clone.takeDamage(1);
         },
       },
-      { label: "Clear All", color: "#ff4455", fn: () => this._debugClearEnemies() },
+      { label: "Clear All", color: "#ff4455", fn: () => this.debugClearEnemies() },
     ];
 
     // Positions are set dynamically by repositionUtilAndStatRows(), so start at 0,0
@@ -364,13 +364,13 @@ export default class GameScene extends Phaser.Scene {
         label: () => (this.clone?.active ? `Cln HP  ${this.clone.hp}/${this.clone.maxHp}` : "Cln HP  --"),
         minus: () => {
           if (this.clone?.active) {
-            (this.clone as any)._baseHp = Math.max(1, (this.clone as any)._baseHp - 1);
+            (this.clone as any).baseHp = Math.max(1, (this.clone as any).baseHp - 1);
             this.clone.hp = Math.max(1, Math.min(this.clone.hp, this.clone.maxHp));
           }
         },
         plus: () => {
           if (this.clone?.active) {
-            (this.clone as any)._baseHp++;
+            (this.clone as any).baseHp++;
             this.clone.hp = Math.min(this.clone.hp + 1, this.clone.maxHp);
           }
         },
@@ -378,10 +378,10 @@ export default class GameScene extends Phaser.Scene {
       {
         label: () => (this.clone?.active ? `Cln ATK  ${this.clone.attackDamage}` : "Cln ATK  --"),
         minus: () => {
-          if (this.clone?.active) (this.clone as any)._baseAtk = Math.max(1, (this.clone as any)._baseAtk - 1);
+          if (this.clone?.active) (this.clone as any).baseAtk = Math.max(1, (this.clone as any).baseAtk - 1);
         },
         plus: () => {
-          if (this.clone?.active) (this.clone as any)._baseAtk++;
+          if (this.clone?.active) (this.clone as any).baseAtk++;
         },
       },
     ];
@@ -470,17 +470,17 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  _debugClearEnemies(): void {
+  private debugClearEnemies(): void {
     this.enemies.getChildren().forEach((e: any) => {
-      if (e.active) e._die?.();
+      if (e.active) e.die?.();
     });
   }
 
-  _buildCloneControls(): void {
+  private buildCloneControls(): void {
     this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE).on("down", () => {
       if (!this.player.active) return;
-      if (this.clone?.active) this._dismissClone();
-      else this._summonClone();
+      if (this.clone?.active) this.dismissClone();
+      else this.summonClone();
     });
 
     this.input.mouse.disableContextMenu();
@@ -540,7 +540,7 @@ export default class GameScene extends Phaser.Scene {
 
   // ─── Clone management ──────────────────────────────────────────────────────
 
-  _summonClone(): void {
+  private summonClone(): void {
     if (this.clone?.active) return;
 
     const prog = window.Progression;
@@ -556,13 +556,13 @@ export default class GameScene extends Phaser.Scene {
     // this.clone.dash.execute();
     this.clone.startReposition();
 
-    this.physics.add.overlap(this.clone.attackDetectionZone, this.enemies, (_zone, enemy) => this._onAttackHit(this.clone, enemy));
+    this.physics.add.overlap(this.clone.attackDetectionZone, this.enemies, (_zone, enemy) => this.onAttackHit(this.clone, enemy));
 
     this.events.emit("clone_summoned", this.clone);
     this.ui.updateHudAttrs(this.clone);
   }
 
-  _dismissClone(): void {
+  private dismissClone(): void {
     if (!this.clone?.active) return;
     const kills = this.clone.killCount;
     this.clone.dismiss();
@@ -576,23 +576,23 @@ export default class GameScene extends Phaser.Scene {
   spawnWave(toadCount: number, houndCount: number, crowCount = 0, demonCount = 0): void {
     const { GAME_WIDTH, GAME_HEIGHT, GAME_WALL_X, GAME_WALL_Y } = GAME_CONFIG;
 
-    const arenaZone = this._createSpawnZone(GAME_WIDTH - GAME_WALL_X - 200, GAME_WALL_Y, 200, GAME_HEIGHT - GAME_WALL_Y * 2, false);
+    const arenaZone = this.createSpawnZone(GAME_WIDTH - GAME_WALL_X - 200, GAME_WALL_Y, 200, GAME_HEIGHT - GAME_WALL_Y * 2, false);
 
     for (let i = 0; i < toadCount; i++) {
-      const [x, y] = this._spawnPoint(arenaZone);
+      const [x, y] = this.spawnPoint(arenaZone);
       const toad = new MutantToad(this, x, y);
       this.enemies.add(toad, true);
     }
     for (let i = 0; i < houndCount; i++) {
-      const [x, y] = this._spawnPoint(arenaZone);
+      const [x, y] = this.spawnPoint(arenaZone);
       this.enemies.add(new HellHound(this, x, y), true);
     }
     for (let i = 0; i < crowCount; i++) {
-      const [x, y] = this._spawnPoint(arenaZone);
+      const [x, y] = this.spawnPoint(arenaZone);
       this.enemies.add(new PlagueCrow(this, x, y), true);
     }
     for (let i = 0; i < demonCount; i++) {
-      const [x, y] = this._spawnPoint(arenaZone);
+      const [x, y] = this.spawnPoint(arenaZone);
       this.enemies.add(new VoidDemon(this, x, y), true);
     }
   }
@@ -609,7 +609,7 @@ export default class GameScene extends Phaser.Scene {
     this.waveManager?.onEnemyKilled();
   }
 
-  _cloneKillTier(kills: number): number {
+  private cloneKillTier(kills: number): number {
     if (kills <= 0) return 0;
     if (kills < 3) return 1;
     return 1 + Math.floor(kills / 3);
@@ -619,14 +619,14 @@ export default class GameScene extends Phaser.Scene {
     // this._totalCloneKills += kills;
 
     const burstDmg = this.clone ? this.clone.attackDamage : kills + 1;
-    const tier = this._cloneKillTier(kills);
+    const tier = this.cloneKillTier(kills);
     const prog = window.Progression;
 
     let actualHeals = 0;
     if (tier > 0) {
       prog.bonusMaxHp += tier;
       this.player.maxHp += tier;
-      this._totalPermHp += tier;
+      this.totalPermHp += tier;
       const heal = Math.min(tier, this.player.maxHp - this.player.hp);
       this.player.hp += heal;
       actualHeals = heal;
@@ -636,10 +636,10 @@ export default class GameScene extends Phaser.Scene {
     if (tier > 0) {
       prog.bonusDamage += tier;
       this.player.attackDamage += tier;
-      this._totalPermAtk += tier;
+      this.totalPermAtk += tier;
     }
 
-    this._totalHealGiven += actualHeals;
+    this.totalHealGiven += actualHeals;
 
     const verb = dismissed ? "dismissed" : "fell";
     let msg: string;
@@ -654,7 +654,7 @@ export default class GameScene extends Phaser.Scene {
     // this.showAnnouncement(msg, "#cc88ff");
 
     if (kills >= 5 && this.clone) {
-      this._cloneBurst(this.clone.x, this.clone.y, burstDmg);
+      this.cloneBurst(this.clone.x, this.clone.y, burstDmg);
     }
 
     this.clone = null;
@@ -662,7 +662,7 @@ export default class GameScene extends Phaser.Scene {
     this.events.emit("clone_dismissed");
   }
 
-  _cloneBurst(cx: number, cy: number, dmg: number): void {
+  private cloneBurst(cx: number, cy: number, dmg: number): void {
     const W = GAME_CONFIG.GAME_WIDTH,
       H = GAME_CONFIG.GAME_HEIGHT;
     const MAX_R = Math.sqrt(W * W + H * H) / 2 + 100;
@@ -733,16 +733,16 @@ export default class GameScene extends Phaser.Scene {
       cloneKills: 0,
       playerAtk: this.player.attackDamage,
       playerMaxHp: this.player.maxHp,
-      healGiven: this._totalHealGiven,
-      permHpGained: this._totalPermHp,
-      permAtkGained: this._totalPermAtk,
-      runGold: this._runGold,
+      healGiven: this.totalHealGiven,
+      permHpGained: this.totalPermHp,
+      permAtkGained: this.totalPermAtk,
+      runGold: this.runGold,
     });
   }
 
   // ─── Private helpers ───────────────────────────────────────────────────────
 
-  _onAttackHit(attacker: Player | Clone, enemy: any): void {
+  private onAttackHit(attacker: Player | Clone, enemy: any): void {
     if (!attacker.isAttacking) return;
     if (!attacker.attackDetectionZone.body.enable) return;
     if (attacker.hitEnemies.has(enemy)) return;
@@ -755,7 +755,7 @@ export default class GameScene extends Phaser.Scene {
     enemy.takeDamage(attacker.attackDamage);
   }
 
-  _createSpawnZone(x: number, y: number, width: number, height: number, debug = false): Phaser.Geom.Rectangle {
+  private createSpawnZone(x: number, y: number, width: number, height: number, debug = false): Phaser.Geom.Rectangle {
     const zone = new Phaser.Geom.Rectangle(x, y, width, height);
 
     if (debug) {
@@ -767,7 +767,7 @@ export default class GameScene extends Phaser.Scene {
     return zone;
   }
 
-  _spawnPoint(zone: Phaser.Geom.Rectangle): [number, number] {
+  private spawnPoint(zone: Phaser.Geom.Rectangle): [number, number] {
     const point = zone.getRandomPoint();
     return [point.x, point.y];
   }

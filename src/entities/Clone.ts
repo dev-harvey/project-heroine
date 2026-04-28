@@ -8,16 +8,16 @@ import { syncAttackZone } from "../utils/utils";
 
 class Clone extends Phaser.Physics.Arcade.Sprite {
   // Stats
-  _baseHp: number;
-  _baseAtk: number;
+  baseHp: number;
+  baseAtk: number;
   hp: number;
   speed: number;
 
   // State
-  _dead: boolean;
+  dead: boolean;
 
   targetPlayer: Player;
-  _repositioning: boolean;
+  private repositioning: boolean;
   facingDir: FacingDir;
 
   isAttacking: boolean;
@@ -50,16 +50,16 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
     this.setBlendMode("OVERLAY");
 
     // ── Stats
-    this._baseHp = CLONE_CONFIG.MAXHP;
-    this.hp = this._baseHp;
+    this.baseHp = CLONE_CONFIG.MAXHP;
+    this.hp = this.baseHp;
     this.speed = CLONE_CONFIG.SPEED.BASE;
 
     this.killCount = 0;
 
-    this._baseAtk = CLONE_CONFIG.ATTACK_DAMAGE;
+    this.baseAtk = CLONE_CONFIG.ATTACK_DAMAGE;
 
     // ── State
-    this._dead = false;
+    this.dead = false;
     this.isAttacking = false;
     this.attackCooldown = 0;
     this.attackDir = "right";
@@ -67,7 +67,7 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
 
     this.dash = new Dash(this.targetPlayer, this, CLONE_CONFIG.DASH_DURATION, CLONE_CONFIG.DASH_DISTANCE, CLONE_CONFIG.DASH_COOLDOWN);
 
-    this._repositioning = false;
+    this.repositioning = false;
 
     // ── Attack zone
     this.attackRange = CLONE_CONFIG.ATTACK_RANGE;
@@ -103,14 +103,14 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
 
   // ─── Dynamic stats ──────────────────────────────────────────────────────────
   get maxHp(): number {
-    return Math.min(CLONE_CONFIG.MAXTOTAL_HP, this._baseHp + Math.floor(this.killCount / 3));
+    return Math.min(CLONE_CONFIG.MAXTOTAL_HP, this.baseHp + Math.floor(this.killCount / 3));
   }
   get attackDamage(): number {
-    return Math.min(CLONE_CONFIG.MAXTOTAL_ATTACK_DAMAGE, this._baseAtk + Math.floor(this.killCount / 3));
+    return Math.min(CLONE_CONFIG.MAXTOTAL_ATTACK_DAMAGE, this.baseAtk + Math.floor(this.killCount / 3));
   }
 
   startReposition(): void {
-    this._repositioning = true;
+    this.repositioning = true;
   }
 
   onKill(): void {
@@ -118,7 +118,7 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
     if (this.hp < this.maxHp) this.hp = Math.min(this.hp + 1, this.maxHp);
   }
 
-  _mouseToDir(): AttackDir {
+  private mouseToDir(): AttackDir {
     const ptr = this.scene.input.activePointer;
     const angle = Phaser.Math.Angle.Between(this.x, this.y, ptr.worldX, ptr.worldY);
     const deg = Phaser.Math.RadToDeg(angle);
@@ -133,10 +133,10 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
   }
 
   doAttack(): void {
-    if (this._dead || this.isAttacking || this.attackCooldown > 0) return;
+    if (this.dead || this.isAttacking || this.attackCooldown > 0) return;
 
-    this._repositioning = false;
-    this.attackDir = this._mouseToDir();
+    this.repositioning = false;
+    this.attackDir = this.mouseToDir();
     this.isAttacking = true;
     this.attackCooldown = CLONE_CONFIG.ATTACK_COOLDOWN;
     this.hitEnemies.clear();
@@ -154,7 +154,7 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
   }
 
   takeDamage(amount: number): void {
-    if (this._dead || this.hp <= 0) return;
+    if (this.dead || this.hp <= 0) return;
 
     this.hp = Math.max(0, this.hp - amount);
     (this.scene as any).spawnDamageNumber?.(this.x, this.y - 16, amount, "#bb66ff");
@@ -178,13 +178,13 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
     });
 
     if (this.hp <= 0) {
-      this._dead = true;
+      this.dead = true;
       this.setVelocity(0, 0);
-      this.scene.time.delayedCall(50, () => this._onDeath());
+      this.scene.time.delayedCall(50, () => this.onDeath());
     }
   }
 
-  private _onDeath(): void {
+  private onDeath(): void {
     if (!this.active) return;
 
     (this.scene as any).onCloneDeath?.(this.killCount);
@@ -216,7 +216,7 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
   }
 
   update(_time: number, delta: number): void {
-    if (!this.active || this._dead) return;
+    if (!this.active || this.dead) return;
 
     this.attackCooldown = Math.max(0, this.attackCooldown - delta);
     this.dash.update(delta);
@@ -237,12 +237,12 @@ class Clone extends Phaser.Physics.Arcade.Sprite {
 
     // TODO: These speeds should be in constants
     if (distance < 2) {
-      this._repositioning = false;
+      this.repositioning = false;
       speed = 0;
     } else if (distance < 10) {
-      this._repositioning = false;
+      this.repositioning = false;
       speed = CLONE_CONFIG.SPEED.DEADZONE;
-    } else if (this._repositioning) {
+    } else if (this.repositioning) {
       speed = CLONE_CONFIG.SPEED.REPOSITIONING;
     }
 

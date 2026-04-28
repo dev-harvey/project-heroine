@@ -31,20 +31,20 @@ export default class TitleScene extends Phaser.Scene {
     const startBtn = this.add.text(W / 2, 310, '[ START GAME ]', { ...t(30, '#ffd700', true) }).setOrigin(0.5, 0.5).setInteractive({ useHandCursor: true });
     startBtn.on('pointerover', () => startBtn.setStyle({ fill: '#ffffff' }));
     startBtn.on('pointerout',  () => startBtn.setStyle({ fill: '#ffd700' }));
-    startBtn.on('pointerdown', () => this._start(false));
+    startBtn.on('pointerdown', () => this.start(false));
 
     const debugBtn = this.add.text(W / 2, 370, '[ DEBUG MODE ]', { ...t(16, '#555555') }).setOrigin(0.5, 0.5).setInteractive({ useHandCursor: true });
     debugBtn.on('pointerover', () => debugBtn.setStyle({ fill: '#aa66cc' }));
     debugBtn.on('pointerout',  () => debugBtn.setStyle({ fill: '#555555' }));
-    debugBtn.on('pointerdown', () => this._start(true));
+    debugBtn.on('pointerdown', () => this.start(true));
 
-    this.input.keyboard.once('keydown-ENTER', () => this._start(false));
-    this.input.keyboard.once('keydown-SPACE', () => this._start(false));
+    this.input.keyboard.once('keydown-ENTER', () => this.start(false));
+    this.input.keyboard.once('keydown-SPACE', () => this.start(false));
 
     this.add.text(W / 2, H - 16, 'Milestone 3', t(11, '#333333')).setOrigin(0.5, 1);
   }
 
-  _start(debug: boolean): void { this.scene.start('GameScene', { debug }); }
+  private start(debug: boolean): void { this.scene.start('GameScene', { debug }); }
 }
 
 (window as any).TitleScene = TitleScene;

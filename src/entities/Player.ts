@@ -47,7 +47,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
   cursors: Phaser.Types.Input.Keyboard.CursorKeys;
   wasd: WasdKeys;
-  _shiftKey: Phaser.Input.Keyboard.Key;
+  private shiftKey: Phaser.Input.Keyboard.Key;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y, "player-idle");
@@ -104,8 +104,8 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       if (ptr.leftButtonDown()) this.doAttack();
     });
 
-    this._shiftKey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
-    this._shiftKey.on("down", () => {
+    this.shiftKey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
+    this.shiftKey.on("down", () => {
       if (this.active) this.dash.execute();
     });
 
@@ -181,19 +181,6 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     if (this.hp <= 0) {
       this.scene.time.delayedCall(100, () => (this.scene as any).onPlayerDeath?.());
     }
-  }
-
-  _syncAttackZone(): void {
-
-    const b = this.body as Phaser.Physics.Arcade.Body;
-    const bcx = b.x + b.width / 2;
-    const bcy = b.y + b.height / 2;
-
-    const radius = PLAYER_CONFIG.ATTACK_RANGE;
-
-    this.attackDetectionZone.setPosition(bcx, bcy);
-    this.attackDetectionZone.setSize(radius * 2, radius * 2);
-    this.attackDetectionZone.body.setCircle(radius);
   }
 
   update(_time: number, delta: number): void {
