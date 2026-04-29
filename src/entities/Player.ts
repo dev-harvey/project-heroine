@@ -1,47 +1,30 @@
 import * as Phaser from "phaser";
 
-import { CLONE_CONFIG, DIAGONAL_VECTOR, GAME_CONFIG, PLAYER_CONFIG, PLAYER_CONFIG as playerConfig } from "../utils/constants";
+import { CLONE_CONFIG, PLAYER_CONFIG } from "../utils/constants";
 import { getAnchorPosition, getMouseDirFromTarget, getAnchorOctoOffset, syncAttackZone } from "../utils/utils";
 import { Dash } from "../skills/Dash";
 import AnchorIndicator from "./AnchorIndicator";
 import AttackIndicator from "./AttackIndicator";
+import Entity from "./Entity";
 
-export default class Player extends Phaser.Physics.Arcade.Sprite {
-  private _maxHp: number = 0;
-  get maxHp(): number {
-    return this._maxHp;
+export default class Player extends Entity implements IPlayer {
+  declare gameScene: IPlayerGameScene;
+  
+  animKey: string;
+
+  declare movement: IPlayerMovement;
+
+  declare health: IPlayerHealth;
+  setMaxHp(value: number) {
+    this.health.max = Math.min(PLAYER_CONFIG.MAXTOTAL_HP, value);
   }
-  set maxHp(value: number) {
-    this._maxHp = Math.min(PLAYER_CONFIG.MAXTOTAL_HP, value);
+  declare attack: IPlayerAttack;
+  setAttackDamage(value: number): void {
+    this.attack.damage = Math.min(PLAYER_CONFIG.MAXTOTAL_ATTACK_DAMAGE, value);
   }
-
-  hp: number;
-  speed: number;
-
-  private _attackDamage: number = 0;
-  get attackDamage(): number {
-    return this._attackDamage;
-  }
-  set attackDamage(value: number) {
-    this._attackDamage = Math.min(PLAYER_CONFIG.MAXTOTAL_ATTACK_DAMAGE, value);
-  }
-
-  isAttacking: boolean;
-  attackCooldown: number;
-  attackCooldownMax: number;
-  isInvincible: boolean;
-  attackDir: OctoDir;
-  attackRange: number;
-  attackDetectionZone: Phaser.Physics.Arcade.Image;
-  attackIndicator: AttackIndicator;
-  hitEnemies: Set<Phaser.GameObjects.GameObject>;
-
-  anchorPosition: XYPosition;
-  anchorOffset: XYPosition;
-  anchorIndicatorPosition: XYPosition;
-  anchorIndicator: AnchorIndicator;
 
   dash: Dash;
+  anchor: IPlayerAnchor;
 
   killCount: number;
 
@@ -51,44 +34,41 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y, "player-idle");
-    scene.add.existing(this);
-    scene.physics.add.existing(this);
 
-    this.setCollideWorldBounds(true);
-    this.setDepth(playerConfig.DEPTH);
+    this.setDepth(PLAYER_CONFIG.DEPTH);
+    this.setBodySize(PLAYER_CONFIG.BODY_SIZE.x, PLAYER_CONFIG.BODY_SIZE.y, true);
+    this.body.setMass(PLAYER_CONFIG.MASS);
 
-    this.setBodySize(playerConfig.BODY_SIZE.x, playerConfig.BODY_SIZE.y, true);
+    this.animKey = "player";
 
-    this.body.setMass(playerConfig.MASS);
+    this.movement = {
+      speed: PLAYER_CONFIG.SPEED,
+      facingDir: "right",
+    };
 
-    // this.maxHp = playerConfig.MAXHP;
-    this.maxHp = playerConfig.MAXHP;
-    this.hp = this.maxHp;
-    this.speed = playerConfig.SPEED;
+    this.health = {
+      current: PLAYER_CONFIG.MAXHP,
+      max: PLAYER_CONFIG.MAXHP,
+    };
 
-    this.attackDamage = playerConfig.ATTACK_DAMAGE;
-    this.attackCooldown = 0;
-    this.attackCooldownMax = playerConfig.ATTACK_COOLDOWN;
+    this.dash = new Dash(this, this, PLAYER_CONFIG.DASH_DURATION, PLAYER_CONFIG.DASH_DISTANCE, PLAYER_CONFIG.DASH_COOLDOWN);
 
-    this.isAttacking = false;
-    this.attackDir = "right";
+    this.attack = {
+      ...this.attack,
+      damage: PLAYER_CONFIG.ATTACK_DAMAGE,
+      cooldownMax: PLAYER_CONFIG.ATTACK_COOLDOWN,
+      dir: "right",
+      range: PLAYER_CONFIG.ATTACK_RANGE,
+      attackIndicator: new AttackIndicator(scene, this),
+      hitEnemies: new Set(),
+    };
 
-    this.attackRange = PLAYER_CONFIG.ATTACK_RANGE;
-
-    this.attackDetectionZone = scene.physics.add.image(x, y, "");
-    this.attackDetectionZone.body.enable = false;
-
-    this.attackIndicator = new AttackIndicator(scene, this);
-
-    this.anchorPosition = { x: this.x, y: this.y };
-    this.anchorOffset = getAnchorOctoOffset(-90, CLONE_CONFIG.ANCHOR_OFFSET); // -90 means top left
-    this.anchorIndicator = new AnchorIndicator(scene, this);
-    this.anchorIndicatorPosition = { x: this.x, y: this.y };
-
-    this.dash = new Dash(this, this, playerConfig.DASH_DURATION, playerConfig.DASH_DISTANCE, playerConfig.DASH_COOLDOWN);
-
-    this.isInvincible = false;
-    this.hitEnemies = new Set();
+    this.anchor = {
+      position: { x: this.x, y: this.y },
+      offset: getAnchorOctoOffset(-90, CLONE_CONFIG.ANCHOR_OFFSET),
+      indicatorPosition: { x: this.x, y: this.y },
+      indicator: new AnchorIndicator(scene, this),
+    };
 
     this.killCount = 0;
 
@@ -113,40 +93,38 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       if (anim.key.startsWith("player-attack")) {
         if (frame.index === PLAYER_CONFIG.ATTACK_FRAMES.START) {
           syncAttackZone(this);
-          this.attackDetectionZone.body.enable = true;
+          this.attack.detectionZone.body.enable = true;
         }
         if (frame.index === PLAYER_CONFIG.ATTACK_FRAMES.END) {
-          this.attackDetectionZone.body.enable = false;
-          this.hitEnemies.clear();
+          this.attack.detectionZone.body.enable = false;
+          this.attack.hitEnemies.clear();
         }
       }
     });
 
     this.on("animationcomplete", (anim: Phaser.Animations.Animation) => {
       if (anim.key.startsWith("player-attack")) {
-        this.isAttacking = false;
-        this.attackDetectionZone.body.enable = false;
+        this.attack.detectionZone.body.enable = false;
+        this.setEntityState("idle");
       }
     });
-
-    this.play("player-idle");
   }
 
   doAttack(): void {
-    if (this.isAttacking || this.attackCooldown > 0) return;
+    if (this.entityState === "attack" || this.entityState === "stunned" || this.entityState === "dead" || this.attack.cooldown > 0) return;
 
-    this.attackDir = getMouseDirFromTarget(this);
-    this.isAttacking = true;
-    this.attackCooldown = playerConfig.ATTACK_COOLDOWN;
-    this.hitEnemies.clear();
-    this.emit("attack", this.attackDir);
+    this.attack.dir = getMouseDirFromTarget(this);
+    this.setEntityState("attack");
+    this.attack.cooldown = this.attack.cooldownMax;
+    this.attack.hitEnemies.clear();
+    this.emit("attack", this.attack.dir);
     this.setVelocity(0, 0);
 
-    if (["up", "up-right", "up-left"].includes(this.attackDir)) {
+    if (["up", "up-right", "up-left"].includes(this.attack.dir)) {
       this.play("player-attack-up", true);
-    } else if (["down", "down-right", "down-left"].includes(this.attackDir)) {
+    } else if (["down", "down-right", "down-left"].includes(this.attack.dir)) {
       this.play("player-attack-down", true);
-    } else if (["left"].includes(this.attackDir)) {
+    } else if (["left"].includes(this.attack.dir)) {
       this.play("player-attack-left", true);
     } else {
       this.play("player-attack-right", true);
@@ -154,12 +132,11 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   takeDamage(amount: number): void {
-    if (this.isInvincible || this.hp <= 0) return;
+    if (this.health.current <= 0) return;
 
-    this.hp = Math.max(0, this.hp - amount);
-    this.isInvincible = true;
+    this.health.current = Math.max(0, this.health.current - amount);
 
-    (this.scene as any).spawnDamageNumber?.(this.x, this.y - 16, amount, "#ff2222", 26);
+    this.gameScene.spawnDamageNumber?.(this.x, this.y - 16, amount, "#ff2222", 26);
 
     this.setTint(0xff4444);
     this.scene.tweens.addCounter({
@@ -168,85 +145,44 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       duration: 200,
       repeat: 0,
       onUpdate: (tween: Phaser.Tweens.Tween) => {
-        const cycle = Math.floor((tween as any).getValue()) % 2;
+        const cycle = Math.floor(tween.getValue()) % 2;
         this.setTint(cycle === 0 ? 0xff4444 : 0xffffff);
       },
       onComplete: () => {
         this.clearTint();
         this.setAlpha(1);
-        this.isInvincible = false;
       },
     });
 
-    if (this.hp <= 0) {
+    if (this.health.current <= 0) {
       this.scene.time.delayedCall(100, () => (this.scene as any).onPlayerDeath?.());
     }
   }
 
-  update(_time: number, delta: number): void {
-    if (this.hp <= 0) return;
-
-    this.attackCooldown = Math.max(0, this.attackCooldown - delta);
-    this.dash.update(delta);
-
-    syncAttackZone(this);
-
-    if (this.isAttacking) {
-      this.setVelocity(0, 0);
-      return;
-    }
-
-    if (this.dash.isActive) {
-      return;
-    }
-
-    /* Two can be pressed at once which is why this isn't enabled. 
-    TODO: Probably in the long run should rewrite for a getPressedMovementButtons function */
-    // const inputDirection = (this.wasd.left.isDown || this.cursors.left.isDown) ? 'left' : (this.wasd.right.isDown || this.cursors.right.isDown) ? 'right' : (this.wasd.up.isDown || this.cursors.up.isDown) ? 'up' : (this.wasd.down.isDown || this.cursors.down.isDown) ? 'down' : 'idle';
-
+  updateMovement() {
     const left = this.wasd.left.isDown || this.cursors.left.isDown;
     const right = this.wasd.right.isDown || this.cursors.right.isDown;
     const up = this.wasd.up.isDown || this.cursors.up.isDown;
     const down = this.wasd.down.isDown || this.cursors.down.isDown;
-
     const velocity = new Phaser.Math.Vector2(0, 0);
-
     if (left) velocity.x -= 1;
     if (right) velocity.x += 1;
     if (up) velocity.y -= 1;
     if (down) velocity.y += 1;
-
-    velocity.normalize().scale(this.speed);
-
-    /* Can investigate setAcceleration if  I want smoother movement. */
+    velocity.normalize().scale(this.movement.speed);
     this.setVelocity(velocity.x, velocity.y);
+    this.updateFacingDir(velocity.x, velocity.y);
+    this.updateMovementState();
+  }
 
-    let direction = "idle";
-    const body = this.body;
+  update(time: number, delta: number): void {
+    this.dash.update(delta);
 
-    if (body.velocity.length() > 0) {
-      if (Math.abs(body.velocity.x) > Math.abs(body.velocity.y)) {
-        // Horizontal movement is dominant
-        direction = body.velocity.x > 0 ? "right" : "left";
-      } else {
-        // Vertical movement is dominant
-        direction = body.velocity.y > 0 ? "down" : "up";
-      }
-    }
-
-    if ((body.velocity.x !== 0 || body.velocity.y !== 0) && direction !== "idle") {
-      this.play(`player-run-${direction}`, true);
-    } else {
-      this.play("player-idle", true);
-    }
+    super.update(time, delta);
 
     const playerPosition = { x: this.x, y: this.y };
-    // TODO: Shouldn't pass playerPosition twice, it's a get around. This could all maybe move to the anchor file like I do it for attack indicator
-    this.anchorPosition = getAnchorPosition(playerPosition, playerPosition, this.anchorOffset);
-
+    this.anchor.position = getAnchorPosition(playerPosition, playerPosition, this.anchor.offset);
     const ptr = this.scene.input.activePointer;
-    this.anchorIndicatorPosition = getAnchorPosition(playerPosition, { x: ptr.x, y: ptr.y });
-
-    syncAttackZone(this);
+    this.anchor.indicatorPosition = getAnchorPosition(playerPosition, { x: ptr.x, y: ptr.y });
   }
 }

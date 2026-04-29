@@ -1,24 +1,17 @@
 import * as Phaser from "phaser";
+
 import { GAME_CONFIG } from "../utils/constants";
 import { angleToDir } from "../utils/utils";
+import Entity from "./Entity";
 
-interface IGameScene extends Phaser.Scene {
-  onEnemyKilled: (enemy: Enemy) => void;
-}
+// TODO: make enemies path to a point near the player, and they attack when they hit the line and are in attack range since they only attack in four directions it locks them to attacking at the exact angle. Might make attacking look less janky.
 
-abstract class Enemy extends Phaser.Physics.Arcade.Sprite implements IEnemy {
-  private gameScene: IGameScene;
-  animKey: string;
-  dead: boolean;
-  maxHp: number;
-  hp: number;
-  speed: number;
-  attackDamage: number;
-  attackRange: number;
-  attackCooldown: number;
-  protected isAttacking: boolean;
-  attackDir: CardinalDir;
-  facingDir: CardinalDir;
+abstract class Enemy extends Entity implements IEnemy {
+  declare protected gameScene: IEnemyGameScene;
+  declare movement: IEnemyMovement;
+  declare attack: IEnemyAttack;
+  declare health: IEnemyHealth;
+  
   lastAttacker?: "player" | "clone";
 
   constructor(scene: Phaser.Scene, x: number, y: number, textureKey: string) {
@@ -26,58 +19,45 @@ abstract class Enemy extends Phaser.Physics.Arcade.Sprite implements IEnemy {
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
-    this.gameScene = scene as IGameScene;
+    this.gameScene = scene as IEnemyGameScene;
 
     this.setCollideWorldBounds(true);
     this.setDepth(4);
 
-    this.dead = false;
-    this.maxHp = 1;
-    this.hp = 1;
-    this.speed = 100;
-    this.attackDamage = 1;
-    this.attackRange = 50;
-    this.attackCooldown = 0;
-    this.isAttacking = false;
-    this.attackDir = "left";
-    this.facingDir = "left";
+    // TODO: enemy defaults, might not be needed with entity having defaults
+    this.movement = {
+      speed: 100,
+      facingDir: "left"
+    }
+    this.attack = {
+      damage: 1,
+      range: 50,
+      cooldown: 0,
+      cooldownMax: 50,
+      detectionZone: scene.physics.add.image(x, y, ""),
+      dir: "left"
+    }
+    this.attack.detectionZone.body.enable = false;
   }
 
   // ── Shared methods ────────────────────────────────────────────────────
 
-  takeDamage(amount: number): void {
-    if (this.dead) return;
-    this.hp -= amount;
-
-    this.play(`${this.animKey}-hurt-${this.facingDir}`);
-    this.on("animationcomplete", (anim: Phaser.Animations.Animation) => {
-      if (anim.key.startsWith(`${this.animKey}-hurt`)) {
-        
-      }
-    });
-
-    this.scene.time.delayedCall(120, () => {
-      if (this.active) this.clearTint();
-    });
-    if (this.hp <= 0) this.die();
-  }
 
   die(): void {
-    if (this.dead) return;
-    this.dead = true;
+    if (this.entityState === "dead") return;
+    this.setEntityState("dead");
     // TODO: Add death animation
     this.gameScene.onEnemyKilled(this);
     this.destroy();
   }
 
   // Returns the closer of player/clone (clone must be alive to be considered)
-  protected selectTarget(player: ITarget, clone?: ITarget | null): ITarget {
-    if (!clone?.active || clone.dead) return player;
+  protected selectTarget(player: IPlayer, clone?: IClone | null): IAlly {
+    if (!clone?.active || clone.entityState === "dead") return player;
     const dp = Phaser.Math.Distance.Between(this.x, this.y, player.x, player.y);
     const dc = Phaser.Math.Distance.Between(this.x, this.y, clone.x, clone.y);
 
     const target = dc < dp ? clone : player;
-    this.updateFacingDir(target);
     return target;
   }
 
@@ -88,21 +68,9 @@ abstract class Enemy extends Phaser.Physics.Arcade.Sprite implements IEnemy {
     this.y = Phaser.Math.Clamp(this.y, GAME_WALL_Y, GAME_HEIGHT - GAME_WALL_Y);
   }
 
-  protected updateFacingDir(target: ITarget): void {
-    const angle = Phaser.Math.Angle.Between(this.x, this.y, target.x, target.y);
-    this.facingDir = angleToDir(angle);
+  update(time: number, delta: number, player?: IPlayer, clone?: IClone | null): void {
+    super.update(time, delta);
   }
-
-  update(time: number, delta: number, player: ITarget, clone?: ITarget | null): void {
-    if (this.dead) return;
-    if (this.isAttacking) return;
-
-    if (this.body.velocity.x !== 0 || this.body.velocity.y !== 0) {
-      this.play(`${this.animKey}-run-${this.facingDir}`, true);
-    } else {
-      this.play(`${this.animKey}-idle`, true);
-    }
-  };
 }
 
 export default Enemy;

@@ -46,5 +46,3 @@ export default class TitleScene extends Phaser.Scene {
 
   private start(debug: boolean): void { this.scene.start('GameScene', { debug }); }
 }
-
-(window as any).TitleScene = TitleScene;

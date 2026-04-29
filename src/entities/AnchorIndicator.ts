@@ -25,7 +25,7 @@ export default class AnchorIndicator extends Phaser.Physics.Arcade.Sprite {
   }
 
   update() {
-    const target = this.targetPlayer.anchorIndicatorPosition;
+    const target = this.targetPlayer.anchor.indicatorPosition;
     this.x = Phaser.Math.Linear(this.x, target.x, 0.3);
     this.y = Phaser.Math.Linear(this.y, target.y, 0.3);
   }

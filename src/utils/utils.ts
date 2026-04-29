@@ -100,16 +100,16 @@ export function colorToHex(color: number): string {
   return `#${color.toString(16).padStart(6, "0")}`;
 }
 
-export function syncAttackZone(target: Player | Clone): void {
-  if (!target.attackDetectionZone) return;
+export function syncAttackZone(target: IAlly): void {
+  if (!target.attack.detectionZone) return;
 
   const b = target.body as Phaser.Physics.Arcade.Body;
   const bcx = b.x + b.width / 2;
   const bcy = b.y + b.height / 2;
 
-  const radius = target.attackRange;
+  const radius = target.attack.range;
 
-  target.attackDetectionZone.setPosition(bcx, bcy);
-  target.attackDetectionZone.setSize(radius * 2, radius * 2);
-  target.attackDetectionZone.body.setCircle(radius);
+  target.attack.detectionZone.setPosition(bcx, bcy);
+  target.attack.detectionZone.setSize(radius * 2, radius * 2);
+  target.attack.detectionZone.body.setCircle(radius);
 }

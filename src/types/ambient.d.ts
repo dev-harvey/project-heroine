@@ -31,11 +31,6 @@ interface WasdKeys {
 
 // ─── Entity constructor options ────────────────────────────────────────────
 
-/** Options passed to the Clone constructor. */
-interface CloneOptions {
-  bonusHp?: number;
-}
-
 // ─── Scene data payloads ───────────────────────────────────────────────────
 
 /** Data object passed to `GameScene.create()`. */
@@ -79,51 +74,4 @@ interface SessionStore {
   totalKills: number;
 }
 
-// ─── Entity contracts ──────────────────────────────────────────────────────
-
-/**
- * Anything that can be targeted by an enemy: the player or the clone.
- * Structurally compatible with both Player and Clone without importing either.
- */
-interface ITarget {
-  x: number;
-  y: number;
-  hp: number;
-  active: boolean;
-  /** True while the object is in its death sequence (clone-specific). */
-  dead?: boolean;
-  body: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    top: number;
-    bottom: number;
-    left: number;
-    right: number;
-    enable: boolean;
-    halfWidth: number;
-    halfHeight: number;
-    offset: { x: number; y: number };
-    setSize(w: number, h: number): void;
-    setMass?(mass: number): void;
-    setImmovable?(flag: boolean): void;
-    setVelocity?(x: number, y: number): unknown;
-    setCircle?(radius: number): unknown;
-    setCollideWorldBounds?(flag: boolean): unknown;
-  };
-  takeDamage(amount: number): void;
-}
-
-/**
- * Common interface implemented by all enemy classes.
- * Extends ITarget so enemies can also be passed as targets (e.g. for burst damage).
- */
 // TODO: Review this
-interface IEnemy extends ITarget {
-  maxHp: number;
-  attackDir: CardinalDir;
-  lastAttacker?: string;
-  update(time: number, delta: number, player: ITarget, clone?: ITarget | null): void;
-  die?(): void;
-}

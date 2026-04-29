@@ -101,5 +101,3 @@ export default class GameOverScene extends Phaser.Scene {
 
   private respawn(): void { this.scene.start('TitleScene'); }
 }
-
-(window as any).GameOverScene = GameOverScene;

@@ -67,15 +67,15 @@ export default class GameUI {
 
     this.localCache = {
       player: {
-        attack: player?.attackDamage || 0,
-        hearts: player?.hp || 0,
+        attack: player?.attack.damage || 0,
+        hearts: player?.health.current || 0,
         kills: 0,
       },
     };
 
     this.onCloneSummoned = (clone: Clone) => {
       this.clone = clone;
-      this.localCache.clone = { attack: clone.attackDamage, hearts: clone.hp, kills: 0 };
+      this.localCache.clone = { attack: clone.attack.damage, hearts: clone.health.current, kills: 0 };
       this.buildAttack(clone);
       this.buildHearts(clone);
       this.buildKills(clone);
@@ -193,7 +193,7 @@ export default class GameUI {
     }
     container.removeAll(true);
     const icon = this.scene.add.image(0, 0, GAME_ASSETS.ATTACK_ICON).setDisplaySize(32, 32).setOrigin(0);
-    const text = this.addUIText(icon.displayWidth + 10, 0, target.attackDamage.toString(), getTextStyle("heading", 32))
+    const text = this.addUIText(icon.displayWidth + 10, 0, target.attack.damage.toString(), getTextStyle("heading", 32))
       .setColor(colorToHex(GAME_COLORS.COBALT))
       .setFontStyle("bold")
       .setOrigin(0, 0.04)
@@ -217,9 +217,9 @@ export default class GameUI {
       return;
     }
     container.removeAll(true);
-    for (let i = 0; i < target.maxHp; i++) {
+    for (let i = 0; i < target.health.max; i++) {
       const heart =
-        i < target.hp
+        i < target.health.current
           ? this.scene.add
               .image(i * 36, 0, GAME_ASSETS.HEART)
               .setDisplaySize(32, 32)
@@ -292,13 +292,13 @@ export default class GameUI {
       return;
     }
 
-    if (cache.attack != target.attackDamage) {
+    if (cache.attack != target.attack.damage) {
       this.buildAttack(target);
-      cache.attack = target.attackDamage;
+      cache.attack = target.attack.damage;
     }
-    if (cache.hearts != target.hp) {
+    if (cache.hearts != target.health.current) {
       this.buildHearts(target);
-      cache.hearts = target.hp;
+      cache.hearts = target.health.current;
     }
   }
 
@@ -327,7 +327,7 @@ export default class GameUI {
 
   public updateHudAttack(target: Player | Clone): void {
     const key = target === this.player ? "player" : "clone";
-    this.attackTexts[key]?.setText(target.attackDamage.toString());
+    this.attackTexts[key]?.setText(target.attack.damage.toString());
   }
 
   public updateAbilityCooldown(ability: "dash" | string, percent: number): void {

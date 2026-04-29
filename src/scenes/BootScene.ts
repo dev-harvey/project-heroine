@@ -123,17 +123,14 @@ export default class BootScene extends Phaser.Scene {
     this.anims.create({ key: "enemy-death-anim", frames: this.anims.generateFrameNumbers("enemy-death", { start: 0, end: 7 }), frameRate: 14, repeat: 0 });
 
 
-
-
-
-
+    /* Orc 01 - OrcBasic */
 
     this.anims.create({ key: "orc-01-idle", frames: this.anims.generateFrameNumbers("orc-01-idle", { start: 0, end: 3 }), frameRate: 12, repeat: -1 });
     
-    this.anims.create({ key: "orc-01-walk-down", frames: this.anims.generateFrameNumbers("orc-01-walk", { start: 0, end: 7 }), frameRate: 16, repeat: 0 });
-    this.anims.create({ key: "orc-01-walk-left", frames: this.anims.generateFrameNumbers("orc-01-walk", { start: 8, end: 15 }), frameRate: 16, repeat: 0 });
-    this.anims.create({ key: "orc-01-walk-right", frames: this.anims.generateFrameNumbers("orc-01-walk", { start: 16, end: 23 }), frameRate: 16, repeat: 0 });
-    this.anims.create({ key: "orc-01-walk-up", frames: this.anims.generateFrameNumbers("orc-01-walk", { start: 24, end: 31 }), frameRate: 16, repeat: 0 });
+    this.anims.create({ key: "orc-01-walk-down", frames: this.anims.generateFrameNumbers("orc-01-walk", { start: 0, end: 5 }), frameRate: 16, repeat: 0 });
+    this.anims.create({ key: "orc-01-walk-left", frames: this.anims.generateFrameNumbers("orc-01-walk", { start: 6, end: 11 }), frameRate: 16, repeat: 0 });
+    this.anims.create({ key: "orc-01-walk-right", frames: this.anims.generateFrameNumbers("orc-01-walk", { start: 12, end: 17 }), frameRate: 16, repeat: 0 });
+    this.anims.create({ key: "orc-01-walk-up", frames: this.anims.generateFrameNumbers("orc-01-walk", { start: 18, end: 23 }), frameRate: 16, repeat: 0 });
 
     this.anims.create({ key: "orc-01-run-down", frames: this.anims.generateFrameNumbers("orc-01-run", { start: 0, end: 7 }), frameRate: 16, repeat: 0 });
     this.anims.create({ key: "orc-01-run-left", frames: this.anims.generateFrameNumbers("orc-01-run", { start: 8, end: 15 }), frameRate: 16, repeat: 0 });
@@ -169,6 +166,3 @@ export default class BootScene extends Phaser.Scene {
     
   }
 }
-
-// expose for legacy runtime
-window.BootScene = BootScene;
