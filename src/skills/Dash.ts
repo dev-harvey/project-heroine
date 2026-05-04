@@ -1,46 +1,29 @@
-import Clone from "../entities/Clone";
+import { Skill } from "./Skill";
 import { getMouseDirFromTarget } from "../utils/utils";
 
-export class Dash {
-  private player: Phaser.Physics.Arcade.Sprite;
-  private target: Phaser.Physics.Arcade.Sprite;
-  private isReady: boolean = true;
+export class Dash extends Skill implements IDash {
+  protected player: IPlayer;
+  protected target: IEntity;
 
   private duration: number;
   private distance: number;
-  private _cooldown: number;
-  private _cooldownTimer: number;
+  private dir: OctoDir;
 
-  public get isActive() : boolean {
-    return !this.isReady;
-  }
-
-  public get cooldown() : number {
-    return this._cooldown;
-  }
-
-  public get cooldownTimer() : number {
-    return this._cooldownTimer;
-  }
-
-  constructor(player: Phaser.Physics.Arcade.Sprite, target: Phaser.Physics.Arcade.Sprite, duration: number, distance: number, cooldown: number) {
-    this.player = player
+  constructor(target: IEntity, duration: number, distance: number, cooldown: number) {
+    super(cooldown);
     this.target = target;
     this.duration = duration;
     this.distance = distance;
-    this._cooldown = cooldown;
-    this._cooldownTimer = 0;
   }
 
-  public execute() {
-    if (!this.isReady || this.cooldownTimer) return;
-    this.isReady = false;
-    const mouseDir = (this.target === this.player) ? getMouseDirFromTarget(this.target) : getMouseDirFromTarget(this.player);
+  public execute(dir?: OctoDir): void {
+    if (this.cooldownTimer) return;
+    const dashDir = this.dir ?? getMouseDirFromTarget(this.target, "octo");
     const moveDir = {
       x: 0,
       y: 0,
     };
-    switch (mouseDir) {
+    switch (dashDir) {
       case "up":
         moveDir.x = 0;
         moveDir.y = -1;
@@ -86,14 +69,14 @@ export class Dash {
     const dashSpeed = this.distance / (this.duration / 1000);
     const vx = (moveDir.x / vectorLength) * dashSpeed;
     const vy = (moveDir.y / vectorLength) * dashSpeed;
-    this.target.setVelocity(vx, vy);
+    this.target.body.setVelocity(vx, vy);
 
-    this.target.emit("dash", vx, vy);
+    this.target.emit("dash", vx, vy, dashDir);
 
     this._cooldownTimer = this._cooldown;
 
     // Flicker the player character to indicate invincibility/dash
-    this.target.scene.tweens.add({
+    this.target.gameScene.tweens.add({
       targets: this.target,
       alpha: { from: 0, to: 1 },
       duration: this.duration,
@@ -101,7 +84,8 @@ export class Dash {
       ease: "easeOutQuad",
       onComplete: () => {
         this.target.setAlpha(1);
-        this.isReady = true;
+        this.target.setEntityState("idle");
+        this.dir = undefined;
       },
     });
   }

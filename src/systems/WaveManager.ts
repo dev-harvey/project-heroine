@@ -42,12 +42,12 @@ export default class WaveManager {
     this.scene.spawnWave?.(toadCount, houndCount, crowCount, demonCount);
   }
 
-  onEnemyKilled(): void {
-    this.enemiesRemaining = Math.max(0, this.enemiesRemaining - 1);
+  // onEnemyKilled(): void {
+  //   this.enemiesRemaining = Math.max(0, this.enemiesRemaining - 1);
 
-    if (this.enemiesRemaining === 0 && !this.betweenWaves) {
-      this.betweenWaves = true;
-      this.scene.time.delayedCall(2800, () => this.launchWave());
-    }
-  }
+  //   if (this.enemiesRemaining === 0 && !this.betweenWaves) {
+  //     this.betweenWaves = true;
+  //     this.scene.time.delayedCall(2800, () => this.launchWave());
+  //   }
+  // }
 }

@@ -138,7 +138,7 @@ export default class GameUI {
     this.buildKills(this.player);
   }
 
-  private buildKills(target: Player | Clone): void {
+  private buildKills(target: IEntity): void {
     let container: Phaser.GameObjects.Container;
     let key: string;
     const label = target === this.player ? "KILLS" : "CLONE KILLS";
@@ -178,7 +178,7 @@ export default class GameUI {
     this.buildAttack(this.player);
   }
 
-  private buildAttack(target: Player | Clone): void {
+  private buildAttack(target: IEntity): void {
     let container: Phaser.GameObjects.Container;
     let key: string;
     if (target === this.player) {
@@ -203,7 +203,7 @@ export default class GameUI {
     container.add(text);
   }
 
-  private buildHearts(target: Player | Clone): void {
+  private buildHearts(target: IEntity): void {
     let container;
     let targetType;
     if (target === this.player) {
@@ -275,7 +275,7 @@ export default class GameUI {
 
   /* Public Methods */
 
-  public updateHudAttrs(target?: Player | Clone): void {
+  public updateHudAttrs(target?: IEntity): void {
     if (target === undefined) {
       this.updateHudAttrs(this.player);
       if (this.clone?.active) this.updateHudAttrs(this.clone);
@@ -302,7 +302,7 @@ export default class GameUI {
     }
   }
 
-  public updateHudStats(target?: Player | Clone): void {
+  public updateHudStats(target?: IEntity): void {
     if (target === undefined) {
       this.updateHudKills(this.player);
       if (this.clone?.active) this.updateHudKills(this.clone);
@@ -315,9 +315,9 @@ export default class GameUI {
     this.hudPhase.text.setText(text);
   }
 
-  public updateHudKills(target: Player | Clone): void {
-    const key = target === this.player ? "player" : "clone";
-    const label = target === this.player ? "KILLS" : "CLONE KILLS";
+  public updateHudKills(target: IEntity): void {
+    const key = target.entityType;
+    const label = key === "player" ? "KILLS" : "CLONE KILLS";
 
     if (this.localCache[key].kills !== target.killCount) {
       this.killsTexts[key]?.setText(`${label}: ${target.killCount}`);
@@ -325,8 +325,8 @@ export default class GameUI {
     }
   }
 
-  public updateHudAttack(target: Player | Clone): void {
-    const key = target === this.player ? "player" : "clone";
+  public updateHudAttack(target: IEntity): void {
+    const key = target.entityType;
     this.attackTexts[key]?.setText(target.attack.damage.toString());
   }
 

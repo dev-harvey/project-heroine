@@ -3,10 +3,10 @@ import Player from "../entities/Player";
 import Clone from "../entities/Clone";
 import WaveManager from "../systems/WaveManager";
 
-import { CLONE_CONFIG, DIAGONAL_VECTOR, GAME_ASSETS, GAME_COLORS, GAME_CONFIG, PLAYER_CONFIG, UI_CONFIG } from "../utils/constants";
-import { checkIfBBehindA, getAnchorOctoOffset, getMouseDirFromTarget } from "../utils/utils";
+import { CLONE_CONFIG, GAME_ASSETS, GAME_COLORS, GAME_CONFIG, PLAYER_CONFIG, UI_CONFIG } from "../utils/constants";
+import { checkIfBBehindA, colorToHex, getAnchorOctoOffset } from "../utils/utils";
 import GameUI from "../systems/GameUI";
-import Enemy from "../entities/Enemy";
+import Entity from "../entities/Entity";
 
 export default class GameScene extends Phaser.Scene {
   // Core objects
@@ -24,18 +24,7 @@ export default class GameScene extends Phaser.Scene {
   cloneEnemyCollider: Phaser.Physics.Arcade.Collider | null = null;
   enemyEnemyCollider: Phaser.Physics.Arcade.Collider | null = null;
   playerAttackOverlap: Phaser.Physics.Arcade.Collider | null = null;
-
-  // UI
-  announceText!: Phaser.GameObjects.Text;
-  hintsText!: Phaser.GameObjects.Text;
-  dashCardBg!: Phaser.GameObjects.Rectangle;
-  dashBarFill!: Phaser.GameObjects.Rectangle;
-  dashLabel!: Phaser.GameObjects.Text;
-  dashIcon!: Phaser.GameObjects.Sprite;
-
-  // Arrows & preview graphics
-  playerAttackIndicator!: Phaser.GameObjects.Graphics;
-  cloneAttackIndicator!: Phaser.GameObjects.Graphics;
+  cloneAttackOverlap: Phaser.Physics.Arcade.Collider | null = null;
 
   // Stats
   // private killCount: number = 0;
@@ -52,7 +41,7 @@ export default class GameScene extends Phaser.Scene {
     super({ key: "GameScene" });
   }
 
-  // ─── Lifecycle ─────────────────────────────────────────────────────────────
+  // ─── Lifecycle ──────────────────────────────────────────────────────
 
   create(data: GameSceneData = {}): void {
     this.debugMode = !!data.debug;
@@ -63,7 +52,6 @@ export default class GameScene extends Phaser.Scene {
     this.buildPlayer();
     this.buildGroups();
     this.buildPhysics();
-    this.buildIndicators();
 
     this.ui = new GameUI(this, this.player);
 
@@ -73,6 +61,8 @@ export default class GameScene extends Phaser.Scene {
 
     if (this.debugMode) this.buildDebugPanel();
     else this.buildWaveManager();
+
+    this.events.on("death", this.onEntityDeath, this);
 
     this.buildCloneControls();
   }
@@ -85,12 +75,12 @@ export default class GameScene extends Phaser.Scene {
 
     this.player.update(time, delta);
 
-    this.ui.updateAbilityCooldown("dash", 1 - this.player.dash.cooldownTimer / this.player.dash.cooldown);
+    this.ui.updateAbilityCooldown("dash", 1 - this.player.skills?.dash.cooldownTimer / this.player.skills?.dash.cooldown);
 
     this.player.anchor.indicator.update();
     this.player.attack.attackIndicator.update();
 
-    if (this.clone?.active) {
+    if (this.clone?.active && this.clone?.entityState !== "dead") {
       this.clone.update(time, delta);
       this.ui.updateHudAttrs(this.clone);
       this.clone.attack.attackIndicator.update();
@@ -103,7 +93,7 @@ export default class GameScene extends Phaser.Scene {
     this.ui.updateHudAttrs();
   }
 
-  // ─── Setup ─────────────────────────────────────────────────────────────────
+  // ─── Setup ──────────────────────────────────────────────────────
 
   private buildWorld(): void {
     const gameWidth = GAME_CONFIG.GAME_WIDTH,
@@ -136,12 +126,16 @@ export default class GameScene extends Phaser.Scene {
 
   private buildPlayer(): void {
     const { GAME_HEIGHT, GAME_WALL_X } = GAME_CONFIG;
-    this.player = new Player(this, GAME_WALL_X + 50, GAME_HEIGHT / 2);
+    this.player = new Player(this, GAME_WALL_X + 50, GAME_HEIGHT / 2, "player");
     this.player.on("attack", () => {
-      if (this.clone?.active) this.clone.doAttack();
+      if (this.clone?.active) this.clone.tryAttack();
     });
-    this.player.on("dash", (vx: number, vy: number) => {
-      if (this.clone?.active) this.clone.dash.execute();
+
+    this.player.on("dash", (vx: number, vy: number, dir: OctoDir) => {
+      if (this.clone?.active) {
+        this.clone.tryDash(dir);
+      }
+
       if (this.playerEnemyCollider) this.playerEnemyCollider.active = false;
       if (this.cloneEnemyCollider) this.cloneEnemyCollider.active = false;
       this.time.delayedCall(PLAYER_CONFIG.DASH_DURATION, () => {
@@ -149,16 +143,6 @@ export default class GameScene extends Phaser.Scene {
         if (this.cloneEnemyCollider) this.cloneEnemyCollider.active = true;
       });
     });
-
-    // const prog = window.Progression;
-    // this.player.health.max += prog.bonusMaxHp || 0;
-    // this.player.health.current = this.player.health.max;
-    // this.player.attack.damage += prog.bonusDamage || 0;
-
-    // const dashBonus = prog.dashCooldownBonus || 0;
-    // if (dashBonus > 0) {
-    //   this.player.dashCooldownMax = Math.max(300, this.player.dashCooldownMax - dashBonus);
-    // }
   }
 
   private buildGroups(): void {
@@ -171,17 +155,12 @@ export default class GameScene extends Phaser.Scene {
     this.playerAttackOverlap = this.physics.add.overlap(this.player.attack.detectionZone, this.enemies, (_zone, enemy) => this.onAttackHit(this.player, enemy));
   }
 
-  private buildIndicators(): void {
-    this.playerAttackIndicator = this.add.graphics().setDepth(8);
-    this.cloneAttackIndicator = this.add.graphics().setDepth(7);
-  }
-
   private buildWaveManager(): void {
     this.waveManager = new WaveManager(this);
     this.waveManager.start();
   }
 
-  // ─── Debug panel ─────────────────────────────────────────────────────
+  // ─── Debug panel ──────────────────────────────────────────────────────
 
   private buildDebugPanel(): void {
     const textStyle = (size: number, color: string) => ({ fontSize: `${size}px`, fill: color, fontFamily: UI_CONFIG.BODY_FONT });
@@ -189,12 +168,12 @@ export default class GameScene extends Phaser.Scene {
     const { GAME_WIDTH, GAME_HEIGHT, GAME_WALL_X, GAME_WALL_Y } = GAME_CONFIG;
 
     // ── Layout constants ──────────────────────────────────────────────────────
-    const panelWidth = 160;
+    const panelWidth = 200;
     const panelLeft = GAME_WIDTH - GAME_WALL_X - panelWidth;
     const panelCenterX = panelLeft + panelWidth / 2;
     const buttonHeight = 34;
     const buttonGap = 4;
-    const spawnSectionStartY = 38;
+    const spawnSectionStartY = GAME_WALL_Y + 38;
 
     // ── Colors ────────────────────────────────────────────────────────────────
     const COLOR_PANEL_BG = 0x0a0016;
@@ -243,7 +222,7 @@ export default class GameScene extends Phaser.Scene {
     };
 
     // ── Panel background ──────────────────────────────────────────────────────
-    registerPanelItem(this.add.rectangle(panelCenterX, 270, panelWidth, 520, COLOR_PANEL_BG, 0.85).setDepth(30).setOrigin(0.5, 0.5));
+    registerPanelItem(this.add.rectangle(panelCenterX, spawnSectionStartY, panelWidth, 520, COLOR_PANEL_BG, 0.85).setDepth(30).setOrigin(0.5, 0));
 
     // ── Spawn section header (collapses/expands the spawn buttons) ────────────
     let spawnSectionOpen = false;
@@ -265,12 +244,7 @@ export default class GameScene extends Phaser.Scene {
     spawnSectionHeader.on("pointerout", () => spawnSectionHeader.setFillStyle(COLOR_BUTTON_DEFAULT));
 
     // ── Spawn buttons (one per enemy type) ───────────────────────────────────
-    const spawnEntries = [
-      { label: "Mutant Toad", color: "#88ff88", fn: () => this.spawnWave(1, 0, 0, 0) },
-      { label: "Hell Hound", color: "#ff8844", fn: () => this.spawnWave(0, 1, 0, 0) },
-      { label: "Plague Crow", color: "#88ccff", fn: () => this.spawnWave(0, 0, 1, 0) },
-      { label: "Void Demon", color: "#ff88ff", fn: () => this.spawnWave(0, 0, 0, 1) },
-    ];
+    const spawnEntries = [{ label: "Orc Basic", color: colorToHex(GAME_COLORS.FERN), fn: () => this.spawnWave(1, 0, 0, 0) }];
 
     const spawnButtons = spawnEntries.map((entry, i) => {
       const buttonY = spawnSectionStartY + buttonHeight + buttonGap + i * (buttonHeight + buttonGap);
@@ -297,15 +271,15 @@ export default class GameScene extends Phaser.Scene {
 
     // ── Utility buttons (damage / clear) ─────────────────────────────────────
     const utilEntries = [
-      { label: "Dmg Player", color: "#ff4444", fn: () => this.player.takeDamage(1) },
+      { label: "Dmg Player", color: colorToHex(GAME_COLORS.CRIMSON), fn: () => this.player.tryHurt(1) },
       {
         label: "Dmg Clone",
-        color: "#cc44ff",
+        color: colorToHex(GAME_COLORS.AMBER),
         fn: () => {
-          if (this.clone?.active && this.clone.entityState !== "dead") this.clone.takeDamage(1);
+          if (this.clone?.active && this.clone.entityState !== "dead") this.clone.tryHurt(1);
         },
       },
-      { label: "Clear All", color: "#ff4455", fn: () => this.debugClearEnemies() },
+      { label: "Clear All", color: colorToHex(GAME_COLORS.CRIMSON), fn: () => this.debugClearEnemies() },
     ];
 
     // Positions are set dynamically by repositionUtilAndStatRows(), so start at 0,0
@@ -331,32 +305,37 @@ export default class GameScene extends Phaser.Scene {
     });
 
     // ── Stat rows (HP / ATK tweakers with − and + buttons) ───────────────────
-    const statRowHeight = 26;
+    const statRowHeight = 30;
     const statDefs = [
       {
-        label: () => `Plr HP  ${this.player.health.current}/${this.player.health.max}`,
+        label: () => `PLA HP: ${this.player.health.max}`,
         minus: () => {
+          const newMax = this.player.health.max - 1;
+          this.player.setMaxHp(newMax);
           this.player.health.current = Math.max(1, this.player.health.current - 1);
         },
         plus: () => {
-          this.player.health.max++;
-          this.player.health.current = Math.min(this.player.health.current + 1, this.player.health.max);
+          const newMax = this.player.health.max + 1;
+          this.player.setMaxHp(newMax);
+          this.player.health.current = Math.min(this.player.health.current + 1, newMax);
         },
       },
       {
-        label: () => `Plr ATK  ${this.player.attack.damage}`,
+        label: () => `PLA ATK: ${this.player.attack.damage}`,
         minus: () => {
-          this.player.attack.damage = Math.max(1, this.player.attack.damage - 1);
+          const newDamage = this.player.attack.damage - 1;
+          this.player.setAttackDamage(newDamage);
         },
         plus: () => {
-          this.player.attack.damage++;
+          const newDamage = this.player.attack.damage + 1;
+          this.player.setAttackDamage(newDamage);
         },
       },
     ];
 
     const statRows = statDefs.map((def) => {
       const bg = registerPanelItem(this.add.rectangle(0, 0, panelWidth - 12, statRowHeight, 0x0a0616).setDepth(30));
-      const lbl = registerPanelItem(this.add.text(0, 0, def.label(), textStyle(10, "#ccaaff")).setOrigin(0.5, 0.5).setDepth(32));
+      const lbl = registerPanelItem(this.add.text(0, 0, def.label(), textStyle(13, "#ccaaff")).setOrigin(0.5, 0.5).setDepth(32));
       const minusBg = registerPanelItem(this.add.rectangle(0, 0, 22, 20, COLOR_BUTTON_DEFAULT).setDepth(31).setInteractive({ useHandCursor: false }));
       const minusLbl = registerPanelItem(this.add.text(0, 0, "−", textStyle(13, "#ff6666")).setOrigin(0.5, 0.5).setDepth(32));
       const plusBg = registerPanelItem(this.add.rectangle(0, 0, 22, 20, COLOR_BUTTON_DEFAULT).setDepth(31).setInteractive({ useHandCursor: false }));
@@ -447,16 +426,19 @@ export default class GameScene extends Phaser.Scene {
   private buildCloneControls(): void {
     this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE).on("down", () => {
       if (!this.player.active) return;
-      if (this.clone?.active) this.dismissClone();
-      else this.summonClone();
+      if (this.clone?.active) {
+        this.dismissClone();
+      } else {
+        this.summonClone();
+      }
     });
 
     this.input.mouse.disableContextMenu();
     this.input.on("pointerdown", (ptr: any) => {
-      if (ptr.rightButtonDown() && this.clone?.active && this.player.active) {
+      if (ptr.rightButtonDown() && this.clone?.active && this.player.active && this.clone?.entityState !== "dead") {
         const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, this.input.activePointer.worldX, this.input.activePointer.worldY);
         this.player.anchor.offset = getAnchorOctoOffset(angle, CLONE_CONFIG.ANCHOR_OFFSET);
-        this.clone.startReposition();
+        this.clone.setEntityState("reposition");
       }
     });
   }
@@ -509,35 +491,25 @@ export default class GameScene extends Phaser.Scene {
   // ─── Clone management ──────────────────────────────────────────────────────
 
   private summonClone(): void {
-    if (this.clone?.active) return;
-
-    const prog = window.Progression;
-    this.clone = new Clone(this, this.player.x, this.player.y, this.player);
+    if (this.clone !== null) return;
+    
+    this.clone = new Clone(this, this.player.x, this.player.y, "player", this.player);
 
     const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, this.input.activePointer.worldX, this.input.activePointer.worldY);
     this.player.anchor.offset = getAnchorOctoOffset(angle, CLONE_CONFIG.ANCHOR_OFFSET);
 
     this.cloneEnemyCollider = this.physics.add.collider(this.clone, this.enemies);
-
-    // this.clone.dash.execute();
-    this.clone.startReposition();
-
-    this.physics.add.overlap(this.clone.attack.detectionZone, this.enemies, (_zone, enemy) => this.onAttackHit(this.clone, enemy));
+    this.cloneAttackOverlap = this.physics.add.overlap(this.clone.attack.detectionZone, this.enemies, (_zone, enemy) => this.onAttackHit(this.clone, enemy));
 
     this.events.emit("clone_summoned", this.clone);
     this.ui.updateHudAttrs(this.clone);
   }
 
   private dismissClone(): void {
-    if (!this.clone?.active) return;
-    const kills = this.clone.killCount;
-    this.clone.dismiss();
-    this.onCloneDeath(kills, "dismissed");
-
-    this.events.emit("clone_dismissed");
+    this.clone.setEntityState("dead");
   }
 
-  // ─── Public API ────────────────────────────────────────────────────────────
+  // ─── Public API ──────────────────────────────────────────────────────
 
   spawnWave(toadCount: number, houndCount: number, crowCount = 0, demonCount = 0): void {
     const { GAME_WIDTH, GAME_HEIGHT, GAME_WALL_X, GAME_WALL_Y } = GAME_CONFIG;
@@ -551,138 +523,34 @@ export default class GameScene extends Phaser.Scene {
     // }
   }
 
-  onEnemyKilled(enemy: Enemy): void {
-    if (enemy.lastAttacker === "clone" && this.clone?.active) {
-      this.clone.onKill();
-      this.ui.updateHudAttrs(this.clone);
-      this.ui.updateHudKills(this.clone);
-    } else if (enemy.lastAttacker === "player") {
-      this.player.killCount++;
-      this.ui.updateHudKills(this.player);
-    }
-    this.waveManager?.onEnemyKilled();
-  }
-
-  private cloneKillTier(kills: number): number {
-    if (kills <= 0) return 0;
-    if (kills < 3) return 1;
-    return 1 + Math.floor(kills / 3);
-  }
-
-  onCloneDeath(kills: number, dismissed = "dismissed"): void {
-    // this._totalCloneKills += kills;
-
-    const burstDmg = this.clone ? this.clone.attack.damage : kills + 1;
-    const tier = this.cloneKillTier(kills);
-    const prog = window.Progression;
-
-    let actualHeals = 0;
-    if (tier > 0) {
-      prog.bonusMaxHp += tier;
-      this.player.health.max += tier;
-      this.totalPermHp += tier;
-      const heal = Math.min(tier, this.player.health.max - this.player.health.current);
-      this.player.health.current += heal;
-      actualHeals = heal;
-      if (heal > 0) this.spawnHealNumber(this.player.x, this.player.y - 20, heal);
-    }
-
-    if (tier > 0) {
-      prog.bonusDamage += tier;
-      this.player.attack.damage += tier;
-      this.totalPermAtk += tier;
-    }
-
-    this.totalHealGiven += actualHeals;
-
-    const verb = dismissed ? "dismissed" : "fell";
-    let msg: string;
-    if (kills === 0) {
-      msg = `Clone ${verb} — no kills`;
+  onEntityKilled(entity: IEntity): void {
+    if (entity?.lastAttacker) {
+      entity?.lastAttacker.registerKill();
+      this.ui.updateHudAttrs(entity);
+      this.ui.updateHudKills(entity);
     } else {
-      const parts: string[] = [];
-      if (tier > 0) parts.push(`+${tier} max HP`, `+${tier} ATK`);
-      const bonus = parts.length > 0 ? `  ${parts.join("  ")}` : `  (need ${3 - kills} more for tier 2)`;
-      msg = `Clone ${verb} — ${kills} kills${bonus}`;
+      // TODO: Handle
     }
-    // this.showAnnouncement(msg, "#cc88ff");
+    // this.waveManager?.onEnemyKilled();
+  }
 
-    if (kills >= 5 && this.clone) {
-      this.cloneBurst(this.clone.x, this.clone.y, burstDmg);
+  onEntityDeath(entity: Entity): void {
+    switch (entity.entityType) {
+      case "player": 
+        this.onPlayerDeath();
+        break;
+      case "clone":
+        this.onCloneDeath();
+        break;
+      default:
+        // TODO: handle
+        break;
     }
-
-    this.clone = null;
-    this.cloneEnemyCollider = null;
-    this.events.emit("clone_dismissed");
-  }
-
-  private cloneBurst(cx: number, cy: number, dmg: number): void {
-    const W = GAME_CONFIG.GAME_WIDTH,
-      H = GAME_CONFIG.GAME_HEIGHT;
-    const MAX_R = Math.sqrt(W * W + H * H) / 2 + 100;
-
-    const flash = this.add.rectangle(W / 2, H / 2, W, H, 0xcc88ff, 0).setDepth(14);
-    this.tweens.add({
-      targets: flash,
-      fillAlpha: { from: 0.35, to: 0 },
-      duration: 500,
-      ease: "Power2",
-      onComplete: () => flash.destroy(),
-    });
-
-    const g = this.add.graphics().setDepth(15);
-    const ring = { r: 1 };
-    this.tweens.add({
-      targets: ring,
-      r: MAX_R,
-      duration: 500,
-      ease: "Power2",
-      onUpdate: (tween: Phaser.Tweens.Tween) => {
-        g.clear();
-        const alpha = 1 - tween.progress;
-        g.lineStyle(4, 0xcc88ff, alpha);
-        g.strokeCircle(cx, cy, ring.r);
-      },
-      onComplete: () => g.destroy(),
-    });
-
-    this.enemies.getChildren().forEach((e: any) => {
-      if (!e.active) return;
-      this.spawnDamageNumber(e.x, e.y - 10, dmg, "#cc88ff");
-      e.takeDamage(dmg);
-    });
-  }
-
-  spawnDeathEffect(x: number, y: number): void {
-    const sprite = this.add.sprite(x, y, "enemy-death").setDepth(6).setScale(1);
-    sprite.play("enemy-death-anim");
-    sprite.once("animationcomplete", () => sprite.destroy());
-  }
-
-  showAnnouncement(text: string, color = "#ffd700"): void {
-    this.announceText.setText(text).setStyle({ fill: color }).setAlpha(1);
-    this.tweens.killTweensOf(this.announceText);
-    this.tweens.add({ targets: this.announceText, alpha: 0, duration: 600, delay: 1400 });
   }
 
   onPlayerDeath(): void {
-    const sess = window.Session;
-    sess.runs++;
-    sess.totalKills += this.player.killCount;
-    const currentWave = this.waveManager?.currentWave ?? 0;
-    if (currentWave > sess.highestWave) sess.highestWave = currentWave;
-
-    if (this.clone?.active) {
-      this.clone.dismiss();
-      this.clone = null;
-    }
-
-    this.enemies.getChildren().forEach((e: any) => e.setVelocity(0, 0));
-    this.player.setActive(false).setVisible(false);
-    this.player.attack.detectionZone.setActive(false);
-
     this.scene.start("GameOverScene", {
-      wave: currentWave,
+      wave: 1,
       kills: this.player.killCount,
       cloneKills: 0,
       playerAtk: this.player.attack.damage,
@@ -694,7 +562,16 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  // ─── Private helpers ───────────────────────────────────────────────────────
+  onCloneDeath(): void {
+    this.clone = null;
+    this.cloneEnemyCollider?.destroy();
+    this.cloneEnemyCollider = null;
+    this.cloneAttackOverlap?.destroy();
+    this.cloneAttackOverlap = null;
+    this.events.emit("clone_dismissed");
+  }
+
+  // ─── Private helpers ──────────────────────────────────────────────────────
 
   private onAttackHit(attacker: IAlly, enemy: any): void {
     if (attacker.entityState !== "attack") return;
@@ -704,9 +581,9 @@ export default class GameScene extends Phaser.Scene {
     if (checkIfBBehindA(attacker, enemy)) return;
 
     attacker.attack.hitEnemies.add(enemy);
-    enemy.lastAttacker = attacker === this.player ? "player" : "clone";
+    enemy.lastAttacker = attacker;
     this.spawnDamageNumber(enemy.x, enemy.y - 10, attacker.attack.damage, "#ffff00", 26);
-    enemy.takeDamage(attacker.attack.damage);
+    enemy.tryHurt(attacker.attack.damage);
   }
 
   private createSpawnZone(x: number, y: number, width: number, height: number, debug = false): Phaser.Geom.Rectangle {

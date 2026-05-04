@@ -11,10 +11,13 @@ export default class BootScene extends Phaser.Scene {
     const base = "game-assets/";
 
     // Player spritesheets
-    this.load.spritesheet("player-idle", base + "characters/player/idle.png", { frameWidth: 128, frameHeight: 128 });
-    this.load.spritesheet("player-walk", base + "characters/player/walk.png", { frameWidth: 128, frameHeight: 128 });
-    this.load.spritesheet("player-run", base + "characters/player/run.png", { frameWidth: 128, frameHeight: 128 });
-    this.load.spritesheet("player-attack", base + "characters/player/attack.png", { frameWidth: 128, frameHeight: 128 });
+    this.load.spritesheet("player-idle", base + "characters/player/idle.png", { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet("player-walk", base + "characters/player/walk.png", { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet("player-run", base + "characters/player/run.png", { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet("player-attack", base + "characters/player/attack.png", { frameWidth: 64, frameHeight: 64 });
+    
+    this.load.spritesheet("player-hurt", base + "characters/player/hurt.png", { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet("player-death", base + "characters/player/death.png", { frameWidth: 64, frameHeight: 64 });
 
     // Orc spritesheets
     this.load.spritesheet("orc-01-idle", base + "characters/enemies/orc-01/idle.png", { frameWidth: 64, frameHeight: 64 });
@@ -94,6 +97,14 @@ export default class BootScene extends Phaser.Scene {
     /* Player Idle */
     this.anims.create({ key: "player-idle", frames: this.anims.generateFrameNumbers("player-idle", { start: 0, end: 39 }), frameRate: 6, repeat: -1 });
 
+    this.anims.create({ key: "player-hurt-down", frames: this.anims.generateFrameNumbers("player-hurt", { start: 0, end: 4 }), frameRate: 20, repeat: 0 });
+    this.anims.create({ key: "player-hurt-left", frames: this.anims.generateFrameNumbers("player-hurt", { start: 5, end: 9 }), frameRate: 20, repeat: 0 });
+    this.anims.create({ key: "player-hurt-right", frames: this.anims.generateFrameNumbers("player-hurt", { start: 10, end: 14 }), frameRate: 20, repeat: 0 });
+    this.anims.create({ key: "player-hurt-up", frames: this.anims.generateFrameNumbers("player-hurt", { start: 15, end: 19 }), frameRate: 16, repeat: 0 });
+
+
+    this.anims.create({ key: "player-death", frames: this.anims.generateFrameNumbers("player-death", { start: 0, end: 6 }), frameRate: 6, repeat: 0 });
+
     /* Player Walk */
     this.anims.create({ key: "player-walk-down", frames: this.anims.generateFrameNumbers("player-walk", { start: 0, end: 5 }), frameRate: 6, repeat: -1 });
     this.anims.create({ key: "player-walk-left", frames: this.anims.generateFrameNumbers("player-walk", { start: 6, end: 11 }), frameRate: 6, repeat: -1 });
@@ -101,10 +112,10 @@ export default class BootScene extends Phaser.Scene {
     this.anims.create({ key: "player-walk-up", frames: this.anims.generateFrameNumbers("player-walk", { start: 18, end: 23 }), frameRate: 6, repeat: -1 });
 
     /* Player Run */
-    this.anims.create({ key: "player-run-down", frames: this.anims.generateFrameNumbers("player-run", { start: 0, end: 7 }), frameRate: 12, repeat: -1 });
-    this.anims.create({ key: "player-run-left", frames: this.anims.generateFrameNumbers("player-run", { start: 8, end: 15 }), frameRate: 12, repeat: -1 });
-    this.anims.create({ key: "player-run-right", frames: this.anims.generateFrameNumbers("player-run", { start: 16, end: 23 }), frameRate: 12, repeat: -1 });
-    this.anims.create({ key: "player-run-up", frames: this.anims.generateFrameNumbers("player-run", { start: 24, end: 31 }), frameRate: 12, repeat: -1 });
+    this.anims.create({ key: "player-run-down", frames: this.anims.generateFrameNumbers("player-run", { start: 0, end: 7 }), frameRate: 6, repeat: -1 });
+    this.anims.create({ key: "player-run-left", frames: this.anims.generateFrameNumbers("player-run", { start: 8, end: 15 }), frameRate: 6, repeat: -1 });
+    this.anims.create({ key: "player-run-right", frames: this.anims.generateFrameNumbers("player-run", { start: 16, end: 23 }), frameRate: 6, repeat: -1 });
+    this.anims.create({ key: "player-run-up", frames: this.anims.generateFrameNumbers("player-run", { start: 24, end: 31 }), frameRate: 6, repeat: -1 });
 
     /* Player Attack */
     this.anims.create({ key: "player-attack-down", frames: this.anims.generateFrameNumbers("player-attack", { start: 0, end: 7 }), frameRate: 16, repeat: 0 });

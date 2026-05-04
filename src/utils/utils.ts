@@ -2,6 +2,7 @@ import * as Phaser from "phaser";
 import { CLONE_CONFIG, GAME_COLORS, GAME_CONFIG, UI_CONFIG } from "./constants";
 import Player from "../entities/Player";
 import Clone from "../entities/Clone";
+import Entity from "../entities/Entity";
 
 const OCTO_DIRS: OctoDir[] = ["right", "down-right", "down", "down-left", "left", "up-left", "up", "up-right"];
 const CARDINAL_DIRS: CardinalDir[] = ["right", "down", "left", "up"];
@@ -27,8 +28,12 @@ export function snapAngle(angle: number, mode: DirType = DIR_OCTO): number {
   return Math.round(angle / step) * step;
 }
 
-export function getMouseDirFromTarget(target: Phaser.Physics.Arcade.Sprite, mode: DirType = DIR_CARDINAL): OctoDir | CardinalDir {
-  const ptr = target.scene.input.activePointer;
+
+export function getMouseDirFromTarget(target: IEntity): CardinalDir;
+export function getMouseDirFromTarget(target: IEntity, mode: DirTypeOcto): OctoDir;
+export function getMouseDirFromTarget(target: IEntity, mode: DirTypeCardinal): CardinalDir;
+export function getMouseDirFromTarget(target: IEntity, mode: DirType = DIR_CARDINAL): OctoDir | CardinalDir {
+  const ptr = target.gameScene.input.activePointer;
   const angle = Phaser.Math.Angle.Between(target.x, target.y, ptr.worldX, ptr.worldY);
   if (mode === DIR_CARDINAL) return angleToDir(angle, DIR_CARDINAL);
   return angleToDir(angle, DIR_OCTO);
@@ -60,11 +65,10 @@ export function getAnchorPosition(a: XYPosition, b: XYPosition, offset?: XYPosit
   };
 }
 
-// TODO: add Enemy type / move all to Entity
 /*
   Returns true if entity B is behind entity A.
 */
-export function checkIfBBehindA(a: Player | Clone | any, b: Player | Clone | any): boolean {
+export function checkIfBBehindA(a: IEntity | any, b: IEntity | any): boolean {
   const FORWARD: Record<string, { fx: number; fy: number }> = {
     right: { fx: 1, fy: 0 },
     left: { fx: -1, fy: 0 },
@@ -100,7 +104,7 @@ export function colorToHex(color: number): string {
   return `#${color.toString(16).padStart(6, "0")}`;
 }
 
-export function syncAttackZone(target: IAlly): void {
+export function syncAttackZone(target: IEntity): void {
   if (!target.attack.detectionZone) return;
 
   const b = target.body as Phaser.Physics.Arcade.Body;

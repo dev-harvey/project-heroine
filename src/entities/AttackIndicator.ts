@@ -17,9 +17,9 @@ const DIRECTION_CONFIG: Record<string, { angle: number; offsetX: number; offsetY
 };
 
 export default class AttackIndicator extends Phaser.Physics.Arcade.Sprite {
-  public attacker: Player | Clone;
+  public attacker: IEntity;
 
-  constructor(scene: Phaser.Scene, attacker: Player | Clone, tint?: number) {
+  constructor(scene: Phaser.Scene, attacker: IEntity, tint?: number) {
     super(scene, attacker.x, attacker.y, PLAYER_CONFIG.ATTACK_INDICATOR.ANIM);
     scene.add.existing(this);
     scene.physics.add.existing(this);
@@ -52,9 +52,7 @@ export default class AttackIndicator extends Phaser.Physics.Arcade.Sprite {
   }
 
   update() {
-    // TODO: Nice to have - Make the attack indicator bulge outwards when you move towards it, then reduce the x offset (was 20 before). This would look nice and make it sit tighter to the entity.
     const direction = getMouseDirFromTarget(this.attacker);
-    // TODO: move this to constants so that it doesn't make a new record every frame
 
     this.setPosition(this.attacker.x + DIRECTION_CONFIG[direction].offsetX, this.attacker.y + DIRECTION_CONFIG[direction].offsetY);
     this.setAngle(DIRECTION_CONFIG[direction].angle);

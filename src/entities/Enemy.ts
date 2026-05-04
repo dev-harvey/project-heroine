@@ -7,12 +7,10 @@ import Entity from "./Entity";
 // TODO: make enemies path to a point near the player, and they attack when they hit the line and are in attack range since they only attack in four directions it locks them to attacking at the exact angle. Might make attacking look less janky.
 
 abstract class Enemy extends Entity implements IEnemy {
-  declare protected gameScene: IEnemyGameScene;
+  declare gameScene: IEnemyGameScene;
   declare movement: IEnemyMovement;
   declare attack: IEnemyAttack;
   declare health: IEnemyHealth;
-  
-  lastAttacker?: "player" | "clone";
 
   constructor(scene: Phaser.Scene, x: number, y: number, textureKey: string) {
     super(scene, x, y, textureKey);
@@ -20,35 +18,15 @@ abstract class Enemy extends Entity implements IEnemy {
     scene.physics.add.existing(this);
 
     this.gameScene = scene as IEnemyGameScene;
-
-    this.setCollideWorldBounds(true);
-    this.setDepth(4);
-
-    // TODO: enemy defaults, might not be needed with entity having defaults
-    this.movement = {
-      speed: 100,
-      facingDir: "left"
-    }
-    this.attack = {
-      damage: 1,
-      range: 50,
-      cooldown: 0,
-      cooldownMax: 50,
-      detectionZone: scene.physics.add.image(x, y, ""),
-      dir: "left"
-    }
-    this.attack.detectionZone.body.enable = false;
   }
 
   // ── Shared methods ────────────────────────────────────────────────────
 
-
-  die(): void {
-    if (this.entityState === "dead") return;
-    this.setEntityState("dead");
-    // TODO: Add death animation
-    this.gameScene.onEnemyKilled(this);
+  tryDeath(): boolean {
+    if (!super.tryDeath()) return false;
+    // this.gameScene.onEnemyKilled(this);
     this.destroy();
+    return true;
   }
 
   // Returns the closer of player/clone (clone must be alive to be considered)
@@ -70,6 +48,7 @@ abstract class Enemy extends Entity implements IEnemy {
 
   update(time: number, delta: number, player?: IPlayer, clone?: IClone | null): void {
     super.update(time, delta);
+    this.clampToBounds();
   }
 }
 

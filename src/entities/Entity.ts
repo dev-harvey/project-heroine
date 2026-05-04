@@ -1,52 +1,142 @@
 import * as Phaser from "phaser";
-import { angleToDir } from "../utils/utils";
+import { angleToDir, syncAttackZone } from "../utils/utils";
 
 abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
-  protected gameScene: IEntityGameScene;
+  id: string;
+  entityType: string;
+  gameScene: IEntityGameScene;
   movement: IEntityMovement;
   health: IEntityHealth;
   attack: IEntityAttack;
+  skills: IEntitySkills;
 
-  abstract animKey: string;
+  killCount: number;
 
-  private _entityState: EntityState = "idle";
+  protected textureKey: string;
+
+  protected _entityState: EntityState = "idle";
   get entityState() {
     return this._entityState;
   }
-  protected setEntityState(next: EntityState): void {
-    if (this.entityState === next) return;
+  setEntityState(next: EntityState): boolean {
+    if (this.entityState === next) return false;
+    switch (next) {
+      case "idle":
+        if (this.isInEntityState("dead")) return false;
+        break;
+      case "walk":
+        if (this.isInEntityState("dead", "stunned", "attack", "dash", "reposition")) return false;
+        break;
+      case "reposition":
+        if (this.isInEntityState("dead", "stunned", "attack", "dash")) return false;
+        break;
+      case "attack":
+        if (this.isInEntityState("dead", "stunned", "attack")) return false;
+        break;
+      case "dash":
+        if (this.isInEntityState("dead", "stunned", "attack", "dash")) return false;
+        break;
+      case "hurt":
+        if (this.isInEntityState("dead")) return false;
+        break;
+      case "stunned":
+        if (this.isInEntityState("dead")) return false;
+        break;
+      case "dead":
+        break;
+    }
     this._entityState = next;
     switch (next) {
       case "idle":
-        this.play(`${this.animKey}-idle`, true);
+        this.onIdle();
         break;
       case "walk":
-        this.play(`${this.animKey}-walk-${this.movement.facingDir}`, true);
+        this.onWalk();
         break;
-      case "hurt":
-        this.play(`${this.animKey}-hurt-${this.movement.facingDir}`);
-        this.setVelocity(0, 0);
+      case "reposition":
+        this.onReposition();
         break;
       case "attack":
-        this.play(`${this.animKey}-attack-${this.attack.dir}`);
+        this.onAttack();
+        break;
+      case "dash":
+        this.onDash();
+        break;
+      case "hurt":
+        this.onHurt();
         break;
       case "stunned":
-        this.play(`${this.animKey}-idle`, true);
-        this.setVelocity(0, 0);
+        this.onStunned();
         break;
       case "dead":
-        this.play(`${this.animKey}-death`);
+        this.onDeath();
         break;
     }
+    return true;
+  }
+
+  /* State machine 'on-' functions */
+  protected onIdle() {
+    this.play(`${this.textureKey}-idle`, true);
+  }
+  protected onWalk() {
+    this.play(`${this.textureKey}-walk-${this.movement.facingDir}`, true);
+  }
+  protected onReposition() {
+    this.play(`${this.textureKey}-run-${this.movement.facingDir}`, true);
+  }
+  protected onAttack() {
+    this.attack.cooldown = this.attack.cooldownMax;
+    this.setVelocity(0, 0);
+    this.play(`${this.textureKey}-attack-${this.attack.dir}`);
+  }
+  protected onDash() {
+    if (this.skills?.dash === undefined) return;
+    this.skills.dash.execute();
+  }
+  protected onHurt() {
+    this.setVelocity(0, 0);
+    this.play(`${this.textureKey}-hurt-${this.movement.facingDir}`);
+  }
+  protected onStunned() {
+    this.setVelocity(0, 0);
+    this.play(`${this.textureKey}-idle`, true);
+  }
+  protected onDeath() {
+    this.setVelocity(0, 0);
+    this.play(`${this.textureKey}-death`);
+  }
+
+  /* Non state machine on- functions */
+  protected onDeathComplete() {
+    this.gameScene.events.emit("death", this);
+    this.destroy();
+  }
+  protected onChangeDirection() {
+    if (this.entityState === "reposition") {
+      this.onReposition();
+    } else {
+      this.onWalk();
+    }
+  }
+  protected onAttackFrameStart() {
+    syncAttackZone(this);
+    this.attack.detectionZone.body.enable = true;
+  }
+  protected onAttackFrameEnd() {
+    this.attack.detectionZone.body.enable = false;
+    // this.attack.hitEnemies.clear();
+  }
+  protected onAttackComplete() {
+    this.attack.detectionZone.body.enable = false;
+    this.setEntityState("idle");
   }
 
   constructor(scene: Phaser.Scene, x: number, y: number, textureKey: string) {
-    super(scene, x, y, textureKey);
+    super(scene, x, y, `${textureKey}-idle`);
+    this.textureKey = textureKey;
     scene.add.existing(this);
     scene.physics.add.existing(this);
-
-    this.setCollideWorldBounds(true);
-    this.setDepth(4);
 
     this.gameScene = scene as IEntityGameScene;
 
@@ -65,20 +155,35 @@ abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
       cooldownMax: 50,
       detectionZone: scene.physics.add.image(x, y, ""),
       dir: "left",
+      frames: {
+        start: 0,
+        end: 7,
+      },
     };
     this.attack.detectionZone.body.enable = false;
-  }
 
-  /* Protected Methods */
+    this.on("animationupdate", (anim, frame) => {
+      if (anim.key.startsWith(`${textureKey}-attack`)) {
+        if (frame.index === this.attack.frames.start) {
+          this.onAttackFrameStart();
+        }
+        if (frame.index === this.attack.frames.end) {
+          this.onAttackFrameEnd();
+        }
+      }
+    });
 
-  protected updateMovementState() {
-    if (this.body.velocity.x !== 0 || this.body.velocity.y !== 0) {
-      this.play(`${this.animKey}-walk-${this.movement.facingDir}`, true);
-      this.setEntityState("walk");
-    } else {
-      this.play(`${this.animKey}-idle`, true);
-      this.setEntityState("idle");
-    }
+    this.on("animationcomplete", (anim: Phaser.Animations.Animation) => {
+      if (anim.key.startsWith(`${textureKey}-attack`)) {
+        this.onAttackComplete();
+      }
+      if (anim.key.startsWith(`${textureKey}-hurt`)) {
+        this.setEntityState("idle");
+      }
+      if (anim.key.startsWith(`${textureKey}-death`)) {
+        this.onDeathComplete();
+      }
+    });
   }
 
   protected updateFacingDir(target: XYPosition): void;
@@ -93,30 +198,60 @@ abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
     }
   }
 
+  protected isInEntityState(...states: EntityState[]): boolean {
+    return states.includes(this.entityState);
+  }
+
+  movementEnabled(): boolean {
+    return !this.isInEntityState("attack", "dash", "stunned", "dead", "hurt");
+  }
+
   updateMovement(): void {
     this.updateMovementState();
   }
 
-  /* Public Methods */
-
-  takeDamage(amount: number): void {
-    if (this.entityState === "dead") return;
-    this.setEntityState("hurt");
-    this.health.current -= amount;
-
-    this.scene.time.delayedCall(100, () => {
-      if (this.active) this.setEntityState("idle");
-    });
-    if (this.health.current <= 0) this.die();
+  protected updateMovementState() {
+    if (this.body.velocity.x !== 0 || this.body.velocity.y !== 0) {
+      if (this.isInEntityState("walk", "reposition")) {
+        this.onChangeDirection();
+      } else {
+        this.setEntityState("walk");
+      }
+    } else {
+      this.setEntityState("idle");
+    }
   }
 
-  die(): void {}
+  tryAttack(): boolean {
+    if (this.attack.cooldown > 0) return false;
+    return true;
+  }
+
+  registerKill() {
+    this.killCount++;
+  }
+
+  tryHurt(amount: number): boolean {
+    this.health.current = Math.max(0, this.health.current - amount);
+    if (this.health.current <= 0) {
+      return this.setEntityState("dead");
+    }
+    return this.setEntityState("hurt");
+  }
+
+  tryDeath(): boolean {
+    return this.setEntityState("dead");
+  }
 
   update(time: number, delta: number): void {
     if (this.entityState === "dead") return;
     this.attack.cooldown = Math.max(0, this.attack.cooldown - delta);
-    if (this.entityState === "attack" || this.entityState === "stunned") return;
-    this.updateMovement();
+    for (const skill of Object.values(this.skills)) {
+      skill.update(delta);
+    }
+    if (this.movementEnabled()) {
+      this.updateMovement();
+    }
   }
 }
 
