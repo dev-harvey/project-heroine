@@ -60,6 +60,10 @@ export default class Player extends Ally implements IPlayer {
       range: PLAYER_CONFIG.ATTACK_RANGE,
       attackIndicator: new AttackIndicator(scene, this),
       hitEnemies: new Set(),
+      frames: {
+        start: PLAYER_CONFIG.ATTACK_FRAMES.START,
+        end: PLAYER_CONFIG.ATTACK_FRAMES.END
+      }
     };
 
     this.skills = {

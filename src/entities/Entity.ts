@@ -156,13 +156,14 @@ abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
       detectionZone: scene.physics.add.image(x, y, ""),
       dir: "left",
       frames: {
-        start: 0,
-        end: 7,
+        start: 2,
+        end: 4,
       },
     };
     this.attack.detectionZone.body.enable = false;
 
     this.on("animationupdate", (anim, frame) => {
+      console.log(frame.index);
       if (anim.key.startsWith(`${textureKey}-attack`)) {
         if (frame.index === this.attack.frames.start) {
           this.onAttackFrameStart();

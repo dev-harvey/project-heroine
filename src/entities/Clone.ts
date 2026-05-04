@@ -59,6 +59,10 @@ export default class Clone extends Ally implements IClone {
       range: CLONE_CONFIG.ATTACK_RANGE,
       attackIndicator: new AttackIndicator(scene, this, CLONE_CONFIG.TINT),
       hitEnemies: new Set(),
+      frames: {
+        start: CLONE_CONFIG.ATTACK_FRAMES.START,
+        end: CLONE_CONFIG.ATTACK_FRAMES.END,
+      },
     };
 
     this.skills = {
@@ -77,10 +81,10 @@ export default class Clone extends Ally implements IClone {
     let speed = this.movement.speed;
 
     if (distance < 2) {
-      this.setEntityState('idle');
+      this.setEntityState("idle");
       speed = 0;
     } else if (distance < 10) {
-      this.setEntityState('idle');
+      this.setEntityState("idle");
       speed = CLONE_CONFIG.SPEED.DEADZONE;
     } else if (this.entityState === "reposition") {
       speed = CLONE_CONFIG.SPEED.REPOSITIONING;
