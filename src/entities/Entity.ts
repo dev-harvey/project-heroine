@@ -139,6 +139,9 @@ abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
+    this.setDamping(true);
+    this.setDrag(0.01);
+
     /*
     this.setBodySize(PLAYER_CONFIG.BODY_SIZE.x, PLAYER_CONFIG.BODY_SIZE.y, true);
     this.body.setMass(PLAYER_CONFIG.MASS);
