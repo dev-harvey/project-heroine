@@ -2,7 +2,6 @@ import * as Phaser from "phaser";
 
 import Entity from "./Entity";
 import { angleToDir } from "../utils/utils";
-import { ORCBASIC_CONFIG } from "../utils/constants";
 
 export default abstract class Enemy extends Entity implements IEnemy {
   protected physics: Phaser.Physics.Arcade.ArcadePhysics;
@@ -24,6 +23,7 @@ export default abstract class Enemy extends Entity implements IEnemy {
   }
 
   tryAttack(): boolean {
+    if (!this.currentTarget) return;
     if (!super.tryAttack()) return false;
 
     this.attack.dir = angleToDir(Phaser.Math.Angle.Between(this.x, this.y, this.currentTarget.x, this.currentTarget.y));
@@ -44,6 +44,7 @@ export default abstract class Enemy extends Entity implements IEnemy {
   }
 
   updateMovement(): void {
+    if (!this.currentTarget) return;
     this.physics.moveToObject(this, this.currentTarget, this.movement.speed);
     this.updateFacingDir(this.currentTarget);
     super.updateMovement();
@@ -55,9 +56,8 @@ export default abstract class Enemy extends Entity implements IEnemy {
     this.currentTarget = this.selectTarget();
     super.update(time, delta);
 
-    const distanceToTargetEdge = Phaser.Math.Distance.Between(this.x, this.y, this.currentTarget.x, this.currentTarget.y) - (this.currentTarget.body.halfWidth);
-    
-    if (distanceToTargetEdge < ORCBASIC_CONFIG.ATTACK_RANGE) {
+    const distanceToTargetEdge = Phaser.Math.Distance.Between(this.x, this.y, this.currentTarget.x, this.currentTarget.y) - this.currentTarget.body.halfWidth;
+    if (distanceToTargetEdge < this.attack.range) {
       this.tryAttack();
     }
   }

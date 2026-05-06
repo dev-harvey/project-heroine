@@ -1,6 +1,6 @@
 import * as Phaser from "phaser";
 import Entity from "./Entity";
-import { getMouseDirFromTarget, syncAttackZone } from "../utils/utils";
+import { getMouseDirFromTarget } from "../utils/utils";
 
 abstract class Ally extends Entity implements IAlly {
   declare textureKey: string;
@@ -24,8 +24,6 @@ abstract class Ally extends Entity implements IAlly {
 
   constructor(scene: Phaser.Scene, x: number, y: number, textureKey: string) {
     super(scene, x, y, textureKey);
-
-    this.killCount = 0;
   }
 
   tryAttack(): boolean {

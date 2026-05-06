@@ -1,7 +1,7 @@
 import * as Phaser from "phaser";
 
 import { CLONE_CONFIG, PLAYER_CONFIG } from "../utils/constants";
-import { getAnchorPosition, getMouseDirFromTarget, getAnchorOctoOffset, syncAttackZone } from "../utils/utils";
+import { getAnchorPosition, getAnchorOctoOffset } from "../utils/utils";
 import { Dash } from "../skills/Dash";
 import AnchorIndicator from "../indicators/AnchorIndicator";
 import AttackIndicator from "../indicators/AttackIndicator";

@@ -146,6 +146,8 @@ abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
     this.setCollideWorldBounds(true);
     */
 
+    this.killCount = 0;
+
     this.movement = {
       speed: 100,
       facingDir: "left",
