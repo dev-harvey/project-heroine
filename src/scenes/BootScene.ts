@@ -19,12 +19,12 @@ export default class BootScene extends Phaser.Scene {
     this.load.spritesheet("player-death", base + "characters/player/death.png", { frameWidth: 64, frameHeight: 64 });
 
     /* Orc-01 */
-    this.load.spritesheet("orc-01-idle", base + "characters/enemies/orc-01/idle.png", { frameWidth: 64, frameHeight: 64 });
-    this.load.spritesheet("orc-01-walk", base + "characters/enemies/orc-01/walk.png", { frameWidth: 64, frameHeight: 64 });
-    this.load.spritesheet("orc-01-run", base + "characters/enemies/orc-01/run.png", { frameWidth: 64, frameHeight: 64 });
-    this.load.spritesheet("orc-01-attack", base + "characters/enemies/orc-01/attack.png", { frameWidth: 64, frameHeight: 64 });
-    this.load.spritesheet("orc-01-hurt", base + "characters/enemies/orc-01/hurt.png", { frameWidth: 64, frameHeight: 64 });
-    this.load.spritesheet("orc-01-death", base + "characters/enemies/orc-01/death.png", { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet("orc-basic-idle", base + "characters/enemies/orc-basic/idle.png", { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet("orc-basic-walk", base + "characters/enemies/orc-basic/walk.png", { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet("orc-basic-run", base + "characters/enemies/orc-basic/run.png", { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet("orc-basic-attack", base + "characters/enemies/orc-basic/attack.png", { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet("orc-basic-hurt", base + "characters/enemies/orc-basic/hurt.png", { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet("orc-basic-death", base + "characters/enemies/orc-basic/death.png", { frameWidth: 64, frameHeight: 64 });
 
     /* Effects */
     this.load.spritesheet("anchor-indicator", base + "effects/anchor-indicator.png", { frameWidth: 128, frameHeight: 96 });
@@ -99,28 +99,28 @@ export default class BootScene extends Phaser.Scene {
 
     /* Orc 01 - OrcBasic */
 
-    this.anims.create({ key: "orc-01-idle", frames: this.anims.generateFrameNumbers("orc-01-idle", { start: 0, end: 3 }), frameRate: 12, repeat: -1 });
+    this.anims.create({ key: "orc-basic-idle", frames: this.anims.generateFrameNumbers("orc-basic-idle", { start: 0, end: 3 }), frameRate: 12, repeat: -1 });
     
-    this.anims.create({ key: "orc-01-walk-down", frames: this.anims.generateFrameNumbers("orc-01-walk", { start: 0, end: 5 }), frameRate: 16, repeat: 0 });
-    this.anims.create({ key: "orc-01-walk-up", frames: this.anims.generateFrameNumbers("orc-01-walk", { start: 6, end: 11 }), frameRate: 16, repeat: 0 });
-    this.anims.create({ key: "orc-01-walk-left", frames: this.anims.generateFrameNumbers("orc-01-walk", { start: 12, end: 17 }), frameRate: 16, repeat: 0 });
-    this.anims.create({ key: "orc-01-walk-right", frames: this.anims.generateFrameNumbers("orc-01-walk", { start: 18, end: 23 }), frameRate: 16, repeat: 0 });
+    this.anims.create({ key: "orc-basic-walk-down", frames: this.anims.generateFrameNumbers("orc-basic-walk", { start: 0, end: 5 }), frameRate: 16, repeat: 0 });
+    this.anims.create({ key: "orc-basic-walk-up", frames: this.anims.generateFrameNumbers("orc-basic-walk", { start: 6, end: 11 }), frameRate: 16, repeat: 0 });
+    this.anims.create({ key: "orc-basic-walk-left", frames: this.anims.generateFrameNumbers("orc-basic-walk", { start: 12, end: 17 }), frameRate: 16, repeat: 0 });
+    this.anims.create({ key: "orc-basic-walk-right", frames: this.anims.generateFrameNumbers("orc-basic-walk", { start: 18, end: 23 }), frameRate: 16, repeat: 0 });
 
-    this.anims.create({ key: "orc-01-run-down", frames: this.anims.generateFrameNumbers("orc-01-run", { start: 0, end: 7 }), frameRate: 16, repeat: 0 });
-    this.anims.create({ key: "orc-01-run-up", frames: this.anims.generateFrameNumbers("orc-01-run", { start: 8, end: 15 }), frameRate: 16, repeat: 0 });
-    this.anims.create({ key: "orc-01-run-left", frames: this.anims.generateFrameNumbers("orc-01-run", { start: 16, end: 23 }), frameRate: 16, repeat: 0 });
-    this.anims.create({ key: "orc-01-run-right", frames: this.anims.generateFrameNumbers("orc-01-run", { start: 24, end: 31 }), frameRate: 16, repeat: 0 });
+    this.anims.create({ key: "orc-basic-run-down", frames: this.anims.generateFrameNumbers("orc-basic-run", { start: 0, end: 7 }), frameRate: 16, repeat: 0 });
+    this.anims.create({ key: "orc-basic-run-up", frames: this.anims.generateFrameNumbers("orc-basic-run", { start: 8, end: 15 }), frameRate: 16, repeat: 0 });
+    this.anims.create({ key: "orc-basic-run-left", frames: this.anims.generateFrameNumbers("orc-basic-run", { start: 16, end: 23 }), frameRate: 16, repeat: 0 });
+    this.anims.create({ key: "orc-basic-run-right", frames: this.anims.generateFrameNumbers("orc-basic-run", { start: 24, end: 31 }), frameRate: 16, repeat: 0 });
 
-    this.anims.create({ key: "orc-01-attack-down", frames: this.anims.generateFrameNumbers("orc-01-attack", { start: 0, end: 7 }), frameRate: 8, repeat: 0 });
-    this.anims.create({ key: "orc-01-attack-up", frames: this.anims.generateFrameNumbers("orc-01-attack", { start: 8, end: 15 }), frameRate: 8, repeat: 0 });
-    this.anims.create({ key: "orc-01-attack-left", frames: this.anims.generateFrameNumbers("orc-01-attack", { start: 16, end: 23 }), frameRate: 8, repeat: 0 });
-    this.anims.create({ key: "orc-01-attack-right", frames: this.anims.generateFrameNumbers("orc-01-attack", { start: 24, end: 31 }), frameRate: 8, repeat: 0 });
+    this.anims.create({ key: "orc-basic-attack-down", frames: this.anims.generateFrameNumbers("orc-basic-attack", { start: 0, end: 7 }), frameRate: 8, repeat: 0 });
+    this.anims.create({ key: "orc-basic-attack-up", frames: this.anims.generateFrameNumbers("orc-basic-attack", { start: 8, end: 15 }), frameRate: 8, repeat: 0 });
+    this.anims.create({ key: "orc-basic-attack-left", frames: this.anims.generateFrameNumbers("orc-basic-attack", { start: 16, end: 23 }), frameRate: 8, repeat: 0 });
+    this.anims.create({ key: "orc-basic-attack-right", frames: this.anims.generateFrameNumbers("orc-basic-attack", { start: 24, end: 31 }), frameRate: 8, repeat: 0 });
 
-    this.anims.create({ key: "orc-01-hurt-down", frames: this.anims.generateFrameNumbers("orc-01-hurt", { start: 0, end: 5 }), frameRate: 16, repeat: 0 });
-    this.anims.create({ key: "orc-01-hurt-up", frames: this.anims.generateFrameNumbers("orc-01-hurt", { start: 6, end: 11 }), frameRate: 16, repeat: 0 });
-    this.anims.create({ key: "orc-01-hurt-left", frames: this.anims.generateFrameNumbers("orc-01-hurt", { start: 12, end: 17 }), frameRate: 16, repeat: 0 });
-    this.anims.create({ key: "orc-01-hurt-right", frames: this.anims.generateFrameNumbers("orc-01-hurt", { start: 18, end: 23 }), frameRate: 16, repeat: 0 });
+    this.anims.create({ key: "orc-basic-hurt-down", frames: this.anims.generateFrameNumbers("orc-basic-hurt", { start: 0, end: 5 }), frameRate: 16, repeat: 0 });
+    this.anims.create({ key: "orc-basic-hurt-up", frames: this.anims.generateFrameNumbers("orc-basic-hurt", { start: 6, end: 11 }), frameRate: 16, repeat: 0 });
+    this.anims.create({ key: "orc-basic-hurt-left", frames: this.anims.generateFrameNumbers("orc-basic-hurt", { start: 12, end: 17 }), frameRate: 16, repeat: 0 });
+    this.anims.create({ key: "orc-basic-hurt-right", frames: this.anims.generateFrameNumbers("orc-basic-hurt", { start: 18, end: 23 }), frameRate: 16, repeat: 0 });
 
-    this.anims.create({ key: "orc-01-death", frames: this.anims.generateFrameNumbers("orc-01-death", { start: 0, end: 7 }), frameRate: 16, repeat: 0 });
+    this.anims.create({ key: "orc-basic-death", frames: this.anims.generateFrameNumbers("orc-basic-death", { start: 0, end: 7 }), frameRate: 16, repeat: 0 });
   }
 }
