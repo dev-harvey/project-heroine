@@ -12,10 +12,7 @@ const config: Phaser.Types.Core.GameConfig = {
   backgroundColor: '#0d0618',
   pixelArt: true,
   physics: {
-    default: 'arcade',
-    arcade: {
-      debug: false, // TODO: can I make this an option in the debug mode?
-    },
+    default: 'arcade'
   },
   scene: [BootScene, TitleScene, GameScene, GameOverScene],
 };

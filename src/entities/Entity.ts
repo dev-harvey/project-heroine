@@ -4,7 +4,6 @@ import { angleToDir, syncAttackZone } from "../utils/utils";
 abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
   id: string;
   entityType: string;
-  gameScene: IEntityGameScene;
   movement: IEntityMovement;
   health: IEntityHealth;
   attack: IEntityAttack;
@@ -37,7 +36,7 @@ abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
         if (this.isInEntityState("dead", "stunned", "attack", "dash")) return false;
         break;
       case "hurt":
-        if (this.isInEntityState("dead")) return false;
+        if (this.isInEntityState("dead", "hurt", "dash")) return false;
         break;
       case "stunned":
         if (this.isInEntityState("dead")) return false;
@@ -96,6 +95,7 @@ abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
   }
   protected onHurt() {
     this.setVelocity(0, 0);
+    this.attack.detectionZone.body.enable = false;
     this.play(`${this.textureKey}-hurt-${this.movement.facingDir}`);
   }
   protected onStunned() {
@@ -109,7 +109,8 @@ abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
 
   /* Non state machine on- functions */
   protected onDeathComplete() {
-    this.gameScene.events.emit("death", this);
+    this.scene.events.emit("death", this);
+    this.attack.detectionZone.destroy();
     this.destroy();
   }
   protected onChangeDirection() {
@@ -125,7 +126,7 @@ abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
   }
   protected onAttackFrameEnd() {
     this.attack.detectionZone.body.enable = false;
-    // this.attack.hitEnemies.clear();
+    this.attack.hitEnemies.clear();
   }
   protected onAttackComplete() {
     this.attack.detectionZone.body.enable = false;
@@ -138,7 +139,12 @@ abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
-    this.gameScene = scene as IEntityGameScene;
+    /*
+    this.setBodySize(PLAYER_CONFIG.BODY_SIZE.x, PLAYER_CONFIG.BODY_SIZE.y, true);
+    this.body.setMass(PLAYER_CONFIG.MASS);
+    this.setDepth(PLAYER_CONFIG.DEPTH);
+    this.setCollideWorldBounds(true);
+    */
 
     this.movement = {
       speed: 100,
@@ -159,11 +165,12 @@ abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
         start: 2,
         end: 4,
       },
+      hitEnemies: new Set(),
     };
     this.attack.detectionZone.body.enable = false;
+    this.attack.detectionZone.setData("owner", this);
 
     this.on("animationupdate", (anim, frame) => {
-      console.log(frame.index);
       if (anim.key.startsWith(`${textureKey}-attack`)) {
         if (frame.index === this.attack.frames.start) {
           this.onAttackFrameStart();
@@ -247,8 +254,10 @@ abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
   update(time: number, delta: number): void {
     if (this.entityState === "dead") return;
     this.attack.cooldown = Math.max(0, this.attack.cooldown - delta);
-    for (const skill of Object.values(this.skills)) {
-      skill.update(delta);
+    if (this.skills) {
+      for (const skill of Object.values(this.skills)) {
+        skill.update(delta);
+      }
     }
     if (this.movementEnabled()) {
       this.updateMovement();

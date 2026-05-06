@@ -1,7 +1,7 @@
 import * as Phaser from "phaser";
 
 import { GAME_COLORS, PLAYER_CONFIG } from "../utils/constants";
-import Player from "./Player";
+import Player from "../entities/Player";
 
 export default class AnchorIndicator extends Phaser.Physics.Arcade.Sprite {
   public targetPlayer: Player;

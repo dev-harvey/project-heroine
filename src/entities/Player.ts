@@ -3,13 +3,11 @@ import * as Phaser from "phaser";
 import { CLONE_CONFIG, PLAYER_CONFIG } from "../utils/constants";
 import { getAnchorPosition, getMouseDirFromTarget, getAnchorOctoOffset, syncAttackZone } from "../utils/utils";
 import { Dash } from "../skills/Dash";
-import AnchorIndicator from "./AnchorIndicator";
-import AttackIndicator from "./AttackIndicator";
+import AnchorIndicator from "../indicators/AnchorIndicator";
+import AttackIndicator from "../indicators/AttackIndicator";
 import Ally from "./Ally";
 
 export default class Player extends Ally implements IPlayer {  
-  declare gameScene: IPlayerGameScene;
-
   declare textureKey: string;
 
   protected readonly maxTotalHealth: number = PLAYER_CONFIG.MAXTOTAL_HEALTH;
@@ -25,9 +23,6 @@ export default class Player extends Ally implements IPlayer {
 
   protected onDeath() {
     this.setVelocity(0, 0);
-    this.gameScene.enemies.getChildren().forEach((e: any) => {
-      if (e.active) e.die?.();
-    });
     this.play(`${this.textureKey}-death`);
   }
 
@@ -59,7 +54,6 @@ export default class Player extends Ally implements IPlayer {
       dir: "right",
       range: PLAYER_CONFIG.ATTACK_RANGE,
       attackIndicator: new AttackIndicator(scene, this),
-      hitEnemies: new Set(),
       frames: {
         start: PLAYER_CONFIG.ATTACK_FRAMES.START,
         end: PLAYER_CONFIG.ATTACK_FRAMES.END

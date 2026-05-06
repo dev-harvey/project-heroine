@@ -6,18 +6,7 @@
 type CardinalDir = "right" | "down" | "left" | "up";
 type OctoDir = "right" | "up-right" | "down-right" | "down" | "down-left" | "left" | "up-left" | "up";
 
-// ─── Shared geometry ───────────────────────────────────────────────────────
-
 type XYPosition = { x: number; y: number };
-
-/** Optional geometry overrides for debug shovel drawing / hit tests. */
-interface AttackZoneParams {
-  NH?: number;
-  FH?: number;
-  FD?: number;
-  CTRL?: number;
-  fillAlpha?: number;
-}
 
 // ─── Input helpers ─────────────────────────────────────────────────────────
 
@@ -50,28 +39,3 @@ interface GameOverData {
   permAtkGained?: number;
   runGold?: number;
 }
-
-// ─── Global runtime stores ─────────────────────────────────────────────────
-
-/** Persistent run-to-run bonus stats (window.Progression). */
-interface ProgressionStore {
-  bonusMaxHp: number;
-  bonusDamage: number;
-  bonusCloneHp: number;
-  dashCooldownBonus: number;
-  goldBoost: number;
-}
-
-/** Accumulated gold (window.Gold). */
-interface GoldStore {
-  total: number;
-}
-
-/** Per-page-load session statistics (window.Session). */
-interface SessionStore {
-  runs: number;
-  highestWave: number;
-  totalKills: number;
-}
-
-// TODO: Review this

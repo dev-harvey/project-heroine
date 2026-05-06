@@ -75,19 +75,13 @@ export class Dash extends Skill implements IDash {
 
     this._cooldownTimer = this._cooldown;
 
-    // Flicker the player character to indicate invincibility/dash
-    this.target.gameScene.tweens.add({
-      targets: this.target,
-      alpha: { from: 0, to: 1 },
-      duration: this.duration,
-      repeat: 0,
-      ease: "easeOutQuad",
-      onComplete: () => {
-        this.target.setAlpha(1);
-        this.target.setEntityState("idle");
-        this.dir = undefined;
-      },
+    this.target.scene.time.delayedCall(this.duration, () => {
+      this.target.setEntityState("idle");
+      this.dir = undefined;
     });
+    
+    
+    
   }
 
   update(delta: number): void {

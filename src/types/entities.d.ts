@@ -1,25 +1,9 @@
-type EntityState = "idle" | "walk" | "run" | "reposition" | "attack" | "dash" | "hurt" | "stunned" | "dead";
-
-interface IEntityGameScene extends Phaser.Scene {
-  spawnDamageNumber: (x: number, y: number, amount: number, color = "#ffffff", size = 19) => void;
-}
-
-interface IAllyGameScene extends IEntityGameScene {
-  enemies: Phaser.Physics.Arcade.Group;
-}
-
-interface IPlayerGameScene extends IAllyGameScene {}
-interface ICloneGameScene extends IAllyGameScene {}
-
-interface IEnemyGameScene extends IEntityGameScene {
-  // TODO: Move to onEntityKilled ?
-  // onEnemyKilled: (enemy: IEnemy) => void;
-}
+/* ENTITIES */
 
 interface IEntity {
   id: string;
+  scene: Phaser.Scene;
   entityType: string;
-  gameScene: IEntityGameScene;
   entityState: EntityState;
   setEntityState(next: EntityState): void;
   x: number;
@@ -70,8 +54,11 @@ interface IClone extends IAlly {}
 interface IEnemy extends IEntity {
   attack: IEnemyAttack;
   update(time: number, delta: number, player: IPlayer, clone?: IClone | null): void;
-  die?(): void;
 }
+
+interface IOrcBasic extends IEnemy {}
+
+/* MOVEMENT */
 
 interface IEntityMovement {
   speed: number;
@@ -82,6 +69,8 @@ interface IPlayerMovement extends IEntityMovement {}
 interface ICloneMovement extends IEntityMovement {}
 interface IEnemyMovement extends IEntityMovement {}
 
+/* HEALTH */
+
 interface IEntityHealth {
   current: number;
   max: number;
@@ -91,27 +80,31 @@ interface IPlayerHealth extends IEntityHealth {}
 interface ICloneHealth extends IEntityHealth {}
 interface IEnemyHealth extends IEntityHealth {}
 
+/* ATTACK */
+
 interface IEntityAttack {
   damage: number;
   cooldown: number;
   cooldownMax: number;
   dir: CardinalDir;
   range: number;
-  detectionZone: Phaser.Physics.Arcade.Image;
+  detectionZone: DetectionZone;
   frames: {
     start: number = 0;
     end: number = 0;
-  }
+  },
+  hitEnemies: Set;
 }
 
 interface IAllyAttack extends IEntityAttack {
   attackIndicator: AttackIndicator;
-  hitEnemies: Set;
 }
 
 interface IPlayerAttack extends IAllyAttack {}
 interface ICloneAttack extends IAllyAttack {}
 interface IEnemyAttack extends IEntityAttack {}
+
+/* SKILLS */
 
 interface IEntitySkills {
   dash?: Dash;
@@ -121,6 +114,12 @@ interface IAllySkills extends IEntitySkills {}
 interface IPlayerSkills extends IAllySkills {}
 interface ICloneSkills extends IAllySkills {}
 interface IEnemySkills extends IEntitySkills {}
+
+/* OTHER */
+
+type EntityState = "idle" | "walk" | "run" | "reposition" | "attack" | "dash" | "hurt" | "stunned" | "dead";
+
+type DetectionZone = Phaser.Physics.Arcade.Image;
 
 interface IPlayerAnchor {
   position: XYPosition;

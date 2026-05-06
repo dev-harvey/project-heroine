@@ -7,24 +7,32 @@ import { CLONE_CONFIG, GAME_ASSETS, GAME_COLORS, GAME_CONFIG, PLAYER_CONFIG, UI_
 import { checkIfBBehindA, colorToHex, getAnchorOctoOffset } from "../utils/utils";
 import GameUI from "../systems/GameUI";
 import Entity from "../entities/Entity";
+import Enemy from "../entities/Enemy";
+import OrcBasic from "../entities/OrcBasic";
 
 export default class GameScene extends Phaser.Scene {
   // Core objects
-  player!: Player;
+  player: Player;
   clone: Clone | null = null;
-  enemies!: Phaser.Physics.Arcade.Group;
   waveManager!: WaveManager;
 
   ui: GameUI;
 
-  cursorSprite!: Phaser.GameObjects.Image;
+  cursorSprite: Phaser.GameObjects.Image;
+
+  enemies: Phaser.GameObjects.Group;
+  enemiesAttackZones: Phaser.Physics.Arcade.Group | null = null;
 
   // Colliders
   playerEnemyCollider: Phaser.Physics.Arcade.Collider | null = null;
   cloneEnemyCollider: Phaser.Physics.Arcade.Collider | null = null;
   enemyEnemyCollider: Phaser.Physics.Arcade.Collider | null = null;
+
   playerAttackOverlap: Phaser.Physics.Arcade.Collider | null = null;
   cloneAttackOverlap: Phaser.Physics.Arcade.Collider | null = null;
+
+  enemiesPlayerAttackOverlap: Phaser.Physics.Arcade.Collider | null = null;
+  enemiesCloneAttackOverlap: Phaser.Physics.Arcade.Collider | null = null;
 
   // Stats
   // private killCount: number = 0;
@@ -86,7 +94,7 @@ export default class GameScene extends Phaser.Scene {
       this.clone.attack.attackIndicator.update();
     }
 
-    this.enemies.getChildren().forEach((e: any) => {
+    this.enemies.getChildren().forEach((e: Enemy) => {
       if (e.active) e.update(time, delta, this.player, this.clone);
     });
 
@@ -135,7 +143,6 @@ export default class GameScene extends Phaser.Scene {
       if (this.clone?.active) {
         this.clone.tryDash(dir);
       }
-
       if (this.playerEnemyCollider) this.playerEnemyCollider.active = false;
       if (this.cloneEnemyCollider) this.cloneEnemyCollider.active = false;
       this.time.delayedCall(PLAYER_CONFIG.DASH_DURATION, () => {
@@ -146,18 +153,43 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private buildGroups(): void {
-    this.enemies = this.physics.add.group();
+    this.enemies = this.add.group();
+    this.enemiesAttackZones = this.physics.add.group();
   }
 
   private buildPhysics(): void {
     this.playerEnemyCollider = this.physics.add.collider(this.player, this.enemies);
     this.enemyEnemyCollider = this.physics.add.collider(this.enemies, this.enemies);
-    this.playerAttackOverlap = this.physics.add.overlap(this.player.attack.detectionZone, this.enemies, (_zone, enemy) => this.onAttackHit(this.player, enemy));
+
+    this.playerAttackOverlap = this.physics.add.overlap(this.player.attack.detectionZone, this.enemies, (_zone, target) => this.onAttackHit(_zone, target));
+
+    /* Target and zone are swapped for this because the phaser gives the single target first then the group in the callback */
+    this.enemiesPlayerAttackOverlap = this.physics.add.overlap(this.enemiesAttackZones, this.player, (target, _zone) => this.onAttackHit(_zone, target));
   }
 
   private buildWaveManager(): void {
     this.waveManager = new WaveManager(this);
     this.waveManager.start();
+  }
+
+  private buildCloneControls(): void {
+    this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE).on("down", () => {
+      if (!this.player.active) return;
+      if (this.clone?.active) {
+        this.dismissClone();
+      } else {
+        this.summonClone();
+      }
+    });
+
+    this.input.mouse.disableContextMenu();
+    this.input.on("pointerdown", (ptr: any) => {
+      if (ptr.rightButtonDown() && this.clone?.active && this.player.active && this.clone?.entityState !== "dead") {
+        const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, this.input.activePointer.worldX, this.input.activePointer.worldY);
+        this.player.anchor.offset = getAnchorOctoOffset(angle, CLONE_CONFIG.ANCHOR_OFFSET);
+        this.clone.setEntityState("reposition");
+      }
+    });
   }
 
   // ─── Debug panel ──────────────────────────────────────────────────────
@@ -271,6 +303,19 @@ export default class GameScene extends Phaser.Scene {
 
     // ── Utility buttons (damage / clear) ─────────────────────────────────────
     const utilEntries = [
+      {
+        label: "Debug hitboxes",
+        color: colorToHex(GAME_COLORS.MULBERRY),
+        fn: () => {
+          if (!this.physics.world.debugGraphic) {
+            this.physics.world.createDebugGraphic();
+            this.physics.world.debugGraphic.setVisible(false);
+          }
+          const dbg = this.physics.world.debugGraphic;
+          dbg.setVisible(!dbg.visible);
+          this.physics.world.drawDebug = dbg.visible;
+        },
+      },
       { label: "Dmg Player", color: colorToHex(GAME_COLORS.CRIMSON), fn: () => this.player.tryHurt(1) },
       {
         label: "Dmg Clone",
@@ -423,26 +468,6 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  private buildCloneControls(): void {
-    this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE).on("down", () => {
-      if (!this.player.active) return;
-      if (this.clone?.active) {
-        this.dismissClone();
-      } else {
-        this.summonClone();
-      }
-    });
-
-    this.input.mouse.disableContextMenu();
-    this.input.on("pointerdown", (ptr: any) => {
-      if (ptr.rightButtonDown() && this.clone?.active && this.player.active && this.clone?.entityState !== "dead") {
-        const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, this.input.activePointer.worldX, this.input.activePointer.worldY);
-        this.player.anchor.offset = getAnchorOctoOffset(angle, CLONE_CONFIG.ANCHOR_OFFSET);
-        this.clone.setEntityState("reposition");
-      }
-    });
-  }
-
   // ─── Floating numbers ──────────────────────────────────────────────────────
 
   spawnDamageNumber(x: number, y: number, amount: number, color = "#ffffff", size = 19): void {
@@ -492,14 +517,15 @@ export default class GameScene extends Phaser.Scene {
 
   private summonClone(): void {
     if (this.clone !== null) return;
-    
+
     this.clone = new Clone(this, this.player.x, this.player.y, "player", this.player);
 
     const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, this.input.activePointer.worldX, this.input.activePointer.worldY);
     this.player.anchor.offset = getAnchorOctoOffset(angle, CLONE_CONFIG.ANCHOR_OFFSET);
 
     this.cloneEnemyCollider = this.physics.add.collider(this.clone, this.enemies);
-    this.cloneAttackOverlap = this.physics.add.overlap(this.clone.attack.detectionZone, this.enemies, (_zone, enemy) => this.onAttackHit(this.clone, enemy));
+    this.cloneAttackOverlap = this.physics.add.overlap(this.clone.attack.detectionZone, this.enemies, (_zone, target) => this.onAttackHit(_zone, target));
+    this.enemiesCloneAttackOverlap = this.physics.add.overlap(this.enemiesAttackZones, this.clone, (target, _zone) => this.onAttackHit(_zone, target));
 
     this.events.emit("clone_summoned", this.clone);
     this.ui.updateHudAttrs(this.clone);
@@ -511,39 +537,32 @@ export default class GameScene extends Phaser.Scene {
 
   // ─── Public API ──────────────────────────────────────────────────────
 
-  spawnWave(toadCount: number, houndCount: number, crowCount = 0, demonCount = 0): void {
+  spawnWave(orcCount: number, houndCount: number, crowCount = 0, demonCount = 0): void {
     const { GAME_WIDTH, GAME_HEIGHT, GAME_WALL_X, GAME_WALL_Y } = GAME_CONFIG;
 
-    const arenaZone = this.createSpawnZone(GAME_WIDTH - GAME_WALL_X - 200, GAME_WALL_Y, 200, GAME_HEIGHT - GAME_WALL_Y * 2, false);
+    const arenaZone = this.createSpawnZone(GAME_WIDTH - GAME_WALL_X - 600, GAME_WALL_Y, 200, GAME_HEIGHT - GAME_WALL_Y * 2, false);
 
-    // for (let i = 0; i < toadCount; i++) {
-    //   const [x, y] = this.spawnPoint(arenaZone);
-    //   const toad = new MutantToad(this, x, y);
-    //   this.enemies.add(toad, true);
-    // }
-  }
-
-  onEntityKilled(entity: IEntity): void {
-    if (entity?.lastAttacker) {
-      entity?.lastAttacker.registerKill();
-      this.ui.updateHudAttrs(entity);
-      this.ui.updateHudKills(entity);
-    } else {
-      // TODO: Handle
+    for (let i = 0; i < orcCount; i++) {
+      const [x, y] = this.spawnPoint(arenaZone);
+      const orc = new OrcBasic(this, x, y, "orc-01");
+      this.enemies.add(orc, true);
+      this.enemiesAttackZones.add(orc.attack.detectionZone);
     }
-    // this.waveManager?.onEnemyKilled();
   }
 
-  onEntityDeath(entity: Entity): void {
+  onEntityDeath(entity: IEntity): void {
     switch (entity.entityType) {
-      case "player": 
+      case "player":
         this.onPlayerDeath();
         break;
       case "clone":
         this.onCloneDeath();
         break;
       default:
-        // TODO: handle
+        entity?.lastAttacker.registerKill();
+        this.ui.updateHudAttrs(entity?.lastAttacker);
+        this.ui.updateHudKills(entity?.lastAttacker);
+        // this.waveManager?.onEnemyKilled();
         break;
     }
   }
@@ -573,17 +592,22 @@ export default class GameScene extends Phaser.Scene {
 
   // ─── Private helpers ──────────────────────────────────────────────────────
 
-  private onAttackHit(attacker: IAlly, enemy: any): void {
+  private onAttackHit(attackerZone: any, target: any): void {
+    const attacker = attackerZone.getData("owner");
+    if (!attacker) return;
     if (attacker.entityState !== "attack") return;
     if (!attacker.attack.detectionZone.body.enable) return;
-    if (attacker.attack.hitEnemies.has(enemy)) return;
+    const defender = target as IEntity;
 
-    if (checkIfBBehindA(attacker, enemy)) return;
+    if (attacker.attack.hitEnemies.has(defender)) return;
 
-    attacker.attack.hitEnemies.add(enemy);
-    enemy.lastAttacker = attacker;
-    this.spawnDamageNumber(enemy.x, enemy.y - 10, attacker.attack.damage, "#ffff00", 26);
-    enemy.tryHurt(attacker.attack.damage);
+    if (checkIfBBehindA(attacker, defender)) return;
+
+    attacker.attack.hitEnemies.add(defender);
+
+    defender.lastAttacker = attacker;
+    this.spawnDamageNumber(defender.x, defender.y - 10, attacker.attack.damage, colorToHex(GAME_COLORS.BLOOD), 26);
+    defender.tryHurt(attacker.attack.damage);
   }
 
   private createSpawnZone(x: number, y: number, width: number, height: number, debug = false): Phaser.Geom.Rectangle {

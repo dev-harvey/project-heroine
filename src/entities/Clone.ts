@@ -3,12 +3,10 @@ import Player from "./Player";
 
 import { CLONE_CONFIG } from "../utils/constants";
 import { Dash } from "../skills/Dash";
-import AttackIndicator from "./AttackIndicator";
+import AttackIndicator from "../indicators/AttackIndicator";
 import Ally from "./Ally";
 
 export default class Clone extends Ally implements IClone {
-  declare gameScene: ICloneGameScene;
-
   declare textureKey: string;
 
   targetPlayer: Player;
@@ -21,13 +19,16 @@ export default class Clone extends Ally implements IClone {
   declare health: ICloneHealth;
 
   protected onDeath() {
-    this.attack.detectionZone.destroy();
     this.attack.attackIndicator.destroy();
     super.onDeath();
   }
 
+  private physics: Phaser.Physics.Arcade.ArcadePhysics;
+
   constructor(scene: Phaser.Scene, x: number, y: number, textureKey: string, player: Player) {
     super(scene, x, y, textureKey);
+
+    this.physics = scene.physics;
 
     this.targetPlayer = player;
     this.id = "clone";
@@ -58,7 +59,6 @@ export default class Clone extends Ally implements IClone {
       dir: "right",
       range: CLONE_CONFIG.ATTACK_RANGE,
       attackIndicator: new AttackIndicator(scene, this, CLONE_CONFIG.TINT),
-      hitEnemies: new Set(),
       frames: {
         start: CLONE_CONFIG.ATTACK_FRAMES.START,
         end: CLONE_CONFIG.ATTACK_FRAMES.END,
@@ -90,7 +90,7 @@ export default class Clone extends Ally implements IClone {
       speed = CLONE_CONFIG.SPEED.REPOSITIONING;
     }
 
-    this.gameScene.physics.moveToObject(this, anchorPosition, speed);
+    this.physics.moveToObject(this, anchorPosition, speed);
     this.updateFacingDir(anchorPosition);
     this.updateMovementState();
   }

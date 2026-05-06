@@ -3,8 +3,6 @@ import Entity from "./Entity";
 import { getMouseDirFromTarget, syncAttackZone } from "../utils/utils";
 
 abstract class Ally extends Entity implements IAlly {
-  declare gameScene: IPlayerGameScene;
-
   declare textureKey: string;
 
   declare movement: IPlayerMovement;
@@ -14,8 +12,6 @@ abstract class Ally extends Entity implements IAlly {
 
   declare health: IPlayerHealth;
   setMaxHp(value: number) {
-    console.log(value);
-    
     this.health.max = Math.min(this.maxTotalHealth, value);
   }
   declare attack: IPlayerAttack;
@@ -32,15 +28,9 @@ abstract class Ally extends Entity implements IAlly {
     this.killCount = 0;
   }
 
-  protected onAttackFrameEnd() {
-    this.attack.detectionZone.body.enable = false;
-    this.attack.hitEnemies.clear();
-  }
-
   tryAttack(): boolean {
     if (!super.tryAttack()) return false;
     
-    this.attack.hitEnemies.clear();
     this.attack.dir = getMouseDirFromTarget(this);
     
     if (!this.setEntityState("attack")) return false;

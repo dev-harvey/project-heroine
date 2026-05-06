@@ -33,7 +33,7 @@ export function getMouseDirFromTarget(target: IEntity): CardinalDir;
 export function getMouseDirFromTarget(target: IEntity, mode: DirTypeOcto): OctoDir;
 export function getMouseDirFromTarget(target: IEntity, mode: DirTypeCardinal): CardinalDir;
 export function getMouseDirFromTarget(target: IEntity, mode: DirType = DIR_CARDINAL): OctoDir | CardinalDir {
-  const ptr = target.gameScene.input.activePointer;
+  const ptr = target.scene.input.activePointer;
   const angle = Phaser.Math.Angle.Between(target.x, target.y, ptr.worldX, ptr.worldY);
   if (mode === DIR_CARDINAL) return angleToDir(angle, DIR_CARDINAL);
   return angleToDir(angle, DIR_OCTO);

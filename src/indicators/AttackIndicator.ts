@@ -1,8 +1,8 @@
 import * as Phaser from "phaser";
 
 import { CLONE_CONFIG, GAME_COLORS, PLAYER_CONFIG } from "../utils/constants";
-import Player from "./Player";
-import Clone from "./Clone";
+import Player from "../entities/Player";
+import Clone from "../entities/Clone";
 import { getMouseDirFromTarget } from "../utils/utils";
 
 const DIRECTION_CONFIG: Record<string, { angle: number; offsetX: number; offsetY: number }> = {
