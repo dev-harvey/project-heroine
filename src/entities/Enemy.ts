@@ -14,6 +14,8 @@ export default abstract class Enemy extends Entity implements IEnemy {
   constructor(scene: Phaser.Scene, x: number, y: number, textureKey: string) {
     super(scene, x, y, textureKey);
 
+    this.entityType = "enemy";
+
     this.physics = scene.physics;
 
     this.currentTarget = null;

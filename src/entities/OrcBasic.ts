@@ -6,6 +6,8 @@ export default class OrcBasic extends Enemy implements IOrcBasic {
   constructor(scene: Phaser.Scene, x: number, y: number, textureKey: string) {
     super(scene, x, y, textureKey);
 
+    this.id = "orcBasic";
+
     this.setBodySize(ORCBASIC_CONFIG.BODY_SIZE.x, ORCBASIC_CONFIG.BODY_SIZE.y, true);
     this.body.setMass(ORCBASIC_CONFIG.MASS);
     this.setDepth(ORCBASIC_CONFIG.DEPTH);
