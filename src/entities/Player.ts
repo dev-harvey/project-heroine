@@ -21,11 +21,6 @@ export default class Player extends Ally implements IPlayer {
 
   private inputControls: IPlayerInput;
 
-  protected onDeath() {
-    this.setVelocity(0, 0).setAcceleration(0,0);
-    this.play(`${this.textureKey}-death`);
-  }
-
   constructor(scene: Phaser.Scene, x: number, y: number, textureKey: string) {
     super(scene, x, y, textureKey);
 

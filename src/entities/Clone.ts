@@ -91,7 +91,8 @@ export default class Clone extends Ally implements IClone {
 
     this.physics.moveToObject(this, anchorPosition, speed);
     this.updateFacingDir(anchorPosition);
-    this.updateMovementState();
+    
+    super.updateMovement();
   }
 
   update(time: number, delta: number): void {

@@ -104,6 +104,7 @@ abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
   }
   protected onDeath() {
     this.setVelocity(0, 0).setAcceleration(0,0);
+    this.body.enable = false;
     this.play(`${this.textureKey}-death`);
   }
 
