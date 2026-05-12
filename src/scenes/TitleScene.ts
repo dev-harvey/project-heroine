@@ -36,8 +36,6 @@ export default class TitleScene extends Phaser.Scene {
 
     this.input.keyboard.once('keydown-ENTER', () => this.start(false));
     this.input.keyboard.once('keydown-SPACE', () => this.start(false));
-
-    this.add.text(W / 2, H - 16, 'Milestone 3', t(11, '#333333')).setOrigin(0.5, 1);
   }
 
   private start(debug: boolean): void { this.scene.start('GameScene', { debug }); }
