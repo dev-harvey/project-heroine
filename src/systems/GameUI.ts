@@ -32,8 +32,6 @@ export default class GameUI {
     };
   };
 
-  // TODO: eventually the Record types should be more defined as to what is within them rather than accepting anything
-
   private cooldownBars: Record<string, Phaser.GameObjects.Rectangle> = {};
   private killsTexts: Record<string, Phaser.GameObjects.Text> = {};
   private attackTexts: Record<string, Phaser.GameObjects.Text> = {};
@@ -154,7 +152,8 @@ export default class GameUI {
     }
 
     container.removeAll(true);
-    const text = this.addUIText(0, 0, `${label}: ${target.killCount}`, getTextStyle("body", 32, { color: colorToHex(GAME_COLORS.COBALT) }), { x: 1, y: 0 });
+    // const text = this.addUIText(0, 0, `${label}: ${target.killCount}`, getTextStyle("body", 32, { color: colorToHex(GAME_COLORS.COBALT) }), { x: 1, y: 0 });
+    const text = this.addUIText(0, 0, `${label}: ${target.killCount}`, getTextStyle("body", 32, { color: "#ffffff" }), { x: 1, y: 0 });
     this.killsTexts[key] = text;
     container.add(text);
   }
@@ -194,7 +193,8 @@ export default class GameUI {
     container.removeAll(true);
     const icon = this.scene.add.image(0, 0, GAME_ASSETS.ATTACK_ICON).setDisplaySize(32, 32).setOrigin(0);
     const text = this.addUIText(icon.displayWidth + 10, 0, target.attack.damage.toString(), getTextStyle("heading", 32))
-      .setColor(colorToHex(GAME_COLORS.COBALT))
+      // .setColor(colorToHex(GAME_COLORS.COBALT))
+      .setColor("#ffffff")
       .setFontStyle("bold")
       .setOrigin(0, 0.04)
       .setFixedSize(0, 32);
@@ -341,9 +341,12 @@ export default class GameUI {
     debug.strokeRect(container.x - container.width / 2, container.y - container.height / 2, containerBounds.width, containerBounds.height);
   }
 
-  // TODO: pass in optional params for stroke and font. Potentially actually pass a config object that I can type as an interface.
   public addUIText(x: number, y: number, content: string, style: Phaser.Types.GameObjects.Text.TextStyle = {}, origin: { x: TextOrigin; y: TextOrigin } = { x: 0, y: 0 }, depth: number = DEPTH_CONFIG.UI_TEXT_DEFAULT): Phaser.GameObjects.Text {
     return this.scene.add.text(x, y, content, style).setOrigin(origin.x, origin.y).setDepth(depth).setScrollFactor(0);
+  }
+
+  public getUIObjects(): Phaser.GameObjects.GameObject[] {
+    return [this.hudAttrs.container, this.hudAbilities.container, this.hudPhase.container, this.hudStats.container, this.scene.cursorSprite];
   }
 
   public destroyEvents() {

@@ -119,6 +119,6 @@ export default class Player extends Ally implements IPlayer {
     const playerPosition = { x: this.x, y: this.y };
     this.anchor.position = getAnchorPosition(playerPosition, playerPosition, this.anchor.offset);
     const ptr = this.scene.input.activePointer;
-    this.anchor.indicatorPosition = getAnchorPosition(playerPosition, { x: ptr.x, y: ptr.y });
+    this.anchor.indicatorPosition = getAnchorPosition(playerPosition, { x: ptr.worldX, y: ptr.worldY });
   }
 }
