@@ -7,8 +7,8 @@ import Entity from "../entities/Entity";
 const OCTO_DIRS: OctoDir[] = ["right", "down-right", "down", "down-left", "left", "up-left", "up", "up-right"];
 const CARDINAL_DIRS: CardinalDir[] = ["right", "down", "left", "up"];
 
-const DIR_OCTO = "octo";
-const DIR_CARDINAL = "cardinal";
+export const DIR_OCTO = "octo";
+export const DIR_CARDINAL = "cardinal";
 type DirTypeCardinal = "cardinal";
 type DirTypeOcto = "octo";
 type DirType = DirTypeOcto | DirTypeCardinal;
@@ -28,13 +28,21 @@ export function snapAngle(angle: number, mode: DirType = DIR_OCTO): number {
   return Math.round(angle / step) * step;
 }
 
-
 export function getMouseDirFromTarget(target: IEntity): CardinalDir;
 export function getMouseDirFromTarget(target: IEntity, mode: DirTypeOcto): OctoDir;
 export function getMouseDirFromTarget(target: IEntity, mode: DirTypeCardinal): CardinalDir;
-export function getMouseDirFromTarget(target: IEntity, mode: DirType = DIR_CARDINAL): OctoDir | CardinalDir {
+export function getMouseDirFromTarget(target: IEntity, mode: DirTypeOcto, debug: boolean): OctoDir;
+export function getMouseDirFromTarget(target: IEntity, mode: DirTypeCardinal, debug: boolean): CardinalDir;
+export function getMouseDirFromTarget(target: IEntity, mode: DirType = DIR_CARDINAL, debug?: boolean): OctoDir | CardinalDir {
   const ptr = target.scene.input.activePointer;
   const angle = Phaser.Math.Angle.Between(target.x, target.y, ptr.worldX, ptr.worldY);
+  if (debug) {
+    console.log(target.entityType);
+    console.log(`target.x: ${target.x}`);
+    console.log(`target.y: ${target.y}`);
+    console.log(`ptr.worldX: ${ptr.worldX}`);
+    console.log(`ptr.worldY: ${ptr.worldY}`);
+  }
   if (mode === DIR_CARDINAL) return angleToDir(angle, DIR_CARDINAL);
   return angleToDir(angle, DIR_OCTO);
 }
