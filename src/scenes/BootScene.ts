@@ -46,8 +46,8 @@ export default class BootScene extends Phaser.Scene {
 
   create(): void {
     this.createAnimations();
-    // this.scene.start('TitleScene');
-    this.scene.start("GameScene", { debug: false });
+    this.scene.start("TitleScene");
+    // this.scene.start("GameScene", { debug: false });
   }
 
   createLoadingBar(): void {
@@ -64,63 +64,38 @@ export default class BootScene extends Phaser.Scene {
   }
 
   createAnimations(): void {
-    /* Player Idle */
+    const createDirectional = (prefix: string, action: string, texture: string, framesPerDir: number, frameRate: number, repeat: number, dirs: readonly string[]) => {
+      dirs.forEach((dir, i) => {
+        const start = i * framesPerDir;
+        this.anims.create({
+          key: `${prefix}-${action}-${dir}`,
+          frames: this.anims.generateFrameNumbers(texture, { start, end: start + framesPerDir - 1 }),
+          frameRate,
+          repeat,
+        });
+      });
+    };
+
+    /* Player */
+    const playerDirs = ["down", "left", "right", "up"];
     this.anims.create({ key: "player-idle", frames: this.anims.generateFrameNumbers("player-idle", { start: 0, end: 39 }), frameRate: 6, repeat: -1 });
-
-    this.anims.create({ key: "player-walk-down", frames: this.anims.generateFrameNumbers("player-walk", { start: 0, end: 5 }), frameRate: 6, repeat: -1 });
-    this.anims.create({ key: "player-walk-left", frames: this.anims.generateFrameNumbers("player-walk", { start: 6, end: 11 }), frameRate: 6, repeat: -1 });
-    this.anims.create({ key: "player-walk-right", frames: this.anims.generateFrameNumbers("player-walk", { start: 12, end: 17 }), frameRate: 6, repeat: -1 });
-    this.anims.create({ key: "player-walk-up", frames: this.anims.generateFrameNumbers("player-walk", { start: 18, end: 23 }), frameRate: 6, repeat: -1 });
-
-    this.anims.create({ key: "player-run-down", frames: this.anims.generateFrameNumbers("player-run", { start: 0, end: 7 }), frameRate: 6, repeat: -1 });
-    this.anims.create({ key: "player-run-left", frames: this.anims.generateFrameNumbers("player-run", { start: 8, end: 15 }), frameRate: 6, repeat: -1 });
-    this.anims.create({ key: "player-run-right", frames: this.anims.generateFrameNumbers("player-run", { start: 16, end: 23 }), frameRate: 6, repeat: -1 });
-    this.anims.create({ key: "player-run-up", frames: this.anims.generateFrameNumbers("player-run", { start: 24, end: 31 }), frameRate: 6, repeat: -1 });
-
-    this.anims.create({ key: "player-attack-down", frames: this.anims.generateFrameNumbers("player-attack", { start: 0, end: 7 }), frameRate: 16, repeat: 0 });
-    this.anims.create({ key: "player-attack-left", frames: this.anims.generateFrameNumbers("player-attack", { start: 8, end: 15 }), frameRate: 16, repeat: 0 });
-    this.anims.create({ key: "player-attack-right", frames: this.anims.generateFrameNumbers("player-attack", { start: 16, end: 23 }), frameRate: 16, repeat: 0 });
-    this.anims.create({ key: "player-attack-up", frames: this.anims.generateFrameNumbers("player-attack", { start: 24, end: 31 }), frameRate: 16, repeat: 0 });
-
-    this.anims.create({ key: "player-hurt-down", frames: this.anims.generateFrameNumbers("player-hurt", { start: 0, end: 4 }), frameRate: 20, repeat: 0 });
-    this.anims.create({ key: "player-hurt-left", frames: this.anims.generateFrameNumbers("player-hurt", { start: 5, end: 9 }), frameRate: 20, repeat: 0 });
-    this.anims.create({ key: "player-hurt-right", frames: this.anims.generateFrameNumbers("player-hurt", { start: 10, end: 14 }), frameRate: 20, repeat: 0 });
-    this.anims.create({ key: "player-hurt-up", frames: this.anims.generateFrameNumbers("player-hurt", { start: 15, end: 19 }), frameRate: 20, repeat: 0 });
-
     this.anims.create({ key: "player-death", frames: this.anims.generateFrameNumbers("player-death", { start: 0, end: 6 }), frameRate: 6, repeat: 0 });
+    createDirectional("player", "walk", "player-walk", 6, 6, -1, playerDirs);
+    createDirectional("player", "run", "player-run", 8, 6, -1, playerDirs);
+    createDirectional("player", "attack", "player-attack", 8, 16, 0, playerDirs);
+    createDirectional("player", "hurt", "player-hurt", 5, 20, 0, playerDirs);
 
-    /** EFFECTS **/
-    
+    /* Effects */
     this.anims.create({ key: "anchor-indicator", frames: this.anims.generateFrameNumbers("anchor-indicator", { start: 0, end: 7 }), frameRate: 8, repeat: -1 });
-
     this.anims.create({ key: "attack-indicator", frames: this.anims.generateFrameNumbers("attack-indicator", { start: 0, end: 5 }), frameRate: 10, repeat: 0 });
 
-    /*** ENEMIES ***/
-
-    /* Orc 01 - OrcBasic */
-
+    /* Orc Basic */
+    const orcDirs = ["down", "up", "left", "right"];
     this.anims.create({ key: "orc-basic-idle", frames: this.anims.generateFrameNumbers("orc-basic-idle", { start: 0, end: 3 }), frameRate: 12, repeat: -1 });
-    
-    this.anims.create({ key: "orc-basic-walk-down", frames: this.anims.generateFrameNumbers("orc-basic-walk", { start: 0, end: 5 }), frameRate: 16, repeat: 0 });
-    this.anims.create({ key: "orc-basic-walk-up", frames: this.anims.generateFrameNumbers("orc-basic-walk", { start: 6, end: 11 }), frameRate: 16, repeat: 0 });
-    this.anims.create({ key: "orc-basic-walk-left", frames: this.anims.generateFrameNumbers("orc-basic-walk", { start: 12, end: 17 }), frameRate: 16, repeat: 0 });
-    this.anims.create({ key: "orc-basic-walk-right", frames: this.anims.generateFrameNumbers("orc-basic-walk", { start: 18, end: 23 }), frameRate: 16, repeat: 0 });
-
-    this.anims.create({ key: "orc-basic-run-down", frames: this.anims.generateFrameNumbers("orc-basic-run", { start: 0, end: 7 }), frameRate: 16, repeat: 0 });
-    this.anims.create({ key: "orc-basic-run-up", frames: this.anims.generateFrameNumbers("orc-basic-run", { start: 8, end: 15 }), frameRate: 16, repeat: 0 });
-    this.anims.create({ key: "orc-basic-run-left", frames: this.anims.generateFrameNumbers("orc-basic-run", { start: 16, end: 23 }), frameRate: 16, repeat: 0 });
-    this.anims.create({ key: "orc-basic-run-right", frames: this.anims.generateFrameNumbers("orc-basic-run", { start: 24, end: 31 }), frameRate: 16, repeat: 0 });
-
-    this.anims.create({ key: "orc-basic-attack-down", frames: this.anims.generateFrameNumbers("orc-basic-attack", { start: 0, end: 7 }), frameRate: 8, repeat: 0 });
-    this.anims.create({ key: "orc-basic-attack-up", frames: this.anims.generateFrameNumbers("orc-basic-attack", { start: 8, end: 15 }), frameRate: 8, repeat: 0 });
-    this.anims.create({ key: "orc-basic-attack-left", frames: this.anims.generateFrameNumbers("orc-basic-attack", { start: 16, end: 23 }), frameRate: 8, repeat: 0 });
-    this.anims.create({ key: "orc-basic-attack-right", frames: this.anims.generateFrameNumbers("orc-basic-attack", { start: 24, end: 31 }), frameRate: 8, repeat: 0 });
-
-    this.anims.create({ key: "orc-basic-hurt-down", frames: this.anims.generateFrameNumbers("orc-basic-hurt", { start: 0, end: 5 }), frameRate: 16, repeat: 0 });
-    this.anims.create({ key: "orc-basic-hurt-up", frames: this.anims.generateFrameNumbers("orc-basic-hurt", { start: 6, end: 11 }), frameRate: 16, repeat: 0 });
-    this.anims.create({ key: "orc-basic-hurt-left", frames: this.anims.generateFrameNumbers("orc-basic-hurt", { start: 12, end: 17 }), frameRate: 16, repeat: 0 });
-    this.anims.create({ key: "orc-basic-hurt-right", frames: this.anims.generateFrameNumbers("orc-basic-hurt", { start: 18, end: 23 }), frameRate: 16, repeat: 0 });
-
     this.anims.create({ key: "orc-basic-death", frames: this.anims.generateFrameNumbers("orc-basic-death", { start: 0, end: 7 }), frameRate: 16, repeat: 0 });
+    createDirectional("orc-basic", "walk", "orc-basic-walk", 6, 16, 0, orcDirs);
+    createDirectional("orc-basic", "run", "orc-basic-run", 8, 16, 0, orcDirs);
+    createDirectional("orc-basic", "attack", "orc-basic-attack", 8, 8, 0, orcDirs);
+    createDirectional("orc-basic", "hurt", "orc-basic-hurt", 6, 16, 0, orcDirs);
   }
 }
