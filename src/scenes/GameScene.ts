@@ -37,12 +37,7 @@ export default class GameScene extends Phaser.Scene {
   spawnZones: SpawnZone[];
 
   // Stats
-  // private killCount: number = 0;
-  // private totalCloneKills: number = 0;
-  private totalHealGiven: number = 0;
-  private totalPermHp: number = 0;
-  private totalPermAtk: number = 0;
-  private runGold: number = 0;
+  private cloneTotalKillCount: number = 0;
 
   // Debug
   private debugMode: boolean = false;
@@ -196,7 +191,7 @@ export default class GameScene extends Phaser.Scene {
 
   private buildCloneControls(): void {
     this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE).on("down", () => {
-      if (!this.player.active) return;
+      if (!this.player.active || this.player.isInEntityState("dead", "hurt", "dash", "attack", "stunned")) return;
       if (this.clone?.active) {
         this.dismissClone();
       } else {
@@ -295,7 +290,7 @@ export default class GameScene extends Phaser.Scene {
         entity?.lastAttacker.registerKill();
         this.ui.updateHudAttrs(entity?.lastAttacker);
         this.ui.updateHudKills(entity?.lastAttacker);
-        console.log('enemy killed');
+        if (entity?.lastAttacker.entityType === "clone") this.cloneTotalKillCount++;
         this.waveManager?.onEnemyKilled();
         break;
     }
@@ -303,15 +298,9 @@ export default class GameScene extends Phaser.Scene {
 
   onPlayerDeath(): void {
     this.scene.start("GameOverScene", {
-      wave: 1,
+      wave: this.waveManager.currentWave,
       kills: this.player.killCount,
-      cloneKills: 0,
-      playerAtk: this.player.attack.damage,
-      playerMaxHp: this.player.health.max,
-      healGiven: this.totalHealGiven,
-      permHpGained: this.totalPermHp,
-      permAtkGained: this.totalPermAtk,
-      runGold: this.runGold,
+      cloneKills: this.cloneTotalKillCount,
     });
   }
 

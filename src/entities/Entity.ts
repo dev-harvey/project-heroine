@@ -213,7 +213,7 @@ abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
     }
   }
 
-  protected isInEntityState(...states: EntityState[]): boolean {
+  isInEntityState(...states: EntityState[]): boolean {
     return states.includes(this.entityState);
   }
 
