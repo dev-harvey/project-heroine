@@ -45,7 +45,7 @@ export default abstract class Enemy extends Entity implements IEnemy {
 
   updateMovement(): void {
     if (!this.currentTarget) return;
-    this.physics.moveToObject(this, this.currentTarget, this.movement.speed);
+    this.physics.accelerateTo(this, this.currentTarget.x, this.currentTarget.y, this.movement.speed * 20, this.movement.speed, this.movement.speed);
     this.updateFacingDir(this.currentTarget);
     super.updateMovement();
   }

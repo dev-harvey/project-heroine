@@ -80,15 +80,14 @@ export default class Clone extends Ally implements IClone {
     const distance = Phaser.Math.Distance.Between(anchorPosition.x, anchorPosition.y, cloneCenter.x, cloneCenter.y);
     let speed = this.movement.speed;
 
-    if (distance < 2) {
+    if (distance < 3) {
+      this.setVelocity(0, 0);
       this.setEntityState("idle");
-      speed = 0;
-    } else if (distance < 10) {
-      this.setEntityState("idle");
-      speed = CLONE_CONFIG.SPEED.DEADZONE;
-    } else if (this.entityState === "reposition") {
-      speed = CLONE_CONFIG.SPEED.REPOSITIONING;
+      return;
     }
+
+    const maxSpeed = this.entityState === "reposition" ? CLONE_CONFIG.SPEED.REPOSITIONING : CLONE_CONFIG.SPEED.BASE * 3;
+    speed = Math.min(distance * 10, maxSpeed);
 
     this.physics.moveToObject(this, anchorPosition, speed);
     this.updateFacingDir(anchorPosition);

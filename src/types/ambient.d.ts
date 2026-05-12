@@ -8,6 +8,11 @@ type OctoDir = "right" | "up-right" | "down-right" | "down" | "down-left" | "lef
 
 type XYPosition = { x: number; y: number };
 
+type SpawnZone = {
+  active: boolean;
+  zone: Phaser.Geom.Rectangle;
+};
+
 // ─── Input helpers ─────────────────────────────────────────────────────────
 
 /** Object returned by `scene.input.keyboard.addKeys()` for WASD. */

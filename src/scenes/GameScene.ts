@@ -6,9 +6,9 @@ import WaveManager from "../systems/WaveManager";
 import { CLONE_CONFIG, GAME_ASSETS, GAME_COLORS, GAME_CONFIG, PLAYER_CONFIG, UI_CONFIG } from "../utils/constants";
 import { checkIfBBehindA, colorToHex, getAnchorOctoOffset } from "../utils/utils";
 import GameUI from "../systems/GameUI";
-import Entity from "../entities/Entity";
+import DebugPanel from "../systems/DebugPanel";
 import Enemy from "../entities/Enemy";
-import OrcBasic from "../entities/OrcBasic";
+import { ENEMY_REGISTRY } from "../utils/ENEMY_REGISTRY";
 
 export default class GameScene extends Phaser.Scene {
   // Core objects
@@ -33,6 +33,8 @@ export default class GameScene extends Phaser.Scene {
 
   enemiesPlayerAttackOverlap: Phaser.Physics.Arcade.Collider | null = null;
   enemiesCloneAttackOverlap: Phaser.Physics.Arcade.Collider | null = null;
+
+  spawnZones: SpawnZone[];
 
   // Stats
   // private killCount: number = 0;
@@ -64,15 +66,33 @@ export default class GameScene extends Phaser.Scene {
     this.ui = new GameUI(this, this.player);
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.destroyEvents();
       this.ui.destroyEvents();
     });
 
-    if (this.debugMode) this.buildDebugPanel();
+    if (this.debugMode) new DebugPanel(this);
     else this.buildWaveManager();
 
     this.events.on("death", this.onEntityDeath, this);
 
     this.buildCloneControls();
+
+    this.spawnZones = [];
+
+    for (let i = 0; i < 8; i++) {
+      const { GAME_WIDTH, GAME_HEIGHT, GAME_WALL_X, GAME_WALL_Y } = GAME_CONFIG;
+      
+      const width = (GAME_WIDTH - (GAME_WALL_X * 2)) / 4;
+      const height = (GAME_HEIGHT - (GAME_WALL_Y * 2)) / 3;
+
+      const startX = i < 4 ? GAME_WALL_X + (i * width) : GAME_WALL_X + ((i-4) * width);
+      const startY = i < 4 ? GAME_WALL_Y : GAME_WALL_Y + (height * 2);
+
+      this.spawnZones.push({
+        active: false,
+        zone: this.createSpawnZone(startX, startY, width, height, false)
+      }); 
+    }
   }
 
   update(time: number, delta: number): void {
@@ -133,8 +153,10 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private buildPlayer(): void {
-    const { GAME_HEIGHT, GAME_WALL_X } = GAME_CONFIG;
-    this.player = new Player(this, GAME_WALL_X + 50, GAME_HEIGHT / 2, "player");
+    const { GAME_WIDTH, GAME_HEIGHT } = GAME_CONFIG;
+
+    this.player = new Player(this, GAME_WIDTH / 2, GAME_HEIGHT / 2, "player");
+
     this.player.on("attack", () => {
       if (this.clone?.active) this.clone.tryAttack();
     });
@@ -261,19 +283,6 @@ export default class GameScene extends Phaser.Scene {
 
   // ─── Public API ──────────────────────────────────────────────────────
 
-  spawnWave(orcCount: number, houndCount: number, crowCount = 0, demonCount = 0): void {
-    const { GAME_WIDTH, GAME_HEIGHT, GAME_WALL_X, GAME_WALL_Y } = GAME_CONFIG;
-
-    const arenaZone = this.createSpawnZone(GAME_WIDTH - GAME_WALL_X - 600, GAME_WALL_Y, 200, GAME_HEIGHT - GAME_WALL_Y * 2, false);
-
-    for (let i = 0; i < orcCount; i++) {
-      const [x, y] = this.spawnPoint(arenaZone);
-      const orc = new OrcBasic(this, x, y, "orc-01");
-      this.enemies.add(orc, true);
-      this.enemiesAttackZones.add(orc.attack.detectionZone);
-    }
-  }
-
   onEntityDeath(entity: IEntity): void {
     switch (entity.entityType) {
       case "player":
@@ -286,7 +295,8 @@ export default class GameScene extends Phaser.Scene {
         entity?.lastAttacker.registerKill();
         this.ui.updateHudAttrs(entity?.lastAttacker);
         this.ui.updateHudKills(entity?.lastAttacker);
-        // this.waveManager?.onEnemyKilled();
+        console.log('enemy killed');
+        this.waveManager?.onEnemyKilled();
         break;
     }
   }
@@ -334,6 +344,33 @@ export default class GameScene extends Phaser.Scene {
     defender.tryHurt(attacker.attack.damage);
   }
 
+  spawnWave(waveNum: number): void {
+    const count = waveNum * 4;
+    const zones = this.spawnZones.map(sz => sz.zone);
+    let lastIdx = -1;
+
+    for (let i = 0; i < count; i++) {
+      const pool = zones.map((_, idx) => idx).filter(idx => idx !== lastIdx);
+      lastIdx = pool[Phaser.Math.Between(0, pool.length - 1)];
+      this.spawnEnemy("orc-basic", 1, zones[lastIdx]);
+    }
+  }
+
+  spawnEnemy(enemyId: string, count: number, spawnZone: Phaser.Geom.Rectangle): void {
+    const EnemyClass = ENEMY_REGISTRY[enemyId];
+    if (!EnemyClass) {
+      console.warn(`Unable to spawn enemy, unknown enemy type: ${enemyId}`);
+      return;
+    }
+
+    for (let i = 0; i < count; i++) {
+      const [x, y] = this.spawnPoint(spawnZone);
+      const enemy = new EnemyClass(this, x, y, enemyId);
+      this.enemies.add(enemy, true);
+      this.enemiesAttackZones.add(enemy.attack.detectionZone);
+    }
+  }
+
   private createSpawnZone(x: number, y: number, width: number, height: number, debug = false): Phaser.Geom.Rectangle {
     const zone = new Phaser.Geom.Rectangle(x, y, width, height);
 
@@ -349,5 +386,9 @@ export default class GameScene extends Phaser.Scene {
   private spawnPoint(zone: Phaser.Geom.Rectangle): [number, number] {
     const point = zone.getRandomPoint();
     return [point.x, point.y];
+  }
+
+  public destroyEvents() {
+    this.events.off("death", this.onEntityDeath, this);
   }
 }

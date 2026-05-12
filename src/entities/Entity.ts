@@ -24,16 +24,16 @@ abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
         if (this.isInEntityState("dead")) return false;
         break;
       case "walk":
-        if (this.isInEntityState("dead", "stunned", "attack", "dash", "reposition")) return false;
+        if (this.isInEntityState("dead", "stunned", "attack", "dash", "reposition", "hurt")) return false;
         break;
       case "reposition":
         if (this.isInEntityState("dead", "stunned", "attack", "dash")) return false;
         break;
       case "attack":
-        if (this.isInEntityState("dead", "stunned", "attack")) return false;
+        if (this.isInEntityState("dead", "stunned", "attack", "hurt")) return false;
         break;
       case "dash":
-        if (this.isInEntityState("dead", "stunned", "attack", "dash")) return false;
+        if (this.isInEntityState("dead", "stunned", "attack", "dash", "hurt")) return false;
         break;
       case "hurt":
         if (this.isInEntityState("dead", "hurt", "dash")) return false;
@@ -86,7 +86,7 @@ abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
   }
   protected onAttack() {
     this.attack.cooldown = this.attack.cooldownMax;
-    this.setVelocity(0, 0);
+    this.setVelocity(0, 0).setAcceleration(0,0);
     this.play(`${this.textureKey}-attack-${this.attack.dir}`);
   }
   protected onDash() {
@@ -94,16 +94,16 @@ abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
     this.skills.dash.execute();
   }
   protected onHurt() {
-    this.setVelocity(0, 0);
+    this.setVelocity(0, 0).setAcceleration(0,0);
     this.attack.detectionZone.body.enable = false;
     this.play(`${this.textureKey}-hurt-${this.movement.facingDir}`);
   }
   protected onStunned() {
-    this.setVelocity(0, 0);
+    this.setVelocity(0, 0).setAcceleration(0,0);
     this.play(`${this.textureKey}-idle`, true);
   }
   protected onDeath() {
-    this.setVelocity(0, 0);
+    this.setVelocity(0, 0).setAcceleration(0,0);
     this.play(`${this.textureKey}-death`);
   }
 
@@ -140,7 +140,8 @@ abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
     scene.physics.add.existing(this);
 
     this.setDamping(true);
-    this.setDrag(0.01);
+    this.setDrag(15);
+    this.setMaxVelocity(400);
 
     /*
     this.setBodySize(PLAYER_CONFIG.BODY_SIZE.x, PLAYER_CONFIG.BODY_SIZE.y, true);

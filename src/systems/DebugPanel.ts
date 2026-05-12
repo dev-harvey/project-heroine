@@ -85,8 +85,7 @@ export default class DebugPanel {
     spawnSectionHeader.on("pointerout", () => spawnSectionHeader.setFillStyle(COLOR_BUTTON_DEFAULT));
 
     // ── Spawn buttons (one per enemy type) ───────────────────────────────────
-    const spawnEntries = [{ label: "Orc Basic", color: colorToHex(GAME_COLORS.FERN), fn: () => scene.spawnWave() }];
-    // TODO: Change to spawn enemy when we have the zones set up.
+    const spawnEntries = [{ label: "Spawn wave 1", color: colorToHex(GAME_COLORS.FERN), fn: () => scene.spawnWave(1) }];
 
     const spawnButtons = spawnEntries.map((entry, i) => {
       const buttonY = spawnSectionStartY + buttonHeight + buttonGap + i * (buttonHeight + buttonGap);

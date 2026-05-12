@@ -5,7 +5,7 @@ import GameUI from "./GameUI";
 interface IWaveScene extends Phaser.Scene {
   ui: GameUI;
   waveText?: Phaser.GameObjects.Text;
-  spawnWave?(toadCount: number, houndCount: number, crowCount: number, demonCount: number): void;
+  spawnWave?(waveNumber: number): void;
 }
 
 export default class WaveManager {
@@ -31,23 +31,22 @@ export default class WaveManager {
     this.currentWave++;
     this.betweenWaves = false;
 
-    const toadCount = 2 + Math.floor(this.currentWave * 1.3);
-    const houndCount = Math.floor(this.currentWave * 0.8);
-    const crowCount = this.currentWave >= 2 ? 1 + Math.floor((this.currentWave - 2) * 0.6) : 0;
-    const demonCount = this.currentWave >= 3 ? Math.floor((this.currentWave - 3) * 0.5) + 1 : 0;
-
-    this.enemiesRemaining = toadCount + houndCount + crowCount + demonCount;
-
     this.scene.ui.updateHudPhase(`WAVE ${this.currentWave}`);
-    this.scene.spawnWave?.(toadCount, houndCount, crowCount, demonCount);
+    this.scene.spawnWave?.(this.currentWave);
+    this.enemiesRemaining = this.currentWave * 4;
+    
   }
 
-  // onEnemyKilled(): void {
-  //   this.enemiesRemaining = Math.max(0, this.enemiesRemaining - 1);
+  onEnemyKilled(): void {
+    console.log('death');
+    console.log(this.enemiesRemaining);
+    console.log('-----');
+    
+    this.enemiesRemaining = Math.max(0, this.enemiesRemaining - 1);
 
-  //   if (this.enemiesRemaining === 0 && !this.betweenWaves) {
-  //     this.betweenWaves = true;
-  //     this.scene.time.delayedCall(2800, () => this.launchWave());
-  //   }
-  // }
+    if (this.enemiesRemaining === 0 && !this.betweenWaves) {
+      this.betweenWaves = true;
+      this.scene.time.delayedCall(2000, () => this.launchWave());
+    }
+  }
 }
