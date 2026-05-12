@@ -34,14 +34,9 @@ export default class WaveManager {
     this.scene.ui.updateHudPhase(`WAVE ${this.currentWave}`);
     this.scene.spawnWave?.(this.currentWave);
     this.enemiesRemaining = this.currentWave * 4;
-    
   }
 
   onEnemyKilled(): void {
-    console.log('death');
-    console.log(this.enemiesRemaining);
-    console.log('-----');
-    
     this.enemiesRemaining = Math.max(0, this.enemiesRemaining - 1);
 
     if (this.enemiesRemaining === 0 && !this.betweenWaves) {

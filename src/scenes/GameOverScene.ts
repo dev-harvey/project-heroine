@@ -44,7 +44,7 @@ export default class GameOverScene extends Phaser.Scene {
       .text(LC, ly, "YOU DIED", { ...t(100, colorToHex(GAME_COLORS.CRIMSON)) })
       .setOrigin(0.5, 0)
       .setDepth(2);
-    ly += 160;
+    ly += 140;
 
     const respawnBtn = this.add
       .text(LC, ly, "RESPAWN", { ...t(48, colorToHex(GAME_COLORS.JADE)) })

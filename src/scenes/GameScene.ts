@@ -287,10 +287,10 @@ export default class GameScene extends Phaser.Scene {
         this.onCloneDeath();
         break;
       default:
-        entity?.lastAttacker.registerKill();
+        entity?.lastAttacker?.registerKill();
         this.ui.updateHudAttrs(entity?.lastAttacker);
         this.ui.updateHudKills(entity?.lastAttacker);
-        if (entity?.lastAttacker.entityType === "clone") this.cloneTotalKillCount++;
+        if (entity?.lastAttacker?.entityType === "clone") this.cloneTotalKillCount++;
         this.waveManager?.onEnemyKilled();
         break;
     }
@@ -298,7 +298,7 @@ export default class GameScene extends Phaser.Scene {
 
   onPlayerDeath(): void {
     this.scene.start("GameOverScene", {
-      wave: this.waveManager.currentWave,
+      wave: this.waveManager?.currentWave ? this.waveManager?.currentWave - 1 : 0,
       kills: this.player.killCount,
       cloneKills: this.cloneTotalKillCount,
     });
@@ -310,6 +310,8 @@ export default class GameScene extends Phaser.Scene {
     this.cloneEnemyCollider = null;
     this.cloneAttackOverlap?.destroy();
     this.cloneAttackOverlap = null;
+    this.enemiesCloneAttackOverlap?.destroy();
+    this.enemiesCloneAttackOverlap = null;
     this.events.emit("clone_dismissed");
   }
 

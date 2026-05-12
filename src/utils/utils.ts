@@ -79,7 +79,7 @@ export function checkIfBBehindA(a: IEntity | any, b: IEntity | any): boolean {
     "down-right": { fx: 0.7071, fy: 0.7071 },
     "down-left": { fx: -0.7071, fy: 0.7071 },
   };
-  const fwd = FORWARD[a.attackDir];
+  const fwd = FORWARD[a.attack.dir];
   if (!fwd) return false;
   if ((b.x - a.x) * fwd.fx + (b.y - a.y) * fwd.fy < 0) return true;
   return false;

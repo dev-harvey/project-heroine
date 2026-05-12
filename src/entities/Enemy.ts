@@ -23,8 +23,7 @@ export default abstract class Enemy extends Entity implements IEnemy {
   }
 
   tryAttack(): boolean {
-    if (!this.currentTarget) return;
-    if (!super.tryAttack()) return false;
+    if (!super.tryAttack() || !this.currentTarget) return false;
 
     this.attack.dir = angleToDir(Phaser.Math.Angle.Between(this.x, this.y, this.currentTarget.x, this.currentTarget.y));
 
@@ -54,6 +53,7 @@ export default abstract class Enemy extends Entity implements IEnemy {
     if (player !== undefined) this.targetPlayer = player;
     if (clone !== undefined) this.targetClone = clone;
     this.currentTarget = this.selectTarget();
+    if (!this.currentTarget) return;
     super.update(time, delta);
 
     const distanceToTargetEdge = Phaser.Math.Distance.Between(this.x, this.y, this.currentTarget.x, this.currentTarget.y) - this.currentTarget.body.halfWidth;
