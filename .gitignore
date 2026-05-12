@@ -2,6 +2,5 @@
 .claude/
 node_modules/
 asset-collection/
-game-assets/
 dist/
 *.zip
