@@ -1,6 +1,6 @@
 import * as Phaser from "phaser";
 
-import { CLONE_CONFIG, PLAYER_CONFIG } from "../utils/constants";
+import { CLONE_CONFIG, DEPTH, PLAYER_CONFIG } from "../utils/constants";
 import { getAnchorPosition, getAnchorOctoOffset } from "../utils/utils";
 import { Dash } from "../skills/Dash";
 import AnchorIndicator from "../indicators/AnchorIndicator";
@@ -29,7 +29,7 @@ export default class Player extends Ally implements IPlayer {
 
     this.setBodySize(PLAYER_CONFIG.BODY_SIZE.x, PLAYER_CONFIG.BODY_SIZE.y, true);
     this.body.setMass(PLAYER_CONFIG.MASS);
-    this.setDepth(PLAYER_CONFIG.DEPTH);
+    this.setDepth(DEPTH.ACTORS + y);
     this.setCollideWorldBounds(true);
 
     this.movement = {

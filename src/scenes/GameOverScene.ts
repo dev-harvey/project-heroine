@@ -1,5 +1,5 @@
 import * as Phaser from "phaser";
-import { GAME_COLORS, GAME_CONFIG } from "../utils/constants";
+import { DEPTH, GAME_COLORS, GAME_CONFIG } from "../utils/constants";
 import { colorToHex } from "../utils/utils";
 
 export default class GameOverScene extends Phaser.Scene {
@@ -19,20 +19,20 @@ export default class GameOverScene extends Phaser.Scene {
     const mono = '"Courier New", Courier, monospace';
     const t = (sz: number, col: string, stroke = false) => ({ fontSize: `${sz}px`, fill: col, fontFamily: "Oswald, sans-serif", ...(stroke ? { stroke: "#000000", strokeThickness: 3 } : {}) });
 
-    this.add.rectangle(W / 2, H / 2, W, H, GAME_COLORS.MIDNIGHT, 1).setDepth(0);
+    this.add.rectangle(W / 2, H / 2, W, H, GAME_COLORS.MIDNIGHT, 1).setDepth(DEPTH.BACKGROUND);
 
     const row = (lx: number, rx: number, y: number, label: string, val: any, lCol: string, sz = 20) => {
       this.add
         .text(lx, y, `${label}: ${String(val)}`, t(sz, lCol))
         .setOrigin(0.5, 0.5)
-        .setDepth(2);
+        .setDepth(DEPTH.HUD);
     };
 
     const hdr = (x: number, y: number, label: string) => {
       this.add
         .text(x, y, label, t(32, colorToHex(GAME_COLORS.SILVER)))
         .setOrigin(0.5, 0.5)
-        .setDepth(2);
+        .setDepth(DEPTH.HUD);
     };
 
     const LX = W / 4,
@@ -43,13 +43,13 @@ export default class GameOverScene extends Phaser.Scene {
     this.add
       .text(LC, ly, "YOU DIED", { ...t(100, colorToHex(GAME_COLORS.CRIMSON)) })
       .setOrigin(0.5, 0)
-      .setDepth(2);
+      .setDepth(DEPTH.HUD);
     ly += 140;
 
     const respawnBtn = this.add
       .text(LC, ly, "RESPAWN", { ...t(48, colorToHex(GAME_COLORS.JADE)) })
       .setOrigin(0.5, 0)
-      .setDepth(2)
+      .setDepth(DEPTH.HUD)
       .setInteractive({ useHandCursor: true });
     respawnBtn.on("pointerover", () => respawnBtn.setStyle({ fill: "#ffffff" }));
     respawnBtn.on("pointerout", () => respawnBtn.setStyle({ fill: colorToHex(GAME_COLORS.JADE) }));

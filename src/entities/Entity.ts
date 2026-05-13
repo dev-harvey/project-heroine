@@ -1,5 +1,6 @@
 import * as Phaser from "phaser";
 import { angleToDir, syncAttackZone } from "../utils/utils";
+import { DEPTH } from "../utils/constants";
 
 abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
   id: string;
@@ -144,13 +145,6 @@ abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
     this.setDrag(15);
     this.setMaxVelocity(400);
 
-    /*
-    this.setBodySize(PLAYER_CONFIG.BODY_SIZE.x, PLAYER_CONFIG.BODY_SIZE.y, true);
-    this.body.setMass(PLAYER_CONFIG.MASS);
-    this.setDepth(PLAYER_CONFIG.DEPTH);
-    this.setCollideWorldBounds(true);
-    */
-
     this.killCount = 0;
 
     this.movement = {
@@ -259,6 +253,7 @@ abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
   }
 
   update(time: number, delta: number): void {
+    this.setDepth(DEPTH.ACTORS + this.y);
     if (this.entityState === "dead") return;
     this.attack.cooldown = Math.max(0, this.attack.cooldown - delta);
     if (this.skills) {

@@ -1,6 +1,6 @@
 import * as Phaser from "phaser";
 
-import { CLONE_CONFIG, GAME_COLORS, PLAYER_CONFIG } from "../utils/constants";
+import { CLONE_CONFIG, DEPTH, GAME_COLORS, PLAYER_CONFIG } from "../utils/constants";
 import Player from "../entities/Player";
 import Clone from "../entities/Clone";
 import { getMouseDirFromTarget } from "../utils/utils";
@@ -27,7 +27,7 @@ export default class AttackIndicator extends Phaser.Physics.Arcade.Sprite {
     this.attacker = attacker;
 
     this.setCollideWorldBounds(true);
-    this.setDepth(PLAYER_CONFIG.DEPTH);
+    this.setDepth(DEPTH.ACTORS + attacker.y + 1);
 
     this.setDisplaySize(32, 32);
 
@@ -56,5 +56,6 @@ export default class AttackIndicator extends Phaser.Physics.Arcade.Sprite {
 
     this.setPosition(this.attacker.x + DIRECTION_CONFIG[direction].offsetX, this.attacker.y + DIRECTION_CONFIG[direction].offsetY);
     this.setAngle(DIRECTION_CONFIG[direction].angle);
+    this.setDepth(DEPTH.ACTORS + this.attacker.y + 1);
   }
 }

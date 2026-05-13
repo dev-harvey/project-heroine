@@ -1,7 +1,7 @@
 import * as Phaser from "phaser";
 import Player from "./Player";
 
-import { CLONE_CONFIG } from "../utils/constants";
+import { CLONE_CONFIG, DEPTH } from "../utils/constants";
 import { Dash } from "../skills/Dash";
 import AttackIndicator from "../indicators/AttackIndicator";
 import Ally from "./Ally";
@@ -34,7 +34,7 @@ export default class Clone extends Ally implements IClone {
     this.id = "clone";
     this.entityType = "clone";
 
-    this.setDepth(CLONE_CONFIG.DEPTH);
+    this.setDepth(DEPTH.ACTORS + y);
     this.setBodySize(CLONE_CONFIG.BODY_SIZE.x, CLONE_CONFIG.BODY_SIZE.y, true);
     this.body.setMass(CLONE_CONFIG.MASS);
     this.setCollideWorldBounds(true);

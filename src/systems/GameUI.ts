@@ -1,7 +1,7 @@
 import * as Phaser from "phaser";
 import Player from "../entities/Player";
 import Clone from "../entities/Clone";
-import { CLONE_CONFIG, DEPTH_CONFIG, GAME_ASSETS, GAME_COLORS, GAME_CONFIG, UI_CONFIG } from "../utils/constants";
+import { CLONE_CONFIG, DEPTH, GAME_ASSETS, GAME_COLORS, GAME_CONFIG, UI_CONFIG } from "../utils/constants";
 import { colorToHex, getTextStyle } from "../utils/utils";
 
 interface IGameScene extends Phaser.Scene {
@@ -102,7 +102,7 @@ export default class GameUI {
 
   private buildCursor(): void {
     this.scene.input.setDefaultCursor("none");
-    this.scene.cursorSprite = this.scene.add.image(0, 0, GAME_ASSETS.CURSOR).setScale(0.8).setOrigin(0).setDepth(DEPTH_CONFIG.CURSOR).setScrollFactor(0);
+    this.scene.cursorSprite = this.scene.add.image(0, 0, GAME_ASSETS.CURSOR).setScale(0.8).setOrigin(0).setDepth(DEPTH.CURSOR).setScrollFactor(0);
   }
 
   private buildHudPhase(text: string) {
@@ -110,7 +110,7 @@ export default class GameUI {
     this.hudPhase = {
       container: this.scene.add
         .container(GAME_WIDTH / 2, 10)
-        .setDepth(DEPTH_CONFIG.HUD)
+        .setDepth(DEPTH.HUD)
         .setScrollFactor(0),
       text: this.addUIText(0, 0, text, getTextStyle("body", 64)).setOrigin(0.5, 0),
     };
@@ -121,7 +121,7 @@ export default class GameUI {
     this.hudStats = {
       container: this.scene.add
         .container(GAME_CONFIG.GAME_WIDTH - 10, 10)
-        .setDepth(DEPTH_CONFIG.HUD)
+        .setDepth(DEPTH.HUD)
         .setScrollFactor(0),
       children: {
         playerKillsContainer: this.scene.add.container(0, 0),
@@ -160,7 +160,7 @@ export default class GameUI {
 
   private buildHudAttrs() {
     this.hudAttrs = {
-      container: this.scene.add.container(10, 10).setDepth(DEPTH_CONFIG.HUD).setScrollFactor(0),
+      container: this.scene.add.container(10, 10).setDepth(DEPTH.HUD).setScrollFactor(0),
       children: {
         playerAttackContainer: this.scene.add.container(0, 0),
         playerHeartsContainer: this.scene.add.container(70, 0),
@@ -224,13 +224,13 @@ export default class GameUI {
               .image(i * 36, 0, GAME_ASSETS.HEART)
               .setDisplaySize(32, 32)
               .setOrigin(0, 0)
-              .setDepth(DEPTH_CONFIG.HEARTS)
+              .setDepth(DEPTH.HUD)
               .setScrollFactor(0)
           : this.scene.add
               .image(i * 36, 0, GAME_ASSETS.HEART_EMPTY)
               .setDisplaySize(32, 32)
               .setOrigin(0, 0)
-              .setDepth(DEPTH_CONFIG.HEARTS)
+              .setDepth(DEPTH.HUD)
               .setScrollFactor(0);
 
       if (targetType === "clone") {
@@ -243,7 +243,7 @@ export default class GameUI {
 
   private buildHudAbilities(): void {
     this.hudAbilities = {
-      container: this.scene.add.container(10, 0).setDepth(DEPTH_CONFIG.HUD).setScrollFactor(0),
+      container: this.scene.add.container(10, 0).setDepth(DEPTH.HUD).setScrollFactor(0),
       children: {
         dash: this.scene.add.container(0, 0),
       },
@@ -335,13 +335,13 @@ export default class GameUI {
   }
 
   public drawDebugLines(container: Phaser.GameObjects.Container) {
-    const debug = this.scene.add.graphics().setDepth(1000);
+    const debug = this.scene.add.graphics().setDepth(DEPTH.DEBUG);
     const containerBounds = container.getBounds();
     debug.lineStyle(1, 0xff0000, 1);
     debug.strokeRect(container.x - container.width / 2, container.y - container.height / 2, containerBounds.width, containerBounds.height);
   }
 
-  public addUIText(x: number, y: number, content: string, style: Phaser.Types.GameObjects.Text.TextStyle = {}, origin: { x: TextOrigin; y: TextOrigin } = { x: 0, y: 0 }, depth: number = DEPTH_CONFIG.UI_TEXT_DEFAULT): Phaser.GameObjects.Text {
+  public addUIText(x: number, y: number, content: string, style: Phaser.Types.GameObjects.Text.TextStyle = {}, origin: { x: TextOrigin; y: TextOrigin } = { x: 0, y: 0 }, depth: number = DEPTH.HUD): Phaser.GameObjects.Text {
     return this.scene.add.text(x, y, content, style).setOrigin(origin.x, origin.y).setDepth(depth).setScrollFactor(0);
   }
 

@@ -3,7 +3,7 @@ import Player from "../entities/Player";
 import Clone from "../entities/Clone";
 import WaveManager from "../systems/WaveManager";
 
-import { CLONE_CONFIG, GAME_ASSETS, GAME_COLORS, GAME_CONFIG, PLAYER_CONFIG, UI_CONFIG } from "../utils/constants";
+import { CLONE_CONFIG, DEPTH, GAME_ASSETS, GAME_COLORS, GAME_CONFIG, PLAYER_CONFIG, UI_CONFIG } from "../utils/constants";
 import { checkIfBBehindA, colorToHex, getAnchorOctoOffset } from "../utils/utils";
 import GameUI from "../systems/GameUI";
 import DebugPanel from "../systems/DebugPanel";
@@ -128,18 +128,18 @@ export default class GameScene extends Phaser.Scene {
       wallX = GAME_CONFIG.GAME_WALL_X,
       wallY = GAME_CONFIG.GAME_WALL_Y;
 
-    this.add.rectangle(gameWidth / 2, gameHeight / 2, gameWidth, gameHeight, GAME_COLORS.MIDNIGHT).setDepth(0);
+    this.add.rectangle(gameWidth / 2, gameHeight / 2, gameWidth, gameHeight, GAME_COLORS.MIDNIGHT).setDepth(DEPTH.BACKGROUND);
 
-    const gFloor = this.add.graphics().setDepth(1);
+    const gFloor = this.add.graphics().setDepth(DEPTH.FLOOR);
     gFloor.fillStyle(0x888888, 1);
     gFloor.fillRect(wallX, wallY, gameWidth - wallX * 2, gameHeight - wallY * 2);
 
     this.add
       .tileSprite(0, wallY, gameWidth, gameHeight - wallY * 2, GAME_ASSETS.FLOOR_TILE, GAME_ASSETS.FLOOR_TILE_FRAME)
       .setOrigin(0, 0)
-      .setDepth(1);
+      .setDepth(DEPTH.FLOOR);
 
-    const gWall = this.add.graphics().setDepth(2);
+    const gWall = this.add.graphics().setDepth(DEPTH.WALL);
     gWall.fillStyle(GAME_COLORS.ICE, 1);
     gWall.fillRect(0, 0, gameWidth, wallY);
     gWall.fillRect(0, gameHeight - wallY, gameWidth, wallY);
@@ -257,7 +257,7 @@ export default class GameScene extends Phaser.Scene {
         strokeThickness: 3,
       })
       .setOrigin(0.5)
-      .setDepth(30);
+      .setDepth(DEPTH.FLOATING);
     this.uiCamera?.ignore(txt);
     this.tweens.add({
       targets: txt,
@@ -384,7 +384,7 @@ export default class GameScene extends Phaser.Scene {
     const zone = new Phaser.Geom.Rectangle(x, y, width, height);
 
     if (debug) {
-      const gfx = this.add.graphics().setDepth(100);
+      const gfx = this.add.graphics().setDepth(DEPTH.DEBUG);
       gfx.lineStyle(2, 0xff0000, 1);
       gfx.strokeRect(zone.x, zone.y, zone.width, zone.height);
     }

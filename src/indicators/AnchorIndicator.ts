@@ -1,6 +1,6 @@
 import * as Phaser from "phaser";
 
-import { GAME_COLORS, PLAYER_CONFIG } from "../utils/constants";
+import { DEPTH, GAME_COLORS } from "../utils/constants";
 import Player from "../entities/Player";
 
 export default class AnchorIndicator extends Phaser.Physics.Arcade.Sprite {
@@ -14,7 +14,7 @@ export default class AnchorIndicator extends Phaser.Physics.Arcade.Sprite {
     this.targetPlayer = player;
 
     this.setCollideWorldBounds(true);
-    this.setDepth(PLAYER_CONFIG.DEPTH);
+    this.setDepth(DEPTH.GROUND_FX);
 
     this.setDisplaySize(48, 36);
 

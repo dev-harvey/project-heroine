@@ -1,4 +1,4 @@
-import { GAME_COLORS, GAME_CONFIG, UI_CONFIG } from "../utils/constants";
+import { DEPTH, GAME_COLORS, GAME_CONFIG, UI_CONFIG } from "../utils/constants";
 import { colorToHex } from "../utils/utils";
 import GameScene from "../scenes/GameScene";
 
@@ -28,12 +28,12 @@ export default class DebugPanel {
 
     const toggleButton = scene.add
       .rectangle(panelCenterX - 10, GAME_WALL_Y + 20, panelWidth, 22, COLOR_BUTTON_DEFAULT)
-      .setDepth(32)
+      .setDepth(DEPTH.DEBUG + 2)
       .setInteractive({ useHandCursor: false });
     const toggleLabel = scene.add
       .text(panelCenterX - 10, GAME_WALL_Y + 20, "DEBUG ▶", textStyle(13, "#aa44cc"))
       .setOrigin(0.5, 0.5)
-      .setDepth(33);
+      .setDepth(DEPTH.DEBUG + 3);
 
     toggleButton.on("pointerover", () => toggleButton.setFillStyle(COLOR_BUTTON_HOVER));
     toggleButton.on("pointerout", () => toggleButton.setFillStyle(COLOR_BUTTON_DEFAULT));
@@ -63,7 +63,7 @@ export default class DebugPanel {
     };
 
     // ── Panel background ──────────────────────────────────────────────────────
-    registerPanelItem(scene.add.rectangle(panelCenterX, spawnSectionStartY, panelWidth, 520, COLOR_PANEL_BG, 0.85).setDepth(30).setOrigin(0.5, 0));
+    registerPanelItem(scene.add.rectangle(panelCenterX, spawnSectionStartY, panelWidth, 520, COLOR_PANEL_BG, 0.85).setDepth(DEPTH.DEBUG).setOrigin(0.5, 0));
 
     // ── Spawn section header (collapses/expands the spawn buttons) ────────────
     let spawnSectionOpen = false;
@@ -71,14 +71,14 @@ export default class DebugPanel {
     const spawnSectionHeader = registerPanelItem(
       scene.add
         .rectangle(panelCenterX, spawnSectionStartY + buttonHeight / 2, panelWidth - 12, buttonHeight, COLOR_BUTTON_DEFAULT)
-        .setDepth(30)
+        .setDepth(DEPTH.DEBUG)
         .setInteractive({ useHandCursor: false }),
     );
     const spawnSectionLabel = registerPanelItem(
       scene.add
         .text(panelCenterX, spawnSectionStartY + buttonHeight / 2, "▶ Spawn", textStyle(12, "#aa66dd"))
         .setOrigin(0.5, 0.5)
-        .setDepth(31),
+        .setDepth(DEPTH.DEBUG + 1),
     );
 
     spawnSectionHeader.on("pointerover", () => spawnSectionHeader.setFillStyle(COLOR_BUTTON_HOVER));
@@ -92,14 +92,14 @@ export default class DebugPanel {
       const bg = registerPanelItem(
         scene.add
           .rectangle(panelCenterX, buttonY + buttonHeight / 2, panelWidth - 12, buttonHeight, COLOR_SPAWN_DEFAULT)
-          .setDepth(30)
+          .setDepth(DEPTH.DEBUG)
           .setInteractive({ useHandCursor: false }),
       );
       const lbl = registerPanelItem(
         scene.add
           .text(panelCenterX, buttonY + buttonHeight / 2, entry.label, textStyle(12, entry.color))
           .setOrigin(0.5, 0.5)
-          .setDepth(31),
+          .setDepth(DEPTH.DEBUG + 1),
       );
       bg.on("pointerover", () => bg.setFillStyle(COLOR_SPAWN_HOVER));
       bg.on("pointerout", () => bg.setFillStyle(COLOR_SPAWN_DEFAULT));
@@ -148,10 +148,10 @@ export default class DebugPanel {
       const bg = registerPanelItem(
         scene.add
           .rectangle(0, 0, panelWidth - 12, buttonHeight, COLOR_BUTTON_DEFAULT)
-          .setDepth(30)
+          .setDepth(DEPTH.DEBUG)
           .setInteractive({ useHandCursor: false }),
       );
-      const lbl = registerPanelItem(scene.add.text(0, 0, entry.label, textStyle(12, entry.color)).setOrigin(0.5, 0.5).setDepth(31));
+      const lbl = registerPanelItem(scene.add.text(0, 0, entry.label, textStyle(12, entry.color)).setOrigin(0.5, 0.5).setDepth(DEPTH.DEBUG + 1));
       bg.on("pointerover", () => bg.setFillStyle(COLOR_BUTTON_HOVER));
       bg.on("pointerout", () => bg.setFillStyle(COLOR_BUTTON_DEFAULT));
       bg.on("pointerdown", (_ptr: any, _lx: any, _ly: any, event: any) => {
@@ -192,12 +192,12 @@ export default class DebugPanel {
     ];
 
     const statRows = statDefs.map((def) => {
-      const bg = registerPanelItem(scene.add.rectangle(0, 0, panelWidth - 12, statRowHeight, 0x0a0616).setDepth(30));
-      const lbl = registerPanelItem(scene.add.text(0, 0, def.label(), textStyle(13, "#ccaaff")).setOrigin(0.5, 0.5).setDepth(32));
-      const minusBg = registerPanelItem(scene.add.rectangle(0, 0, 22, 20, COLOR_BUTTON_DEFAULT).setDepth(31).setInteractive({ useHandCursor: false }));
-      const minusLbl = registerPanelItem(scene.add.text(0, 0, "−", textStyle(13, "#ff6666")).setOrigin(0.5, 0.5).setDepth(32));
-      const plusBg = registerPanelItem(scene.add.rectangle(0, 0, 22, 20, COLOR_BUTTON_DEFAULT).setDepth(31).setInteractive({ useHandCursor: false }));
-      const plusLbl = registerPanelItem(scene.add.text(0, 0, "+", textStyle(13, "#66ff88")).setOrigin(0.5, 0.5).setDepth(32));
+      const bg = registerPanelItem(scene.add.rectangle(0, 0, panelWidth - 12, statRowHeight, 0x0a0616).setDepth(DEPTH.DEBUG));
+      const lbl = registerPanelItem(scene.add.text(0, 0, def.label(), textStyle(13, "#ccaaff")).setOrigin(0.5, 0.5).setDepth(DEPTH.DEBUG + 2));
+      const minusBg = registerPanelItem(scene.add.rectangle(0, 0, 22, 20, COLOR_BUTTON_DEFAULT).setDepth(DEPTH.DEBUG + 1).setInteractive({ useHandCursor: false }));
+      const minusLbl = registerPanelItem(scene.add.text(0, 0, "−", textStyle(13, "#ff6666")).setOrigin(0.5, 0.5).setDepth(DEPTH.DEBUG + 2));
+      const plusBg = registerPanelItem(scene.add.rectangle(0, 0, 22, 20, COLOR_BUTTON_DEFAULT).setDepth(DEPTH.DEBUG + 1).setInteractive({ useHandCursor: false }));
+      const plusLbl = registerPanelItem(scene.add.text(0, 0, "+", textStyle(13, "#66ff88")).setOrigin(0.5, 0.5).setDepth(DEPTH.DEBUG + 2));
 
       minusBg.on("pointerover", () => minusBg.setFillStyle(0x330022));
       minusBg.on("pointerout", () => minusBg.setFillStyle(COLOR_BUTTON_DEFAULT));
@@ -263,10 +263,10 @@ export default class DebugPanel {
     const backButton = registerPanelItem(
       scene.add
         .rectangle(panelCenterX, 510, panelWidth - 12, 24, COLOR_BUTTON_DEFAULT)
-        .setDepth(30)
+        .setDepth(DEPTH.DEBUG)
         .setInteractive({ useHandCursor: false }),
     );
-    registerPanelItem(scene.add.text(panelCenterX, 510, "← Title", textStyle(11, "#666666")).setOrigin(0.5, 0.5).setDepth(31));
+    registerPanelItem(scene.add.text(panelCenterX, 510, "← Title", textStyle(11, "#666666")).setOrigin(0.5, 0.5).setDepth(DEPTH.DEBUG + 1));
     backButton.on("pointerover", () => backButton.setFillStyle(0x220033));
     backButton.on("pointerout", () => backButton.setFillStyle(COLOR_BUTTON_DEFAULT));
     backButton.on("pointerdown", (_ptr: any, _lx: any, _ly: any, event: any) => {

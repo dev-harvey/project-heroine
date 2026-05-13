@@ -1,6 +1,6 @@
 import * as Phaser from "phaser";
 import Enemy from "./Enemy";
-import { ORCBASIC_CONFIG } from "../utils/constants";
+import { DEPTH, ORCBASIC_CONFIG } from "../utils/constants";
 
 export default class OrcBasic extends Enemy implements IOrcBasic {
   constructor(scene: Phaser.Scene, x: number, y: number, textureKey: string) {
@@ -10,7 +10,7 @@ export default class OrcBasic extends Enemy implements IOrcBasic {
 
     this.setBodySize(ORCBASIC_CONFIG.BODY_SIZE.x, ORCBASIC_CONFIG.BODY_SIZE.y, true);
     this.body.setMass(ORCBASIC_CONFIG.MASS);
-    this.setDepth(ORCBASIC_CONFIG.DEPTH);
+    this.setDepth(DEPTH.ACTORS + y);
     this.setCollideWorldBounds(true);
 
     this.movement = {

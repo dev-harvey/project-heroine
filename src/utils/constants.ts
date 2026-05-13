@@ -90,15 +90,20 @@ export const UI_CONFIG = {
   },
 };
 
-export const DEPTH_CONFIG = {
-  HUD: 20,
-  HEARTS: 100,
-  CURSOR: 100,
-  UI_TEXT_DEFAULT: 20,
+export const DEPTH = {
+  BACKGROUND: 0, // solid backdrop
+  FLOOR: 10, // floor fill + floor tilesprite
+  WALL: 20, // wall borders
+  GROUND_FX: 100, // shadows / AoE / anchor reticle — under actors
+  ACTORS: 1000, // Player / Clones / Orcs — actual depth = ACTORS + this.y
+  ACTOR_FX: 2000, // attack-direction indicator, things pinned just above an actor
+  FLOATING: 3000, // floating damage / combat text
+  HUD: 4000, // HUD containers, hearts, ability cards, UI text
+  CURSOR: 5000, // custom cursor (above HUD)
+  DEBUG: 9000, // debug panel + sub-offsets, spawn-zone gfx, debug graphics
 };
 
 export const PLAYER_CONFIG = {
-  DEPTH: 5,
   SCALE: 1,
   BODY_SIZE: {
     x: 16,
@@ -129,7 +134,6 @@ export const PLAYER_CONFIG = {
 
 export const CLONE_CONFIG = {
   TINT: GAME_COLORS.CHARTREUSE,
-  DEPTH: PLAYER_CONFIG.DEPTH + 1,
   SCALE: PLAYER_CONFIG.SCALE,
   BODY_SIZE: PLAYER_CONFIG.BODY_SIZE,
   MASS: 20,
@@ -155,7 +159,6 @@ export const CLONE_CONFIG = {
 };
 
 export const ORCBASIC_CONFIG = {
-  DEPTH: 5,
   SCALE: 1,
   BODY_SIZE: {
     x: 24,
