@@ -3,9 +3,10 @@ import * as Phaser from "phaser";
 export interface GameEvents {
   "clone:summoned": { clone: IClone };
   "clone:dismissed": { clone: IClone };
-  "entity:dash": {entity: IEntity, entityType: string; direction: OctoDir };
-  "entity:attack": {entity: IEntity, entityType: string; direction: CardinalDir };
-  "entity:death": { entity: IEntity; entityType: string; };
+  "entity:attack": { entity: IEntity; direction: CardinalDir };
+  "entity:dash": { entity: IEntity; direction: OctoDir };
+  "entity:death": { entity: IEntity };
+  "entity:hurt": { entity: IEntity, attacker: IEntity, amount: number };
   "wave:start": { waveNumber: number };
 }
 

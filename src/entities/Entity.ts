@@ -116,7 +116,7 @@ abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
   protected onDeathComplete() {
     this.attack.detectionZone.destroy();
     this.lastAttacker?.registerKill();
-    eventBus.emit(`entity:death`, { entity: this, entityType: this.entityType });
+    eventBus.emit(`entity:death`, { entity: this });
     this.destroy();
   }
   protected onChangeDirection() {
@@ -245,7 +245,7 @@ abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
     if (this.attack.cooldown > 0) return false;
     this.attack.dir = this.calculateAttackDir();
     if (!this.setEntityState("attack")) return false;
-    eventBus.emit(`entity:attack`, { entity: this, entityType: this.entityType, direction: this.attack.dir });
+    eventBus.emit(`entity:attack`, { entity: this, direction: this.attack.dir });
     return true;
   }
 

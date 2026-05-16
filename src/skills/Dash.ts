@@ -72,7 +72,7 @@ export class Dash extends Skill implements IDash {
     const vy = (moveDir.y / vectorLength) * dashSpeed;
     this.target.body.setVelocity(vx, vy);
 
-    eventBus.emit("entity:dash", { entity: this.target, entityType: this.target.entityType, direction: dashDir});
+    eventBus.emit("entity:dash", { entity: this.target, direction: dashDir});
 
     this._cooldownTimer = this._cooldown;
 
