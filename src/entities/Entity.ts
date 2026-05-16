@@ -249,12 +249,18 @@ abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
     return true;
   }
 
+  regsiterHit(entity: IEntity) {
+    this.attack.hitEnemies.add(entity);
+  }
+
   registerKill() {
     this.killCount++;
   }
 
-  tryHurt(amount: number): boolean {
+  tryHurt(amount: number, attacker?: IEntity): boolean {
+    if (attacker) this.lastAttacker = attacker;
     this.health.current = Math.max(0, this.health.current - amount);
+    eventBus.emit("entity:hurt", { entity: this, amount, attacker });
     if (this.health.current <= 0) {
       return this.setEntityState("dead");
     }

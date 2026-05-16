@@ -335,21 +335,18 @@ export default class GameScene extends Phaser.Scene {
   // ─── Private helpers ──────────────────────────────────────────────────────
 
   private onAttackHit(attackerZone: any, target: any): void {
-    const attacker = attackerZone.getData("owner");
+    const attacker = attackerZone.getData("owner") as IEntity;
     if (!attacker) return;
     if (attacker.entityState !== "attack") return;
     if (!attacker.attack.detectionZone.body.enable) return;
     const defender = target as IEntity;
-
     if (attacker.attack.hitEnemies.has(defender)) return;
-
     if (checkIfBBehindA(attacker, defender)) return;
 
-    attacker.attack.hitEnemies.add(defender);
+    attacker.regsiterHit(defender);
+    defender.tryHurt(attacker.attack.damage, attacker);
 
-    defender.lastAttacker = attacker;
     this.spawnDamageNumber(defender.x, defender.y - 10, attacker.attack.damage, colorToHex(GAME_COLORS.BLOOD), 26);
-    defender.tryHurt(attacker.attack.damage);
   }
 
   spawnWave(waveNum: number): void {

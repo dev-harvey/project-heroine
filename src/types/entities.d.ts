@@ -39,8 +39,9 @@ interface IEntity {
   };
   emit(event: string | symbol, ...args: any[]): boolean;
   setAlpha(topLeft?: number, topRight?: number, bottomLeft?: number, bottomRight?: number): this;
-  tryHurt(amount: number): boolean;
+  tryHurt(amount: number, attacker?: IEntity): boolean;
   registerKill(): void;
+  regsiterHit(entity: IEntity): void;
 }
 
 interface IAlly extends IEntity {
