@@ -5,6 +5,7 @@ import { CLONE_CONFIG, DEPTH } from "../utils/constants";
 import { Dash } from "../skills/Dash";
 import AttackIndicator from "../indicators/AttackIndicator";
 import Ally from "./Ally";
+import { eventBus, GameEvents } from "../systems/EventBus";
 
 export default class Clone extends Ally implements IClone {
   declare textureKey: string;
@@ -17,6 +18,9 @@ export default class Clone extends Ally implements IClone {
   declare attack: ICloneAttack;
   declare movement: ICloneMovement;
   declare health: ICloneHealth;
+
+  private onEntityAttackHandler = (payload: GameEvents["entity:attack"]) => this.onEntityAttack(payload.entity);
+  private onEntityDashHandler = (payload: GameEvents["entity:dash"]) => this.onEntityDash(payload.entity, payload.direction);
 
   protected onDeath() {
     this.attack.attackIndicator.destroy();
@@ -70,6 +74,14 @@ export default class Clone extends Ally implements IClone {
     };
 
     this.setEntityState("reposition");
+
+    eventBus.on("entity:attack", this.onEntityAttackHandler);
+    eventBus.on("entity:dash", this.onEntityDashHandler);
+
+    this.on(Phaser.GameObjects.Events.DESTROY, () => {
+      eventBus.off("entity:attack", this.onEntityAttackHandler);
+      eventBus.off("entity:dash", this.onEntityDashHandler);
+    });
   }
 
   updateMovement(): void {
@@ -91,8 +103,24 @@ export default class Clone extends Ally implements IClone {
 
     this.physics.moveToObject(this, anchorPosition, speed);
     this.updateFacingDir(anchorPosition);
-    
+
     super.updateMovement();
+  }
+
+  onEntityAttack(entity: IEntity) {
+    if (entity === this.targetPlayer) {
+      this.tryAttack();
+    }
+  }
+
+  onEntityDash(entity: IEntity, direction: OctoDir) {
+    if (entity === this.targetPlayer && direction) {
+      this.tryDash(direction);
+    }
+  }
+
+  registerKill() {
+    this.targetPlayer.killCount++;
   }
 
   update(time: number, delta: number): void {

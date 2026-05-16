@@ -1,39 +1,40 @@
 import * as Phaser from "phaser";
-import GameUI from "./GameUI";
-
-/** Subset of GameScene that WaveManager needs. */
-interface IWaveScene extends Phaser.Scene {
-  ui: GameUI;
-  waveText?: Phaser.GameObjects.Text;
-  spawnWave?(waveNumber: number): void;
-}
+import { eventBus, GameEvents } from "./EventBus";
 
 export default class WaveManager {
-  private scene: IWaveScene;
+  private clock: Phaser.Time.Clock;
   private enemiesRemaining: number;
   private betweenWaves: boolean;
 
   public currentWave: number;
 
-  constructor(scene: IWaveScene) {
-    this.scene = scene;
+  private onEntityDeathHandler = (payload: GameEvents["entity:death"]) => this.onEntityDeath(payload.entity);
+
+  constructor(clock: Phaser.Time.Clock) {
+    this.clock = clock;
     this.enemiesRemaining = 0;
     this.betweenWaves = true;
 
     this.currentWave = 0;
+
+    eventBus.on("entity:death", this.onEntityDeathHandler);
   }
 
   start(): void {
-    this.scene.time.delayedCall(800, () => this.launchWave());
+    this.clock.delayedCall(800, () => this.launchWave());
   }
 
   private launchWave(): void {
     this.currentWave++;
     this.betweenWaves = false;
-
-    this.scene.ui.updateHudPhase(`WAVE ${this.currentWave}`);
-    this.scene.spawnWave?.(this.currentWave);
     this.enemiesRemaining = this.currentWave * 4;
+    eventBus.emit("wave:start", { waveNumber: this.currentWave });
+  }
+
+  private onEntityDeath(entity: IEntity) {
+    if (entity.isEntityType("enemy")) {
+      this.onEnemyKilled();
+    }
   }
 
   onEnemyKilled(): void {
@@ -41,7 +42,11 @@ export default class WaveManager {
 
     if (this.enemiesRemaining === 0 && !this.betweenWaves) {
       this.betweenWaves = true;
-      this.scene.time.delayedCall(2000, () => this.launchWave());
+      this.clock.delayedCall(2000, () => this.launchWave());
     }
+  }
+
+  destroyEvents() {
+    eventBus.off("entity:death", this.onEntityDeathHandler);
   }
 }

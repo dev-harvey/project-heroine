@@ -1,12 +1,11 @@
 import * as Phaser from "phaser";
 import Player from "../entities/Player";
-import Clone from "../entities/Clone";
-import { CLONE_CONFIG, DEPTH, GAME_ASSETS, GAME_COLORS, GAME_CONFIG, UI_CONFIG } from "../utils/constants";
+import { DEPTH, GAME_ASSETS, GAME_COLORS, GAME_CONFIG, UI_CONFIG } from "../utils/constants";
 import { colorToHex, getTextStyle } from "../utils/utils";
+import { eventBus, GameEvents } from "./EventBus";
 
 interface IGameScene extends Phaser.Scene {
   player: Player;
-  clone: Clone | null;
   cursorSprite: Phaser.GameObjects.Image;
 }
 
@@ -17,15 +16,9 @@ type TextOrigin = 0 | 0.5 | 1;
 export default class GameUI {
   private scene: IGameScene;
   private player: Player;
-  private clone?: Clone;
 
   private localCache: {
     player: {
-      attack: number;
-      hearts: number;
-      kills: number;
-    };
-    clone?: {
       attack: number;
       hearts: number;
       kills: number;
@@ -35,9 +28,6 @@ export default class GameUI {
   private cooldownBars: Record<string, Phaser.GameObjects.Rectangle> = {};
   private killsTexts: Record<string, Phaser.GameObjects.Text> = {};
   private attackTexts: Record<string, Phaser.GameObjects.Text> = {};
-
-  private onCloneSummoned: (clone: Clone) => void;
-  private onCloneDismissed: (clone: Clone) => void;
 
   private hudAttrs: {
     container: Phaser.GameObjects.Container;
@@ -59,6 +49,9 @@ export default class GameUI {
     children: Record<string, Phaser.GameObjects.Container>;
   };
 
+  private onEntityDeathHandler = (payload: GameEvents["entity:death"]) => this.onEntityDeath(payload.entity);
+  private onWaveStartHandler = (payload: GameEvents["wave:start"]) => this.onWaveStart(payload.waveNumber);
+
   constructor(scene: IGameScene, player: Player) {
     this.scene = scene;
     this.player = player;
@@ -71,23 +64,8 @@ export default class GameUI {
       },
     };
 
-    this.onCloneSummoned = (clone: Clone) => {
-      this.clone = clone;
-      this.localCache.clone = { attack: clone.attack.damage, hearts: clone.health.current, kills: 0 };
-      this.buildAttack(clone);
-      this.buildHearts(clone);
-      this.buildKills(clone);
-    };
-
-    this.onCloneDismissed = (clone: Clone) => {
-      this.clone = null;
-      this.hudAttrs.children.cloneAttackContainer.removeAll(true);
-      this.hudAttrs.children.cloneHeartsContainer.removeAll(true);
-      this.hudStats.children.cloneKillsContainer.removeAll(true);
-    };
-
-    this.scene.events.on("clone_summoned", this.onCloneSummoned);
-    this.scene.events.on("clone_dismissed", this.onCloneDismissed);
+    eventBus.on("entity:death", this.onEntityDeathHandler);
+    eventBus.on("wave:start", this.onWaveStartHandler);
 
     this.build();
   }
@@ -125,7 +103,6 @@ export default class GameUI {
         .setScrollFactor(0),
       children: {
         playerKillsContainer: this.scene.add.container(0, 0),
-        cloneKillsContainer: this.scene.add.container(0, 40),
       },
     };
     for (const child in this.hudStats.children) {
@@ -133,28 +110,18 @@ export default class GameUI {
       this.hudStats.container.add(this.hudStats.children[child]);
     }
 
-    this.buildKills(this.player);
+    this.buildKills();
   }
 
-  private buildKills(target: IEntity): void {
-    let container: Phaser.GameObjects.Container;
-    let key: string;
-    const label = target === this.player ? "KILLS" : "CLONE KILLS";
-    if (target === this.player) {
-      container = this.hudStats.children.playerKillsContainer;
-      key = "player";
-    } else if (target === this.clone) {
-      container = this.hudStats.children.cloneKillsContainer;
-      key = "clone";
-    } else {
-      console.error("Couldn't update HUD Stats - problem with local cache");
-      return;
-    }
+  private buildKills(): void {
+    const target = this.player;
+    const container = this.hudStats.children.playerKillsContainer;
 
     container.removeAll(true);
-    // const text = this.addUIText(0, 0, `${label}: ${target.killCount}`, getTextStyle("body", 32, { color: colorToHex(GAME_COLORS.COBALT) }), { x: 1, y: 0 });
-    const text = this.addUIText(0, 0, `${label}: ${target.killCount}`, getTextStyle("body", 32, { color: "#ffffff" }), { x: 1, y: 0 });
-    this.killsTexts[key] = text;
+
+    const text = this.addUIText(0, 0, `KILLS: ${target.killCount}`, getTextStyle("body", 32, { color: "#ffffff" }), { x: 1, y: 0 });
+
+    this.killsTexts["player"] = text;
     container.add(text);
   }
 
@@ -164,8 +131,6 @@ export default class GameUI {
       children: {
         playerAttackContainer: this.scene.add.container(0, 0),
         playerHeartsContainer: this.scene.add.container(70, 0),
-        cloneAttackContainer: this.scene.add.container(0, 40),
-        cloneHeartsContainer: this.scene.add.container(70, 40),
       },
     };
     for (const child in this.hudAttrs.children) {
@@ -173,49 +138,29 @@ export default class GameUI {
       this.hudAttrs.container.add(this.hudAttrs.children[child]);
     }
 
-    this.buildHearts(this.player);
-    this.buildAttack(this.player);
+    this.buildHearts();
+    this.buildAttack();
   }
 
-  private buildAttack(target: IEntity): void {
-    let container: Phaser.GameObjects.Container;
-    let key: string;
-    if (target === this.player) {
-      container = this.hudAttrs.children.playerAttackContainer;
-      key = "player";
-    } else if (target === this.clone) {
-      container = this.hudAttrs.children.cloneAttackContainer;
-      key = "clone";
-    } else {
-      console.error("Couldn't update HUD - problem with local cache");
-      return;
-    }
+  private buildAttack(): void {
+    const target = this.player;
+    let container = this.hudAttrs.children.playerAttackContainer;
+
     container.removeAll(true);
     const icon = this.scene.add.image(0, 0, GAME_ASSETS.ATTACK_ICON).setDisplaySize(32, 32).setOrigin(0);
     const text = this.addUIText(icon.displayWidth + 10, 0, target.attack.damage.toString(), getTextStyle("heading", 32))
-      // .setColor(colorToHex(GAME_COLORS.COBALT))
       .setColor("#ffffff")
       .setFontStyle("bold")
       .setOrigin(0, 0.04)
       .setFixedSize(0, 32);
-    this.attackTexts[key] = text;
+    this.attackTexts["player"] = text;
     container.add(icon);
     container.add(text);
   }
 
-  private buildHearts(target: IEntity): void {
-    let container;
-    let targetType;
-    if (target === this.player) {
-      container = this.hudAttrs.children.playerHeartsContainer;
-      targetType = "player";
-    } else if (target !== undefined && target === this.clone) {
-      container = this.hudAttrs.children.cloneHeartsContainer;
-      targetType = "clone";
-    } else {
-      console.error("Couldn't update HUD - problem with local cache");
-      return;
-    }
+  private buildHearts(): void {
+    const target = this.player;
+    let container = this.hudAttrs.children.playerHeartsContainer;
     container.removeAll(true);
     for (let i = 0; i < target.health.max; i++) {
       const heart =
@@ -232,11 +177,6 @@ export default class GameUI {
               .setOrigin(0, 0)
               .setDepth(DEPTH.HUD)
               .setScrollFactor(0);
-
-      if (targetType === "clone") {
-        heart.setTint(CLONE_CONFIG.TINT).setTintMode(2);
-      }
-
       container.add(heart);
     }
   }
@@ -275,82 +215,71 @@ export default class GameUI {
 
   /* Public Methods */
 
-  public updateHudAttrs(target?: IEntity): void {
-    if (target === undefined) {
-      this.updateHudAttrs(this.player);
-      if (this.clone?.active) this.updateHudAttrs(this.clone);
-      return;
-    }
+  updateHudAttrs(): void {
+    const target = this.player;
 
-    let cache;
-    if (target === this.player) {
-      cache = this.localCache.player;
-    } else if (target !== undefined && target === this.clone) {
-      cache = this.localCache.clone;
-    } else {
-      console.error("Couldn't update HUD - problem with local cache");
-      return;
-    }
-
+    let cache = this.localCache.player;
     if (cache.attack != target.attack.damage) {
-      this.buildAttack(target);
+      this.buildAttack();
       cache.attack = target.attack.damage;
     }
     if (cache.hearts != target.health.current) {
-      this.buildHearts(target);
+      this.buildHearts();
       cache.hearts = target.health.current;
     }
   }
 
-  public updateHudStats(target?: IEntity): void {
-    if (target === undefined) {
-      this.updateHudKills(this.player);
-      if (this.clone?.active) this.updateHudKills(this.clone);
-      return;
-    }
-    this.updateHudKills(target);
-  }
-
-  public updateHudPhase(text) {
+  updateHudPhase(text) {
     this.hudPhase.text.setText(text);
   }
 
-  public updateHudKills(target: IEntity): void {
+  updateHudKills(): void {
+    const target = this.player;
     const key = target.entityType;
-    const label = key === "player" ? "KILLS" : "CLONE KILLS";
 
     if (this.localCache[key].kills !== target.killCount) {
-      this.killsTexts[key]?.setText(`${label}: ${target.killCount}`);
+      this.killsTexts[key]?.setText(`KILLS: ${target.killCount}`);
       this.localCache[key].kills = target.killCount;
     }
   }
 
-  public updateHudAttack(target: IEntity): void {
+  updateHudAttack(target: IEntity): void {
     const key = target.entityType;
     this.attackTexts[key]?.setText(target.attack.damage.toString());
   }
 
-  public updateAbilityCooldown(ability: "dash" | string, percent: number): void {
+  updateAbilityCooldown(ability: "dash" | string, percent: number): void {
     this.cooldownBars[ability].setDisplaySize(Math.max(0, UI_CONFIG.ABILITY_CARD.WIDTH * percent), UI_CONFIG.ABILITY_CARD.HEIGHT);
   }
 
-  public drawDebugLines(container: Phaser.GameObjects.Container) {
+  drawDebugLines(container: Phaser.GameObjects.Container) {
     const debug = this.scene.add.graphics().setDepth(DEPTH.DEBUG);
     const containerBounds = container.getBounds();
     debug.lineStyle(1, 0xff0000, 1);
     debug.strokeRect(container.x - container.width / 2, container.y - container.height / 2, containerBounds.width, containerBounds.height);
   }
 
-  public addUIText(x: number, y: number, content: string, style: Phaser.Types.GameObjects.Text.TextStyle = {}, origin: { x: TextOrigin; y: TextOrigin } = { x: 0, y: 0 }, depth: number = DEPTH.HUD): Phaser.GameObjects.Text {
+  addUIText(x: number, y: number, content: string, style: Phaser.Types.GameObjects.Text.TextStyle = {}, origin: { x: TextOrigin; y: TextOrigin } = { x: 0, y: 0 }, depth: number = DEPTH.HUD): Phaser.GameObjects.Text {
     return this.scene.add.text(x, y, content, style).setOrigin(origin.x, origin.y).setDepth(depth).setScrollFactor(0);
   }
 
-  public getUIObjects(): Phaser.GameObjects.GameObject[] {
+  getUIObjects(): Phaser.GameObjects.GameObject[] {
     return [this.hudAttrs.container, this.hudAbilities.container, this.hudPhase.container, this.hudStats.container, this.scene.cursorSprite];
   }
 
-  public destroyEvents() {
-    this.scene.events.off("clone_summoned", this.onCloneSummoned);
-    this.scene.events.off("clone_dismissed", this.onCloneDismissed);
+  private onEntityDeath(entity: IEntity) {
+    if (!entity.isEntityType("player")) {
+      this.updateHudAttrs();
+      this.updateHudKills();
+    }
+  }
+
+  private onWaveStart(waveNumber: number) {
+    this.updateHudPhase(`WAVE ${waveNumber}`);
+  }
+
+  destroyEvents() {
+    eventBus.off("entity:death", this.onEntityDeathHandler);
+    eventBus.off("wave:start", this.onWaveStartHandler);
   }
 }

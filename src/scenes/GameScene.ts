@@ -9,6 +9,7 @@ import GameUI from "../systems/GameUI";
 import DebugPanel from "../systems/DebugPanel";
 import Enemy from "../entities/Enemy";
 import { ENEMY_REGISTRY } from "../utils/ENEMY_REGISTRY";
+import { eventBus, GameEvents } from "../systems/EventBus";
 
 export default class GameScene extends Phaser.Scene {
   // Core objects
@@ -36,6 +37,10 @@ export default class GameScene extends Phaser.Scene {
   enemiesCloneAttackOverlap: Phaser.Physics.Arcade.Collider | null = null;
 
   spawnZones: SpawnZone[];
+
+  private onEntityDeathHandler = (payload: GameEvents["entity:death"]) => this.onEntityDeath(payload.entity);
+  private onEntityDashHandler = (payload: GameEvents["entity:dash"]) => this.onEntityDash(payload.entity, payload.direction);
+  private onWaveStartHandler = (payload: GameEvents["wave:start"]) => this.onWaveStart(payload.waveNumber);
 
   // Stats
   private cloneTotalKillCount: number = 0;
@@ -66,12 +71,14 @@ export default class GameScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.destroyEvents();
       this.ui.destroyEvents();
+      this.waveManager?.destroyEvents();
     });
 
     if (this.debugMode) new DebugPanel(this);
     else this.buildWaveManager();
 
-    this.events.on("death", this.onEntityDeath, this);
+    eventBus.on("entity:death", this.onEntityDeathHandler);
+    eventBus.on("wave:start", this.onWaveStartHandler);
 
     this.buildCloneControls();
 
@@ -109,7 +116,6 @@ export default class GameScene extends Phaser.Scene {
 
     if (this.clone?.active && this.clone?.entityState !== "dead") {
       this.clone.update(time, delta);
-      this.ui.updateHudAttrs(this.clone);
       this.clone.attack.attackIndicator.update();
     }
 
@@ -156,21 +162,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.player = new Player(this, GAME_WIDTH / 2, GAME_HEIGHT / 2, "player");
 
-    this.player.on("attack", () => {
-      if (this.clone?.active) this.clone.tryAttack();
-    });
-
-    this.player.on("dash", (vx: number, vy: number, dir: OctoDir) => {
-      if (this.clone?.active) {
-        this.clone.tryDash(dir);
-      }
-      if (this.playerEnemyCollider) this.playerEnemyCollider.active = false;
-      if (this.cloneEnemyCollider) this.cloneEnemyCollider.active = false;
-      this.time.delayedCall(PLAYER_CONFIG.DASH_DURATION, () => {
-        if (this.playerEnemyCollider) this.playerEnemyCollider.active = true;
-        if (this.cloneEnemyCollider) this.cloneEnemyCollider.active = true;
-      });
-    });
+    eventBus.on("entity:dash", this.onEntityDashHandler);
   }
 
   private buildCamera(): void {
@@ -220,7 +212,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private buildWaveManager(): void {
-    this.waveManager = new WaveManager(this);
+    this.waveManager = new WaveManager(this.time);
     this.waveManager.start();
   }
 
@@ -283,18 +275,13 @@ export default class GameScene extends Phaser.Scene {
     this.cloneEnemyCollider = this.physics.add.collider(this.clone, this.enemies);
     this.cloneAttackOverlap = this.physics.add.overlap(this.clone.attack.detectionZone, this.enemies, (_zone, target) => this.onAttackHit(_zone, target));
     this.enemiesCloneAttackOverlap = this.physics.add.overlap(this.enemiesAttackZones, this.clone, (target, _zone) => this.onAttackHit(_zone, target));
-
-    this.events.emit("clone_summoned", this.clone);
-    this.ui.updateHudAttrs(this.clone);
   }
 
   private dismissClone(): void {
     this.clone.setEntityState("dead");
   }
 
-  // ─── Public API ──────────────────────────────────────────────────────
-
-  onEntityDeath(entity: IEntity): void {
+  private onEntityDeath(entity: IEntity): void {
     switch (entity.entityType) {
       case "player":
         this.onPlayerDeath();
@@ -302,17 +289,13 @@ export default class GameScene extends Phaser.Scene {
       case "clone":
         this.onCloneDeath();
         break;
-      default:
-        entity?.lastAttacker?.registerKill();
-        this.ui.updateHudAttrs(entity?.lastAttacker);
-        this.ui.updateHudKills(entity?.lastAttacker);
-        if (entity?.lastAttacker?.entityType === "clone") this.cloneTotalKillCount++;
-        this.waveManager?.onEnemyKilled();
+      case "enemy":
+        this.onEnemyDeath(entity);
         break;
     }
   }
 
-  onPlayerDeath(): void {
+  private onPlayerDeath(): void {
     this.scene.start("GameOverScene", {
       wave: this.waveManager?.currentWave ? this.waveManager?.currentWave - 1 : 0,
       kills: this.player.killCount,
@@ -320,7 +303,7 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  onCloneDeath(): void {
+  private onCloneDeath(): void {
     this.clone = null;
     this.cloneEnemyCollider?.destroy();
     this.cloneEnemyCollider = null;
@@ -328,7 +311,25 @@ export default class GameScene extends Phaser.Scene {
     this.cloneAttackOverlap = null;
     this.enemiesCloneAttackOverlap?.destroy();
     this.enemiesCloneAttackOverlap = null;
-    this.events.emit("clone_dismissed");
+  }
+
+  private onEnemyDeath(entity: IEntity): void {
+    if (entity.lastAttacker?.entityType === "clone") this.cloneTotalKillCount++;
+  }
+
+  private onWaveStart(waveNumber) {
+    this.spawnWave(waveNumber);
+  }
+
+  private onEntityDash(entity: IEntity, direction: OctoDir) {
+    if (entity === this.player && direction) {
+      if (this.playerEnemyCollider) this.playerEnemyCollider.active = false;
+      if (this.cloneEnemyCollider) this.cloneEnemyCollider.active = false;
+      this.time.delayedCall(PLAYER_CONFIG.DASH_DURATION, () => {
+        if (this.playerEnemyCollider) this.playerEnemyCollider.active = true;
+        if (this.cloneEnemyCollider) this.cloneEnemyCollider.active = true;
+      });
+    }
   }
 
   // ─── Private helpers ──────────────────────────────────────────────────────
@@ -398,6 +399,8 @@ export default class GameScene extends Phaser.Scene {
   }
 
   public destroyEvents() {
-    this.events.off("death", this.onEntityDeath, this);
+    eventBus.off("entity:death", this.onEntityDeathHandler);
+    eventBus.off("entity:dash", this.onEntityDashHandler);
+    eventBus.off("wave:start", this.onWaveStartHandler);
   }
 }

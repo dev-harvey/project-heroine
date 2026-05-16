@@ -3,9 +3,11 @@
 interface IEntity {
   id: string;
   scene: Phaser.Scene;
-  entityType: string;
+  entityType: EntityType;
+  isEntityType(...types: EntityType[]): boolean
   entityState: EntityState;
   setEntityState(next: EntityState): void;
+  isInEntityState(...states: EntityState[]): boolean
   x: number;
   y: number;
   movement: IEntityMovement;
@@ -116,6 +118,8 @@ interface ICloneSkills extends IAllySkills {}
 interface IEnemySkills extends IEntitySkills {}
 
 /* OTHER */
+
+type EntityType = "player" | "clone" | "enemy";
 
 type EntityState = "idle" | "walk" | "run" | "reposition" | "attack" | "dash" | "hurt" | "stunned" | "dead";
 

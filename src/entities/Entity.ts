@@ -1,16 +1,19 @@
 import * as Phaser from "phaser";
 import { angleToDir, syncAttackZone } from "../utils/utils";
 import { DEPTH } from "../utils/constants";
+import { eventBus } from "../systems/EventBus";
 
 abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
   id: string;
-  entityType: string;
+  entityType: EntityType;
   movement: IEntityMovement;
   health: IEntityHealth;
   attack: IEntityAttack;
   skills: IEntitySkills;
 
   killCount: number;
+
+  lastAttacker: IEntity | null = null;
 
   protected textureKey: string;
 
@@ -111,8 +114,9 @@ abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
 
   /* Non state machine on- functions */
   protected onDeathComplete() {
-    this.scene.events.emit("death", this);
     this.attack.detectionZone.destroy();
+    this.lastAttacker?.registerKill();
+    eventBus.emit(`entity:death`, { entity: this, entityType: this.entityType });
     this.destroy();
   }
   protected onChangeDirection() {
@@ -207,6 +211,10 @@ abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
     }
   }
 
+  isEntityType(...types: EntityType[]): boolean {
+    return types.includes(this.entityType);
+  }
+
   isInEntityState(...states: EntityState[]): boolean {
     return states.includes(this.entityState);
   }
@@ -231,8 +239,13 @@ abstract class Entity extends Phaser.Physics.Arcade.Sprite implements IEntity {
     }
   }
 
+  abstract calculateAttackDir(): CardinalDir;
+
   tryAttack(): boolean {
     if (this.attack.cooldown > 0) return false;
+    this.attack.dir = this.calculateAttackDir();
+    if (!this.setEntityState("attack")) return false;
+    eventBus.emit(`entity:attack`, { entity: this, entityType: this.entityType, direction: this.attack.dir });
     return true;
   }
 

@@ -1,5 +1,6 @@
 import { Skill } from "./Skill";
 import { getMouseDirFromTarget } from "../utils/utils";
+import { eventBus } from "../systems/EventBus";
 
 export class Dash extends Skill implements IDash {
   protected player: IPlayer;
@@ -71,7 +72,7 @@ export class Dash extends Skill implements IDash {
     const vy = (moveDir.y / vectorLength) * dashSpeed;
     this.target.body.setVelocity(vx, vy);
 
-    this.target.emit("dash", vx, vy, dashDir);
+    eventBus.emit("entity:dash", { entity: this.target, entityType: this.target.entityType, direction: dashDir});
 
     this._cooldownTimer = this._cooldown;
 

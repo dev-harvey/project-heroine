@@ -22,15 +22,8 @@ export default abstract class Enemy extends Entity implements IEnemy {
     this.targetClone = null;
   }
 
-  tryAttack(): boolean {
-    if (!super.tryAttack() || !this.currentTarget) return false;
-
-    this.attack.dir = angleToDir(Phaser.Math.Angle.Between(this.x, this.y, this.currentTarget.x, this.currentTarget.y));
-
-    if (!this.setEntityState("attack")) return false;
-    this.emit("attack", this.attack.dir);
-
-    return true;
+  calculateAttackDir(): CardinalDir {
+    return angleToDir(Phaser.Math.Angle.Between(this.x, this.y, this.currentTarget.x, this.currentTarget.y));
   }
 
   protected selectTarget(): IAlly {

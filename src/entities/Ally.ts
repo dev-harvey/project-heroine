@@ -26,15 +26,8 @@ abstract class Ally extends Entity implements IAlly {
     super(scene, x, y, textureKey);
   }
 
-  tryAttack(): boolean {
-    if (!super.tryAttack()) return false;
-    
-    this.attack.dir = getMouseDirFromTarget(this);
-    
-    if (!this.setEntityState("attack")) return false;
-    this.emit("attack", this.attack.dir);
-
-    return true;
+  calculateAttackDir(): CardinalDir {
+    return getMouseDirFromTarget(this);
   }
 
   tryDash(dir?: OctoDir): boolean {
