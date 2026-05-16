@@ -3,13 +3,14 @@ import Player from "../entities/Player";
 import Clone from "../entities/Clone";
 import WaveManager from "../systems/WaveManager";
 
-import { CLONE_CONFIG, DEPTH, GAME_ASSETS, GAME_COLORS, GAME_CONFIG, PLAYER_CONFIG, UI_CONFIG } from "../utils/constants";
-import { checkIfBBehindA, colorToHex, getAnchorOctoOffset } from "../utils/utils";
+import { CLONE_CONFIG, DEPTH, GAME_ASSETS, GAME_COLORS, GAME_CONFIG, PLAYER_CONFIG } from "../utils/constants";
+import { checkIfBBehindA, getAnchorOctoOffset } from "../utils/utils";
 import GameUI from "../systems/GameUI";
 import DebugPanel from "../systems/DebugPanel";
 import Enemy from "../entities/Enemy";
 import { ENEMY_REGISTRY } from "../utils/ENEMY_REGISTRY";
 import { eventBus, GameEvents } from "../systems/EventBus";
+import DamageNumbers from "../systems/DamageNumbers";
 
 export default class GameScene extends Phaser.Scene {
   // Core objects
@@ -18,6 +19,7 @@ export default class GameScene extends Phaser.Scene {
   waveManager!: WaveManager;
 
   ui: GameUI;
+  damageNumbers: DamageNumbers;
 
   cursorSprite: Phaser.GameObjects.Image;
   uiCamera!: Phaser.Cameras.Scene2D.Camera;
@@ -68,9 +70,12 @@ export default class GameScene extends Phaser.Scene {
     this.ui = new GameUI(this, this.player);
     this.buildUICamera();
 
+    this.damageNumbers = new DamageNumbers(this);
+
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.destroyEvents();
       this.ui.destroyEvents();
+      this.damageNumbers.destroyEvents();
       this.waveManager?.destroyEvents();
     });
 
@@ -236,31 +241,6 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  // ─── Floating numbers ──────────────────────────────────────────────────────
-
-  spawnDamageNumber(x: number, y: number, amount: number, color = "#ffffff", size = 19): void {
-    const jitter = Phaser.Math.Between(-12, 12);
-    const txt = this.add
-      .text(x + jitter, y, `${amount}`, {
-        fontSize: `${size}px`,
-        color: color,
-        fontFamily: UI_CONFIG.BODY_FONT,
-        stroke: "#000000",
-        strokeThickness: 3,
-      })
-      .setOrigin(0.5)
-      .setDepth(DEPTH.FLOATING);
-    this.uiCamera?.ignore(txt);
-    this.tweens.add({
-      targets: txt,
-      y: txt.y - 46,
-      alpha: { from: 1, to: 0 },
-      duration: 850,
-      ease: "Power1",
-      onComplete: () => txt.destroy(),
-    });
-  }
-
   // ─── Clone management ──────────────────────────────────────────────────────
 
   private summonClone(): void {
@@ -345,8 +325,6 @@ export default class GameScene extends Phaser.Scene {
 
     attacker.regsiterHit(defender);
     defender.tryHurt(attacker.attack.damage, attacker);
-
-    this.spawnDamageNumber(defender.x, defender.y - 10, attacker.attack.damage, colorToHex(GAME_COLORS.BLOOD), 26);
   }
 
   spawnWave(waveNum: number): void {

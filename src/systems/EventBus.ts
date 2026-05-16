@@ -6,7 +6,7 @@ export interface GameEvents {
   "entity:attack": { entity: IEntity; direction: CardinalDir };
   "entity:dash": { entity: IEntity; direction: OctoDir };
   "entity:death": { entity: IEntity };
-  "entity:hurt": { entity: IEntity, amount: number, attacker?: IEntity, };
+  "entity:hurt": { entity: IEntity, amount: number };
   "wave:start": { waveNumber: number };
 }
 
