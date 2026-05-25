@@ -12,9 +12,6 @@ export default class Clone extends Ally implements IClone {
 
   targetPlayer: Player;
 
-  protected readonly maxTotalHealth: number = CLONE_CONFIG.MAXTOTAL_HEALTH;
-  protected readonly maxTotalDamage: number = CLONE_CONFIG.MAXTOTAL_ATTACK_DAMAGE;
-
   declare attack: ICloneAttack;
   declare movement: ICloneMovement;
   declare health: ICloneHealth;

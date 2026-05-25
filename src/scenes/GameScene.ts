@@ -323,8 +323,9 @@ export default class GameScene extends Phaser.Scene {
     if (attacker.attack.hitEnemies.has(defender)) return;
     if (checkIfBBehindA(attacker, defender)) return;
 
+    const damage = Math.round(attacker.attack.damage * Phaser.Math.RND.realInRange(0.9, 1.1));
     attacker.regsiterHit(defender);
-    defender.tryHurt(attacker.attack.damage, attacker);
+    defender.tryHurt(damage, attacker);
   }
 
   spawnWave(waveNum: number): void {

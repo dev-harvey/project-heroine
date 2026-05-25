@@ -10,9 +10,6 @@ import Ally from "./Ally";
 export default class Player extends Ally implements IPlayer {  
   declare textureKey: string;
 
-  protected readonly maxTotalHealth: number = PLAYER_CONFIG.MAXTOTAL_HEALTH;
-  protected readonly maxTotalDamage: number = PLAYER_CONFIG.MAXTOTAL_ATTACK_DAMAGE;
-
   declare movement: IPlayerMovement;
   declare health: IPlayerHealth;
   declare attack: IPlayerAttack;

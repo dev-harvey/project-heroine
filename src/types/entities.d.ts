@@ -46,7 +46,6 @@ interface IEntity {
 
 interface IAlly extends IEntity {
   attack: IAllyAttack;
-  setAttackDamage(value: number): void;
 }
 
 interface IPlayer extends IAlly {
@@ -68,8 +67,9 @@ interface IEntityMovement {
   facingDir: CardinalDir;
 }
 
-interface IPlayerMovement extends IEntityMovement {}
-interface ICloneMovement extends IEntityMovement {}
+interface IAllyMovement extends IEntityMovement {}
+interface IPlayerMovement extends IAllyMovement {}
+interface ICloneMovement extends IAllyMovement {}
 interface IEnemyMovement extends IEntityMovement {}
 
 /* HEALTH */
@@ -79,8 +79,9 @@ interface IEntityHealth {
   max: number;
 }
 
-interface IPlayerHealth extends IEntityHealth {}
-interface ICloneHealth extends IEntityHealth {}
+interface IAllyHealth extends IEntityHealth {}
+interface IPlayerHealth extends IAllyHealth {}
+interface ICloneHealth extends IAllyHealth {}
 interface IEnemyHealth extends IEntityHealth {}
 
 /* ATTACK */

@@ -169,12 +169,12 @@ export default class DebugPanel {
         label: () => `PLA HP: ${scene.player.health.max}`,
         minus: () => {
           const newMax = scene.player.health.max - 1;
-          scene.player.setMaxHp(newMax);
+          scene.player.health.max = newMax;
           scene.player.health.current = Math.max(1, scene.player.health.current - 1);
         },
         plus: () => {
           const newMax = scene.player.health.max + 1;
-          scene.player.setMaxHp(newMax);
+          scene.player.health.max = newMax;
           scene.player.health.current = Math.min(scene.player.health.current + 1, newMax);
         },
       },
@@ -182,11 +182,11 @@ export default class DebugPanel {
         label: () => `PLA ATK: ${scene.player.attack.damage}`,
         minus: () => {
           const newDamage = scene.player.attack.damage - 1;
-          scene.player.setAttackDamage(newDamage);
+          scene.player.attack.damage = newDamage;
         },
         plus: () => {
           const newDamage = scene.player.attack.damage + 1;
-          scene.player.setAttackDamage(newDamage);
+          scene.player.attack.damage = newDamage;
         },
       },
     ];

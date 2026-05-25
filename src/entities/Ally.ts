@@ -5,22 +5,11 @@ import { getMouseDirFromTarget } from "../utils/utils";
 abstract class Ally extends Entity implements IAlly {
   declare textureKey: string;
 
-  declare movement: IPlayerMovement;
+  declare movement: IAllyMovement;
 
-  protected readonly maxTotalHealth: number = 9;
-  protected readonly maxTotalDamage: number = 9;
-
-  declare health: IPlayerHealth;
-  setMaxHp(value: number) {
-    this.health.max = Math.min(this.maxTotalHealth, value);
-  }
-  declare attack: IPlayerAttack;
-  setAttackDamage(value: number): void {
-    this.attack.damage = Math.min(this.maxTotalDamage, value);
-  }
-
-  declare skills: IPlayerSkills;
-  anchor: IPlayerAnchor;
+  declare health: IAllyHealth;
+  declare attack: IAllyAttack;
+  declare skills: IAllySkills;
 
   constructor(scene: Phaser.Scene, x: number, y: number, textureKey: string) {
     super(scene, x, y, textureKey);
